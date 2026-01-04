@@ -347,7 +347,7 @@ function renderOverlay() {
   // Gaze dot
   if (overlay.gaze && overlay.gaze.x != null && overlay.gaze.y != null) {
     const pt = toCanvasLocalPoint(overlay.gaze.x, overlay.gaze.y) || overlay.gaze;
-    drawDot(pt.x, pt.y, 7, "#88ff3b");
+    drawDot(pt.x, pt.y, 7, "#ffff3b");
   }
 }
 
