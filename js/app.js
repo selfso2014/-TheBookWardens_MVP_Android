@@ -238,7 +238,7 @@ function renderOverlay() {
 
   // Gaze dot: smaller
   if (overlay.gaze && overlay.gaze.x != null && overlay.gaze.y != null) {
-    drawDot(overlay.gaze.x, overlay.gaze.y, 7, "#00ff3b");
+    drawDot(overlay.gaze.x, overlay.gaze.y, 7, "#88ff3b");
   }
 }
 
