@@ -16,7 +16,12 @@ import { loadWebpackModule } from "./webpack-loader.js";
  *  - ?debug=1 (default): INFO/WARN/ERROR
  *  - ?debug=2          : verbose DEBUG
  */
-const LICENSE_KEY = "dev_1ntzip9admm6g0upynw3gooycnecx0vl93hz8nox";
+// Product key: for selfso2014.github.io
+// Dev key: for localhost
+const LICENSE_KEY = window.location.hostname === "selfso2014.github.io"
+  ? "prod_srdpyuuaumnsqoyk2pvdci0rg3ahsr923bshp32u"
+  : "dev_1ntzip9admm6g0upynw3gooycnecx0vl93hz8nox";
+
 
 const DEBUG_LEVEL = (() => {
   const v = new URLSearchParams(location.search).get("debug");
@@ -152,9 +157,8 @@ function pushLog(line) {
 }
 
 function logBase(level, tag, msg, data) {
-  const line = `[${ts()}] ${level.padEnd(5)} ${tag.padEnd(10)} ${msg}${
-    data !== undefined ? " " + JSON.stringify(safeJson(data)) : ""
-  }`;
+  const line = `[${ts()}] ${level.padEnd(5)} ${tag.padEnd(10)} ${msg}${data !== undefined ? " " + JSON.stringify(safeJson(data)) : ""
+    }`;
   if (level === "ERROR") console.error(line);
   else if (level === "WARN") console.warn(line);
   else console.log(line);
@@ -697,10 +701,63 @@ setInterval(() => {
   }
 }, 2000);
 
+// ---------- In-App Browser Logic ----------
+function isInAppBrowser() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  // Common in-app identifiers: KAKAOTALK, FBAV (Facebook), Line, Instagram, etc.
+  return (
+    /KAKAOTALK/i.test(ua) ||
+    /FBAV/i.test(ua) ||
+    /Line/i.test(ua) ||
+    /Instagram/i.test(ua) ||
+    /Snapchat/i.test(ua) ||
+    /Twitter/i.test(ua) ||
+    /DaumApps/i.test(ua)
+  );
+}
+
+function handleInAppBrowser() {
+  const guideEl = document.getElementById("inappGuide");
+  if (guideEl) guideEl.style.display = "block";
+
+  setStatus("Please open in Chrome/Safari.");
+
+  const btn = document.getElementById("btnOpenExternal");
+  if (btn) {
+    btn.onclick = () => {
+      const url = window.location.href;
+
+      // Android Intent scheme
+      if (/Android/i.test(navigator.userAgent)) {
+        // Try requesting Chrome specifically
+        // Format: intent://<URL>#Intent;scheme=https;package=com.android.chrome;end
+        const noProtocol = url.replace(/^https?:\/\//, "");
+        const intentUrl = `intent://${noProtocol}#Intent;scheme=https;package=com.android.chrome;end`;
+        window.location.href = intentUrl;
+      } else {
+        // iOS or others: Hard to force-open. 
+        // We can just try window.open (might be blocked) or alert the user.
+        alert("Please copy the URL and open it in Safari or Chrome.");
+        // Try clipboard copy as a fallback convenience
+        navigator.clipboard.writeText(url).then(() => {
+          alert("URL copied to clipboard!");
+        }).catch(() => { });
+      }
+    };
+  }
+}
+
 // ---------- Boot ----------
 async function boot() {
   resizeCanvas();
   renderOverlay();
+
+  // Check In-App Browser first
+  if (isInAppBrowser()) {
+    logW("boot", "In-app browser detected, halting boot.");
+    handleInAppBrowser();
+    return;
+  }
 
   setStatus("Initializing...");
   setGazeInfo("gaze: -");
