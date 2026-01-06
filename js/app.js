@@ -22,7 +22,6 @@ const LICENSE_KEY = window.location.hostname === "selfso2014.github.io"
   ? "prod_srdpyuuaumnsqoyk2pvdci0rg3ahsr923bshp32u"
   : "dev_1ntzip9admm6g0upynw3gooycnecx0vl93hz8nox";
 
-
 const DEBUG_LEVEL = (() => {
   const v = new URLSearchParams(location.search).get("debug");
   const n = Number(v);
