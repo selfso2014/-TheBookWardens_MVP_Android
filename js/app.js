@@ -723,7 +723,7 @@ function isInAppBrowser() {
 
 function handleInAppBrowser() {
   const guideEl = document.getElementById("inappGuide");
-  if (guideEl) guideEl.style.display = "block";
+  if (guideEl) guideEl.style.display = "flex"; // Use flex to center content
 
   setStatus("Please open in Chrome/Safari.");
 
@@ -757,12 +757,7 @@ async function boot() {
   resizeCanvas();
   renderOverlay();
 
-  // Check In-App Browser first
-  if (isInAppBrowser()) {
-    logW("boot", "In-app browser detected, halting boot.");
-    handleInAppBrowser();
-    return;
-  }
+  // (In-app browser check moved to immediate execution)
 
   setStatus("Initializing...");
   setGazeInfo("gaze: -");
@@ -775,23 +770,23 @@ async function boot() {
   }
 
   const camOk = await ensureCamera();
-  if (!camOk) return;
+  if (!camOk) return false; // Return false on failure
 
   const sdkOk = await initSeeso();
-  if (!sdkOk) return;
+  if (!sdkOk) return false;
 
   const trackOk = startTracking();
   if (!trackOk) {
     setStatus("Failed to start tracking.");
     showRetry(true, "tracking failed");
-    return;
+    return false;
   }
 
   const calOk = startCalibration();
   if (!calOk) {
     setStatus("Failed to start calibration.");
     showRetry(true, "calibration failed");
-    return;
+    return false;
   }
 
   logI("boot", "ready");
@@ -801,5 +796,13 @@ async function boot() {
 // Expose boot control to Game
 window.startEyeTracking = boot;
 
-// Remove auto-boot
-// boot().catch((e) => logE("boot", "boot() exception", e));
+// IMMEDIATE: Check In-App Browser on Load
+if (isInAppBrowser()) {
+  console.warn("In-app browser detected. Halting game UI and showing guide.");
+  // Force hide game UI
+  const gameUI = document.getElementById("game-ui");
+  if (gameUI) gameUI.style.display = "none";
+  // Show guide
+  handleInAppBrowser();
+}
+

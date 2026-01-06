@@ -1,8 +1,11 @@
 :root {
-  --bg-color: #0f0c15; /* Deep dark purple/black */
+  --bg-color: #0f0c15;
+  /* Deep dark purple/black */
   --card-bg: #1a1625;
-  --primary-accent: #8b2fc9; /* Neon Purple */
-  --secondary-accent: #2c9c91; /* Teal for focus/success */
+  --primary-accent: #8b2fc9;
+  /* Neon Purple */
+  --secondary-accent: #2c9c91;
+  /* Teal for focus/success */
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0b0;
   --rift-glow: 0 0 20px rgba(139, 47, 201, 0.4);
@@ -17,9 +20,14 @@ body {
   padding: 0;
   background-color: var(--bg-color);
   color: var(--text-primary);
-  font-family: 'Outfit', 'Segoe UI', sans-serif; /* Modern game font */
-  overflow: hidden; /* App style */
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  /* Modern game font */
+  overflow: hidden;
+  /* App style */
   height: 100vh;
+  /* Fallback */
+  height: 100dvh;
+  /* Mobile viewport fix */
   width: 100vw;
 }
 
@@ -30,8 +38,10 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 0; /* Behind game UI */
-  opacity: 0; /* Hide camera feed by default */
+  z-index: 0;
+  /* Behind game UI */
+  opacity: 0;
+  /* Hide camera feed by default */
   pointer-events: none;
 }
 
@@ -49,8 +59,9 @@ body {
   padding: 5px;
   border-radius: 4px;
   color: #0f0;
-  pointer-events: none; 
-  display: none; /* Hidden for default gameplay */
+  pointer-events: none;
+  display: none;
+  /* Hidden for default gameplay */
 }
 
 /* --- Game Container --- */
@@ -66,6 +77,8 @@ body {
 /* --- Navigation / Header --- */
 .game-header {
   height: 60px;
+  flex-shrink: 0;
+  /* Prevent shrinking */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -88,18 +101,20 @@ body {
 
 /* --- Screens State Manager --- */
 .screen {
-  display: none; /* All screens hidden by default */
+  display: none;
+  /* All screens hidden by default */
   flex: 1;
   width: 100%;
   height: 100%;
-  position: absolute;
-  top: 60px; /* Below header */
-  left: 0;
+  position: relative;
+  /* Changed from absolute for better flex behavior */
   padding: 20px;
   overflow-y: auto;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  padding-bottom: 80px;
+  /* Safe area for bottom buttons */
 }
 
 .screen.active {
@@ -108,8 +123,15 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* --- 0. Home Screen --- */
@@ -123,7 +145,8 @@ body {
   color: var(--primary-accent);
   text-shadow: var(--rift-glow);
   margin-bottom: 10px;
-  font-family: 'Cinzel', serif; /* Fantasy feeling */
+  font-family: 'Cinzel', serif;
+  /* Fantasy feeling */
 }
 
 .btn-primary {
@@ -137,6 +160,8 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(139, 47, 201, 0.5);
   transition: transform 0.2s;
+  margin-bottom: 20px;
+  /* Space below button */
 }
 
 .btn-primary:hover {
@@ -150,8 +175,8 @@ body {
   width: 100%;
   max-width: 400px;
   padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
 }
 
@@ -176,8 +201,8 @@ body {
 .option-btn {
   display: block;
   width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   padding: 15px;
   border-radius: 12px;
@@ -186,14 +211,16 @@ body {
   cursor: pointer;
 }
 
-.option-btn:hover, .option-btn.selected {
+.option-btn:hover,
+.option-btn.selected {
   background: rgba(139, 47, 201, 0.3);
   border-color: var(--primary-accent);
 }
 
 /* --- 2. Reading Room (Rift) --- */
 #screen-read {
-  justify-content: flex-start; /* Align text to top */
+  justify-content: flex-start;
+  /* Align text to top */
   padding-top: 40px;
 }
 
@@ -264,7 +291,10 @@ body {
 /* --- In-App Browser Guide (Overlay) --- */
 #inappGuide {
   position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: #111;
   color: #fff;
   z-index: 20000;
