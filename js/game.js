@@ -19,9 +19,33 @@ const Game = {
     bindEvents() {
         const startBtn = document.getElementById("btn-start-game");
         if (startBtn) {
-            startBtn.onclick = () => {
-                // Assume permissions are requested by app.js; we just move UI
-                this.switchScreen("screen-word");
+            startBtn.onclick = async () => {
+                startBtn.disabled = true;
+                startBtn.textContent = "Initializing Eye Tracking...";
+
+                try {
+                    // 1. Request Camera & Init SDK
+                    if (typeof window.startEyeTracking === "function") {
+                        const ok = await window.startEyeTracking();
+                        if (ok) {
+                            // 2. Success -> Move to Game
+                            this.switchScreen("screen-word");
+                        } else {
+                            alert("Eye tracking failed to initialize. Please reload and try again.");
+                            startBtn.disabled = false;
+                            startBtn.textContent = "Enter the Rift";
+                        }
+                    } else {
+                        // Fallback/Debug
+                        console.warn("window.startEyeTracking not found. Starting without eye tracking.");
+                        this.switchScreen("screen-word");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Initialization error: " + e.message);
+                    startBtn.disabled = false;
+                    startBtn.textContent = "Enter the Rift";
+                }
             };
         }
     },

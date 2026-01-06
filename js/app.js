@@ -795,6 +795,11 @@ async function boot() {
   }
 
   logI("boot", "ready");
+  return true; // Return success
 }
 
-boot().catch((e) => logE("boot", "boot() exception", e));
+// Expose boot control to Game
+window.startEyeTracking = boot;
+
+// Remove auto-boot
+// boot().catch((e) => logE("boot", "boot() exception", e));
