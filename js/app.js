@@ -25,7 +25,7 @@ const LICENSE_KEY = window.location.hostname === "selfso2014.github.io"
 const DEBUG_LEVEL = (() => {
   const v = new URLSearchParams(location.search).get("debug");
   const n = Number(v);
-  return Number.isFinite(n) ? n : 1;
+  return Number.isFinite(n) ? n : 0; // Default: 0 (Hidden)
 })();
 
 // ---------- DOM ----------
@@ -62,6 +62,8 @@ function safeJson(v) {
 }
 
 function ensureLogPanel() {
+  if (DEBUG_LEVEL === 0) return null; // Don't create panel if debug is off
+
   let panel = document.getElementById("debugLogPanel");
   if (panel) return panel;
 
@@ -149,6 +151,7 @@ function ensureLogPanel() {
 const panel = ensureLogPanel();
 
 function pushLog(line) {
+  if (!panel) return; // No panel, no display
   LOG_BUFFER.push(line);
   if (LOG_BUFFER.length > LOG_MAX) LOG_BUFFER.splice(0, LOG_BUFFER.length - LOG_MAX);
   panel.textContent = LOG_BUFFER.join("\n");
