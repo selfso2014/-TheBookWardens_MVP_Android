@@ -622,17 +622,18 @@ function attachSeesoCallbacks() {
       }
 
       // Must collect samples AFTER the point is on screen
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          try {
-            lastCollectAt = performance.now();
-            seeso.startCollectSamples();
-            logI("cal", "startCollectSamples called");
-          } catch (e) {
-            logE("cal", "startCollectSamples threw", e);
-          }
-        }, 200);
-      });
+      // Give 500ms for eyes to fixate (prevents data noise and unnatural jumps)
+      if (overlay.collectTimer) clearTimeout(overlay.collectTimer);
+
+      overlay.collectTimer = setTimeout(() => {
+        try {
+          lastCollectAt = performance.now();
+          seeso.startCollectSamples();
+          logI("cal", "startCollectSamples called");
+        } catch (e) {
+          logE("cal", "startCollectSamples threw", e);
+        }
+      }, 500);
     });
 
     logI("sdk", "addCalibrationNextPointCallback bound");
