@@ -633,7 +633,14 @@ function attachSeesoCallbacks() {
       overlay.displayProgress = 0; // Reset smoothed progress
 
       logI("cal", `onCalibrationNextPoint x=${fmt(x)} y=${fmt(y)}`);
-      renderOverlay();
+
+      // START ANIMATION LOOP
+      const tick = () => {
+        if (!overlay.calRunning) return;
+        renderOverlay();
+        requestAnimationFrame(tick);
+      };
+      tick();
 
       // UI Feedback for Calibration Screen
       const statusEl = document.getElementById("calibration-status");
