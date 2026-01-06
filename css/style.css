@@ -63,6 +63,8 @@ body {
 
 #preview {
   z-index: 1;
+  opacity: 0;
+  /* Hide camera feed (face) */
 }
 
 #output {

@@ -351,14 +351,25 @@ function renderOverlay() {
   // Calibration dot
   if (overlay.calRunning && overlay.calPoint) {
     const pt = toCanvasLocalPoint(overlay.calPoint.x, overlay.calPoint.y) || overlay.calPoint;
-    drawDot(pt.x, pt.y, 14, "#ffff3b");
+
+    // Dynamic Color: Red (0%) -> Yellow (50%) -> Green (100%)
+    // But simpler: Red -> Green interpolation
+    const p = overlay.calProgress || 0;
+    // R: 255 -> 0, G: 0 -> 255
+    const r = Math.round(255 * (1 - p));
+    const g = Math.round(255 * p);
+    const color = `rgb(${r}, ${g}, 0)`;
+
+    drawDot(pt.x, pt.y, 20, color); // Increased size
   }
 
-  // Gaze dot
+  // Gaze dot REMOVED per user request
+  /*
   if (overlay.gaze && overlay.gaze.x != null && overlay.gaze.y != null) {
     const pt = toCanvasLocalPoint(overlay.gaze.x, overlay.gaze.y) || overlay.gaze;
     drawDot(pt.x, pt.y, 7, "#ffff3b");
   }
+  */
 }
 
 window.addEventListener("resize", () => {
