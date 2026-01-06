@@ -365,19 +365,15 @@ function renderOverlay() {
     const progress = overlay.displayProgress;
     const ctx = els.canvas.getContext("2d");
 
-    // 1. Color: Dark Purple (50,0,100) -> Bright Gold/Cyan mix
-    // Let's go for Purple -> Gold as requested
-    // Purple: (128, 0, 128), Gold: (255, 215, 0)
-    // Interpolate
-    const r = 128 + (127 * progress);
-    const g = 0 + (215 * progress);
-    const b = 128 + (-128 * progress);
-    const mainColor = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+    // 1. Color: White (255,255,255) -> Red (255,0,0)
+    const r = 255;
+    const g = Math.round(255 * (1 - progress));
+    const b = Math.round(255 * (1 - progress));
+    const mainColor = `rgb(${r}, ${g}, ${b})`;
 
-    // 2. Pulse: Speed increases with progress
-    const pulseSpeed = 0.1 + (progress * 0.4);
+    // 2. Size: Fixed (No heartbeat/pulse)
     const baseSize = 25;
-    const scale = baseSize + Math.sin(frameCount * pulseSpeed) * 4;
+    const scale = baseSize; // constant size
 
     // 3. Shake: only near completion (> 80%)
     let shakeX = 0, shakeY = 0;
