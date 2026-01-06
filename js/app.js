@@ -372,7 +372,7 @@ function renderOverlay() {
     const mainColor = `rgb(${r}, ${g}, ${b})`;
 
     // 2. Size: Fixed (No heartbeat/pulse)
-    const baseSize = 12.5; // Reduced by 50%
+    const baseSize = 6.25; // Reduced by another 50%
     const scale = baseSize;
 
     // 3. Shake: REMOVED (Fixed center)
@@ -393,18 +393,6 @@ function renderOverlay() {
     ctx.beginPath();
     ctx.arc(cx, cy, scale * 0.4, 0, Math.PI * 2);
     ctx.fill();
-
-    // --- Draw: Magic Runes/Outer Ring (Rotating) ---
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(frameCount * 0.03); // Rotate
-    ctx.strokeStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)}, 0.5)`;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 5]); // Scaled down dash
-    ctx.beginPath();
-    ctx.arc(0, 0, scale + 8, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
   }
 
   // --- Gaze dot ---
