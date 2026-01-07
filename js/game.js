@@ -190,10 +190,14 @@ const Game = {
         this.state.currentPage = 1;
         const el = document.getElementById("book-content");
         if (el) {
-            el.scrollTop = 0;
+            el.scrollLeft = 0;
+            el.scrollTop = 0; // Ensure top is 0 too
             // Delay slightly to ensure layout is ready
             setTimeout(() => {
-                this.state.totalPages = Math.ceil(el.scrollHeight / el.clientHeight);
+                // Horizontal pagination with columns
+                const gap = 80; // Must match CSS column-gap
+                const pageWidth = el.clientWidth + gap;
+                this.state.totalPages = Math.ceil(el.scrollWidth / pageWidth);
                 if (this.state.totalPages < 1) this.state.totalPages = 1;
                 this.updatePageUI();
             }, 200);
@@ -216,7 +220,9 @@ const Game = {
 
         if (this.state.currentPage > 1) {
             this.state.currentPage--;
-            el.scrollTo({ top: (this.state.currentPage - 1) * el.clientHeight, behavior: 'smooth' });
+            const gap = 80;
+            const pageWidth = el.clientWidth + gap;
+            el.scrollTo({ left: (this.state.currentPage - 1) * pageWidth, behavior: 'smooth' });
             this.updatePageUI();
         }
     },
@@ -227,7 +233,9 @@ const Game = {
 
         if (this.state.currentPage < this.state.totalPages) {
             this.state.currentPage++;
-            el.scrollTo({ top: (this.state.currentPage - 1) * el.clientHeight, behavior: 'smooth' });
+            const gap = 80;
+            const pageWidth = el.clientWidth + gap;
+            el.scrollTo({ left: (this.state.currentPage - 1) * pageWidth, behavior: 'smooth' });
             this.updatePageUI();
         }
     },
