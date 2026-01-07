@@ -58,16 +58,11 @@
 
     <!-- SCREEN 0.5: CALIBRATION -->
     <section id="screen-calibration" class="screen">
-      <div style="position: relative; z-index: 10000; pointer-events: none;">
-        <h2 style="color: var(--secondary-accent); text-shadow: var(--rift-glow);">Ritual of Sight</h2>
-        <p
-          style="margin-top: 20px; color: #ddd; max-width: 300px; text-align: center; margin-left: auto; margin-right: auto;">
-          Focus on the magic orbs as they appear.<br>
-          Keep your head steady.
-        </p>
-        <div id="calibration-status" style="margin-top:20px; color: #888;">Preparing...</div>
-        <button id="btn-calibration-start" class="btn-primary"
-          style="display:none; pointer-events:auto; margin-top:20px;">Start Point</button>
+      <div
+        style="position: relative; z-index: 10000; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+        <div id="calibration-status" style="display: none;"></div>
+        <button id="btn-calibration-start" class="btn-primary" style="display:none; pointer-events:auto;">Start
+          Point</button>
       </div>
     </section>
 
