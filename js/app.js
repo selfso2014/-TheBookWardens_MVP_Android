@@ -1,5 +1,6 @@
 // js/app.js
 import { loadWebpackModule } from "./webpack-loader.js";
+import { CalibrationManager } from "./calibration.js";
 
 /**
  * SeeSo Eye Tracking Web Demo
@@ -290,11 +291,17 @@ let mediaStream = null;
 const overlay = {
   gaze: null, // {x,y,trackingState,confidence}
   gazeRaw: null, // {x,y,trackingState,confidence}
-  calPoint: null, // {x,y}
-  calProgress: null, // 0..1
-  displayProgress: 0, // smoothed 0..1
-  calRunning: false,
 };
+
+const calManager = new CalibrationManager({
+  logI, logW, logE, setStatus, setState,
+  requestRender: () => renderOverlay(),
+  onCalibrationFinish: () => {
+    if (typeof window.Game !== "undefined") {
+      window.Game.onCalibrationFinish();
+    }
+  }
+});
 
 function getCanvasCssSize() {
   if (!els.canvas) return { w: window.innerWidth, h: window.innerHeight, left: 0, top: 0 };
@@ -369,53 +376,8 @@ function renderOverlay() {
   clearCanvas();
 
   // --- Calibration: Magic Orb Style (Arcane Focus) ---
-  if (overlay.calRunning && overlay.calPoint) {
-    const pt = toCanvasLocalPoint(overlay.calPoint.x, overlay.calPoint.y) || overlay.calPoint;
-
-    // Smooth Interpolation (Lerp)
-    const targetProgress = overlay.calProgress || 0;
-    // Move 10% towards target per frame
-    overlay.displayProgress += (targetProgress - overlay.displayProgress) * 0.1;
-
-    // Retrieve smoothed value
-    const progress = overlay.displayProgress;
-    const ctx = els.canvas.getContext("2d");
-
-    // 1. Color: White (255,255,255) -> Red (255,0,0)
-    const r = 255;
-    const g = Math.round(255 * (1 - progress));
-    const b = Math.round(255 * (1 - progress));
-    const mainColor = `rgb(${r}, ${g}, ${b})`;
-
-    // 2. Size: Fixed (No heartbeat/pulse)
-    const baseSize = 12.5; // Doubled size
-    const scale = baseSize;
-
-    // 3. Shake: REMOVED (Fixed center)
-    const cx = pt.x;
-    const cy = pt.y;
-
-    // --- Draw: Orb Glow (Background) ---
-    const grad = ctx.createRadialGradient(cx, cy, scale * 0.2, cx, cy, scale * 2.0);
-    grad.addColorStop(0, mainColor);
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, scale * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // --- Draw: Core Orb ---
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(cx, cy, scale * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // --- Draw: Progress Percentage ---
-    ctx.fillStyle = "white";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(`${Math.round(progress * 100)}%`, cx, cy - 30);
-  }
+  // --- Calibration: Magic Orb Style (Arcane Focus) ---
+  calManager.render(els.canvas.getContext("2d"), els.canvas.width, els.canvas.height, toCanvasLocalPoint);
 
   // --- Gaze dot ---
   if (overlay.gaze && overlay.gaze.x != null && overlay.gaze.y != null) {
@@ -619,146 +581,8 @@ function attachSeesoCallbacks() {
     logI("sdk", "addDebugCallback bound");
   }
 
-  // ---- Calibration callbacks (crucial) ----
-  if (typeof seeso.addCalibrationNextPointCallback === "function") {
-    seeso.addCalibrationNextPointCallback((x, y) => {
-      lastNextPointAt = performance.now();
-      overlay.isFinishing = false; // Reset flag
-
-      // Increment point counter (1-based)
-      overlay.calPointCount = (overlay.calPointCount || 0) + 1;
-
-      // Clear any pending watchdog timer from previous point
-      if (overlay.watchdogTimer) {
-        clearTimeout(overlay.watchdogTimer);
-        overlay.watchdogTimer = null;
-      }
-
-      overlay.calPoint = { x, y };
-      overlay.calRunning = true;
-      overlay.calProgress = 0;
-      overlay.displayProgress = 0; // Reset smoothed progress
-
-      logI("cal", `onCalibrationNextPoint (#${overlay.calPointCount}) x=${fmt(x)} y=${fmt(y)}`);
-
-      // UI Feedback for Calibration Screen
-      const statusEl = document.getElementById("calibration-status");
-      if (statusEl) {
-        statusEl.textContent = `Look at the Magic Orb! (${overlay.calPointCount}/5)`;
-        statusEl.style.color = "#0f0";
-        statusEl.style.textShadow = "0 0 10px #0f0";
-      }
-
-      // Manual Calibration Flow: Show button to start collection
-      const btn = document.getElementById("btn-calibration-start");
-      if (btn) {
-        btn.style.display = "inline-block";
-        btn.textContent = `Start Point ${overlay.calPointCount}`;
-        // Ensure it's clickable
-        btn.style.pointerEvents = "auto";
-      }
-    });
-
-    logI("sdk", "addCalibrationNextPointCallback bound");
-  } else {
-    logW("sdk", "addCalibrationNextPointCallback not found");
-  }
-
-  if (typeof seeso.addCalibrationProgressCallback === "function") {
-    seeso.addCalibrationProgressCallback((progress) => {
-      if (overlay.isFinishing) return; // Prevent overwriting finish animation
-
-      lastProgressAt = performance.now();
-      overlay.calProgress = progress;
-
-      const pct = typeof progress === "number" ? Math.round(progress * 100) : NaN;
-      if (Number.isFinite(pct)) {
-        setStatus(`Calibrating... ${pct}% (Point ${overlay.calPointCount}/5)`);
-        setState("cal", `running (${pct}%)`);
-      } else {
-        setStatus(`Calibrating... (progress=${String(progress)})`);
-        setState("cal", "running");
-      }
-
-      if (DEBUG_LEVEL >= 2) logD("cal", "progress", { progress, pct });
-
-      // FORCE FINISH WATCHDOG: If stuck at 100% for > 0.7s AND it's the 5th point, force finish
-      if (progress >= 1.0 && overlay.calPointCount >= 5) {
-        if (overlay.watchdogTimer) clearTimeout(overlay.watchdogTimer);
-
-        overlay.watchdogTimer = setTimeout(() => {
-          overlay.watchdogTimer = null;
-          if (overlay.calRunning && overlay.calPointCount >= 5) {
-            logW("cal", "Force finishing calibration (stuck at 100% on last point)");
-
-            overlay.calRunning = false;
-            overlay.calPoint = null;
-            renderOverlay();
-
-            setState("cal", "finished");
-            setStatus("Calibration finished.");
-
-            const stage = document.getElementById("stage");
-            if (stage) stage.classList.remove("visible");
-
-            if (typeof window.Game !== "undefined") {
-              window.Game.onCalibrationFinish();
-            }
-          }
-        }, 700);
-      } else {
-        // If not 100% or not last point, ensure no pending watchdog
-        if (overlay.watchdogTimer) {
-          clearTimeout(overlay.watchdogTimer);
-          overlay.watchdogTimer = null;
-        }
-      }
-    });
-
-    logI("sdk", "addCalibrationProgressCallback bound");
-  } else {
-    logW("sdk", "addCalibrationProgressCallback not found");
-  }
-
-  if (typeof seeso.addCalibrationFinishCallback === "function") {
-    seeso.addCalibrationFinishCallback((calibrationData) => {
-      lastFinishAt = performance.now();
-      overlay.isFinishing = true; // Lock progress updates
-      logI("cal", "onCalibrationFinished - Forcing success state");
-
-      // Force Visual Success (Red) immediately
-      overlay.calProgress = 1.0;
-      overlay.displayProgress = 1.0;
-      renderOverlay();
-
-      setStatus("Calibration Complete!");
-      setState("cal", "finished");
-
-      // Robust Wait 2 Seconds
-      setTimeout(() => {
-        overlay.calRunning = false;
-        overlay.calPoint = null;
-        renderOverlay();
-
-        const stage = document.getElementById("stage");
-        if (stage) stage.classList.remove("visible");
-
-        if (typeof window.Game !== "undefined") {
-          window.Game.onCalibrationFinish();
-        }
-      }, 2000);
-
-      logI("cal", "onCalibrationFinished", {
-        type: typeof calibrationData,
-        length: calibrationData?.length,
-        preview: typeof calibrationData === "string" ? calibrationData.slice(0, 120) + "..." : null,
-      });
-    });
-
-    logI("sdk", "addCalibrationFinishCallback bound");
-  } else {
-    logW("sdk", "addCalibrationFinishCallback not found");
-  }
+  // ---- Calibration callbacks (Delegated to CalibrationManager) ----
+  calManager.bindTo(seeso);
 }
 
 async function initSeeso() {
