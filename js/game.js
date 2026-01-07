@@ -190,9 +190,10 @@ const Game = {
         this.state.currentPage = 1;
         const el = document.getElementById("book-content");
         if (el) {
-            // Force precise column width to match container width
-            // This forces horizontal overflow (new columns) when height is filled
-            el.style.columnWidth = el.clientWidth + "px";
+            // Force precise column width to match content width (clientWidth - padding)
+            // Padding is 20px * 2 = 40px
+            const contentWidth = el.clientWidth - 40;
+            el.style.columnWidth = contentWidth + "px";
             el.style.columnGap = "80px";
 
             el.scrollLeft = 0;
@@ -201,7 +202,7 @@ const Game = {
             // Delay to allow layout update
             setTimeout(() => {
                 const gap = 80;
-                const pageWidth = el.clientWidth + gap;
+                const pageWidth = contentWidth + gap;
                 // scrollWidth should now be large
                 this.state.totalPages = Math.ceil(el.scrollWidth / pageWidth);
                 if (this.state.totalPages < 1) this.state.totalPages = 1;
@@ -227,7 +228,8 @@ const Game = {
         if (this.state.currentPage > 1) {
             this.state.currentPage--;
             const gap = 80;
-            const pageWidth = el.clientWidth + gap;
+            // Use content width (clientWidth - padding 40)
+            const pageWidth = (el.clientWidth - 40) + gap;
             el.scrollTo({ left: (this.state.currentPage - 1) * pageWidth, behavior: 'smooth' });
             this.updatePageUI();
         }
@@ -240,7 +242,7 @@ const Game = {
         if (this.state.currentPage < this.state.totalPages) {
             this.state.currentPage++;
             const gap = 80;
-            const pageWidth = el.clientWidth + gap;
+            const pageWidth = (el.clientWidth - 40) + gap;
             el.scrollTo({ left: (this.state.currentPage - 1) * pageWidth, behavior: 'smooth' });
             this.updatePageUI();
         }
