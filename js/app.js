@@ -218,10 +218,12 @@ if (btnCalStart) {
   btnCalStart.onclick = () => {
     btnCalStart.style.display = "none";
     if (seeso) {
+      // Start safety timer FIRST
+      calManager.startCollection();
+
       try {
         lastCollectAt = performance.now();
         seeso.startCollectSamples();
-        calManager.startCollection();
         logI("cal", "startCollectSamples called manually");
       } catch (e) {
         logE("cal", "startCollectSamples threw", e);
