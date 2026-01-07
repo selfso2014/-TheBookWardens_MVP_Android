@@ -51,7 +51,7 @@ export class CalibrationManager {
                 // Update UI
                 const statusEl = document.getElementById("calibration-status");
                 if (statusEl) {
-                    statusEl.textContent = `Look at the Magic Orb! (${this.state.pointCount}/5)`;
+                    statusEl.textContent = `Look at the Magic Orb! (${this.state.pointCount}/1)`;
                     statusEl.style.color = "#0f0";
                     statusEl.style.textShadow = "0 0 10px #0f0";
                 }
@@ -73,7 +73,7 @@ export class CalibrationManager {
 
                 this.state.progress = progress;
                 const pct = Math.round(progress * 100);
-                setStatus(`Calibrating... ${pct}% (Point ${this.state.pointCount}/5)`);
+                setStatus(`Calibrating... ${pct}% (Point ${this.state.pointCount}/1)`);
                 setState("cal", `running (${pct}%)`);
 
                 // Watchdog & Safety for ALL points
@@ -86,8 +86,9 @@ export class CalibrationManager {
                         // If it happens on points 1-4, we essentially just have to wait, but we'll log it.
                         logW("cal", `Safety timeout (5s) at >70% for Point ${this.state.pointCount}`);
 
-                        if (this.state.running && this.state.pointCount >= 5) {
-                            logW("cal", "Force finishing calibration (stalled at 5th point)");
+                        // For 1-point calibration, point 1 is the last point.
+                        if (this.state.running && this.state.pointCount >= 1) {
+                            logW("cal", "Force finishing calibration (stalled)");
                             this.finishSequence();
                         }
                     }, 5000);
@@ -98,7 +99,7 @@ export class CalibrationManager {
 
                     this.state.watchdogTimer = setTimeout(() => {
                         this.state.watchdogTimer = null;
-                        if (this.state.running && this.state.pointCount >= 5) {
+                        if (this.state.running && this.state.pointCount >= 1) {
                             logW("cal", "Force finishing calibration (watchdog 100%)");
                             this.finishSequence();
                         }
