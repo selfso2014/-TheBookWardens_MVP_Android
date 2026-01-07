@@ -114,7 +114,8 @@
         </span>
       </div>
 
-      <div id="book-content" class="book-container">
+      <div id="book-content" class="book-container"
+        style="height: 50vh; overflow-y: hidden; padding: 20px; border: 1px solid #444; border-radius: 8px; background: rgba(0,0,0,0.3);">
         <!-- Text will be injected here by JS -->
         <p>Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once
           or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it,
@@ -168,6 +169,14 @@
           walking hand in hand with Dinah, and saying to her very earnestly, “Now, Dinah, tell me the truth: did you
           ever eat a bat?” when suddenly, thump! thump! down she came upon a heap of sticks and dry leaves, and the fall
           was over.</p>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div id="read-controls"
+        style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; width: 100%; max-width: 600px;">
+        <button id="btn-page-prev" class="btn-secondary" onclick="Game.prevPage()" disabled>Previous</button>
+        <span id="page-indicator" style="color: #fff; font-weight: bold;">Page 1</span>
+        <button id="btn-page-next" class="btn-secondary" onclick="Game.nextPage()">Next</button>
       </div>
 
       <div class="rift-seal-bar">

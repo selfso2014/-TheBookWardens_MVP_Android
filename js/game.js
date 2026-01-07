@@ -186,6 +186,19 @@ const Game = {
         this.state.isTracking = true;
         console.log("Reading session started. Waiting for gaze...");
 
+        // Initialize Pagination
+        this.state.currentPage = 1;
+        const el = document.getElementById("book-content");
+        if (el) {
+            el.scrollTop = 0;
+            // Delay slightly to ensure layout is ready
+            setTimeout(() => {
+                this.state.totalPages = Math.ceil(el.scrollHeight / el.clientHeight);
+                if (this.state.totalPages < 1) this.state.totalPages = 1;
+                this.updatePageUI();
+            }, 200);
+        }
+
         // Show gaze dot indefinitely (user request)
         if (typeof window.showGazeDot === "function") {
             window.showGazeDot(999999);
@@ -195,6 +208,38 @@ const Game = {
     confrontVillain() {
         this.state.isTracking = false;
         this.switchScreen("screen-boss");
+    },
+
+    prevPage() {
+        const el = document.getElementById("book-content");
+        if (!el) return;
+
+        if (this.state.currentPage > 1) {
+            this.state.currentPage--;
+            el.scrollTo({ top: (this.state.currentPage - 1) * el.clientHeight, behavior: 'smooth' });
+            this.updatePageUI();
+        }
+    },
+
+    nextPage() {
+        const el = document.getElementById("book-content");
+        if (!el) return;
+
+        if (this.state.currentPage < this.state.totalPages) {
+            this.state.currentPage++;
+            el.scrollTo({ top: (this.state.currentPage - 1) * el.clientHeight, behavior: 'smooth' });
+            this.updatePageUI();
+        }
+    },
+
+    updatePageUI() {
+        const ind = document.getElementById("page-indicator");
+        const btnPrev = document.getElementById("btn-page-prev");
+        const btnNext = document.getElementById("btn-page-next");
+
+        if (ind) ind.textContent = `Page ${this.state.currentPage} / ${this.state.totalPages || 1}`;
+        if (btnPrev) btnPrev.disabled = (this.state.currentPage <= 1);
+        if (btnNext) btnNext.disabled = (this.state.currentPage >= this.state.totalPages);
     },
 
     // Called by app.js (SeeSo overlay)
