@@ -444,3 +444,25 @@ body {
   right: 0;
   transform: rotate(20deg);
 }
+
+/* --- Rift Effect --- */
+.rift-word {
+    color: transparent;
+    text-shadow: 0 0 10px #ff00ff, 0 0 5px #aa00aa;
+    filter: blur(4px);
+    background: rgba(20, 0, 20, 0.3);
+    border-radius: 4px;
+    cursor: help;
+    transition: all 0.5s ease;
+    user-select: none;
+    display: inline-block;
+}
+
+.rift-word.fixed {
+    color: inherit;
+    text-shadow: none;
+    filter: none;
+    background: transparent;
+    cursor: auto;
+    user-select: text;
+}

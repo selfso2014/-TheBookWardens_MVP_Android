@@ -8,6 +8,13 @@ const Game = {
         currentWordIndex: 0,
         readProgress: 0, // 0..100
         isTracking: false,
+        rift: {
+            currentWord: null,
+            dwellTime: 0,
+            requiredDwell: 1000, // 1 second to fix
+            totalRifts: 0,
+            fixedRifts: 0
+        }
     },
 
     init() {
@@ -555,6 +562,12 @@ const Game = {
         if (typeof window.showGazeDot === "function") {
             window.showGazeDot(999999);
         }
+
+        // Count total rifts
+        const rifts = document.querySelectorAll('.rift-word');
+        this.state.rift.totalRifts = rifts.length;
+        this.state.rift.fixedRifts = 0;
+        this.updateProgressBar();
     },
 
     confrontVillain() {
@@ -603,8 +616,11 @@ const Game = {
         if (btnNext) btnNext.disabled = isLast;
 
         if (btnConfront) {
-            // Show only on the last page
-            btnConfront.style.display = isLast ? "block" : "none";
+            // Show only if enough rifts are sealed (e.g. > 90%)
+            const riftsTotal = this.state.rift.totalRifts || 1;
+            const fixed = this.state.rift.fixedRifts;
+            const isReady = (fixed / riftsTotal) > 0.9;
+            btnConfront.style.display = isReady ? "block" : "none";
         }
     },
 
@@ -656,14 +672,58 @@ const Game = {
         const readScreen = document.getElementById("screen-read");
         if (!readScreen || !readScreen.classList.contains("active")) return;
 
-        // Hit test: is the user looking at the text?
+        // Rift Cleansing Logic
         const el = document.elementFromPoint(x, y);
-        if (el && (el.tagName === 'P' || el.closest('.book-container'))) {
-            // Glow effect on text logic could go here
-            // For now, simple progress accumulation
-            this.state.readProgress += 0.2; // fill speed
-            this.updateProgressBar();
+
+        // 1. hit test for rift words
+        if (el && el.classList.contains('rift-word') && !el.classList.contains('fixed')) {
+            if (this.state.rift.currentWord !== el) {
+                // New word target
+                this.state.rift.currentWord = el;
+                this.state.rift.dwellTime = 0;
+                // Optional: visuals for 'locking on'
+                el.style.transform = "scale(1.1)";
+            } else {
+                // Dwell
+                this.state.rift.dwellTime += 100; // approximate since onGaze is throttled or called per frame
+                if (this.state.rift.dwellTime >= this.state.rift.requiredDwell) {
+                    this.cleanseRiftWord(el);
+                }
+            }
+        } else {
+            // Lost focus
+            if (this.state.rift.currentWord) {
+                this.state.rift.currentWord.style.transform = ""; // Reset scale
+                this.state.rift.currentWord = null;
+                this.state.rift.dwellTime = 0;
+            }
+
+            // Standard reading progress (fallback)
+            if (el && (el.tagName === 'P' || el.closest('.book-container'))) {
+                // Slow background progress just for reading text
+                // this.state.readProgress += 0.05; 
+                // this.updateProgressBar();
+            }
         }
+    },
+
+    cleanseRiftWord(el) {
+        el.classList.add('fixed');
+        // Reset state
+        this.state.rift.currentWord = null;
+        this.state.rift.dwellTime = 0;
+        el.style.transform = ""; // Reset scale
+
+        // Gems/Score
+        this.state.gems += 5;
+        this.updateUI();
+
+        // Progress
+        this.state.rift.fixedRifts++;
+        this.updateProgressBar();
+        this.updatePageUI();
+
+        // Sound or detailed visual effect could trigger here
     },
 
     onCalibrationFinish() {
@@ -674,11 +734,12 @@ const Game = {
     updateProgressBar() {
         const bar = document.getElementById("read-progress");
         if (bar) {
-            // Cap at 100
-            let p = Math.min(100, this.state.readProgress);
-            bar.style.width = p + "%";
+            // Calculate based on fixed rifts
+            const total = this.state.rift.totalRifts || 1;
+            const fixed = this.state.rift.fixedRifts;
+            const pct = Math.min(100, Math.floor((fixed / total) * 100));
 
-            // Note: Auto-redirection removed. User clicks "Confront Villain" manually.
+            bar.style.width = pct + "%";
         }
     },
 
