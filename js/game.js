@@ -442,373 +442,354 @@ Game.typewriter = {
     },
 
     showVillainQuiz() {
-        // Calculate Ink
-        const earnedInk = this.currentText ? this.currentText.replace(/\//g, "").length : 50;
-        Game.state.ink = (Game.state.ink || 0) + earnedInk;
-        Game.updateUI();
+        document.body.appendChild(dot);
 
-        // --- Fake Fixation Visualization ---
-        // Generate random points on the text area
-        const bookEl = document.getElementById("book-content");
-        if (bookEl) {
-            const rect = bookEl.getBoundingClientRect();
-            // Create ~10 fake fixations distributed roughly over the text
-            for (let i = 0; i < 10; i++) {
-                const dot = document.createElement("div");
-                dot.className = "fake-fixation";
-                // Random position within the book content rect
-                const x = rect.left + Math.random() * (rect.width - 40) + 20;
-                const y = rect.top + Math.random() * (rect.height - 40) + 20;
-                dot.style.left = x + "px";
-                dot.style.top = y + "px";
-                document.body.appendChild(dot);
+        // Remove them after 2.5 seconds
+        setTimeout(() => { if (dot.parentNode) dot.parentNode.removeChild(dot); }, 2500);
+    }
+}
 
-                // Remove them after 2.5 seconds
-                setTimeout(() => { if (dot.parentNode) dot.parentNode.removeChild(dot); }, 2500);
-            }
-        }
-
-        // Wait 2 seconds before showing the Quiz
-        setTimeout(() => {
-            this.openQuizModal();
-        }, 2000);
+// Wait 2 seconds before showing the Quiz
+setTimeout(() => {
+    this.openQuizModal();
+}, 2000);
     },
 
-    openQuizModal() {
-        const modal = document.getElementById("villain-modal");
-        const quizContainer = document.getElementById("quiz-container");
-        const rewardContainer = document.getElementById("reward-container");
+openQuizModal() {
+    const modal = document.getElementById("villain-modal");
+    const quizContainer = document.getElementById("quiz-container");
+    const rewardContainer = document.getElementById("reward-container");
 
-        // Show Quiz immediately
-        if (modal) modal.style.display = "flex";
-        if (quizContainer) quizContainer.style.display = "block";
-        if (rewardContainer) rewardContainer.style.display = "none";
+    // Show Quiz immediately
+    if (modal) modal.style.display = "flex";
+    if (quizContainer) quizContainer.style.display = "block";
+    if (rewardContainer) rewardContainer.style.display = "none";
 
-        const qEl = document.getElementById("quiz-text");
-        const oEl = document.getElementById("quiz-options");
+    const qEl = document.getElementById("quiz-text");
+    const oEl = document.getElementById("quiz-options");
 
-        // Add or Update Gem Display in Modal
-        let gemDisplay = document.getElementById("modal-gem-display");
-        if (!gemDisplay) {
-            gemDisplay = document.createElement("div");
-            gemDisplay.id = "modal-gem-display";
-            gemDisplay.style.cssText = "position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: #00d4ff; font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 20px;";
-            // Append to villain-card, not container directly if possible, but modal works too 
-            const card = modal.querySelector(".villain-card");
-            if (card) card.appendChild(gemDisplay);
-        }
-        gemDisplay.textContent = `💎 ${Game.state.gems || 0}`;
+    // Add or Update Gem Display in Modal
+    let gemDisplay = document.getElementById("modal-gem-display");
+    if (!gemDisplay) {
+        gemDisplay = document.createElement("div");
+        gemDisplay.id = "modal-gem-display";
+        gemDisplay.style.cssText = "position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: #00d4ff; font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 20px;";
+        // Append to villain-card, not container directly if possible, but modal works too 
+        const card = modal.querySelector(".villain-card");
+        if (card) card.appendChild(gemDisplay);
+    }
+    gemDisplay.textContent = `💎 ${Game.state.gems || 0}`;
 
-        if (!qEl || !oEl) {
-            console.error("Quiz elements missing");
-            this.onQuizCorrect();
-            return;
-        }
+    if (!qEl || !oEl) {
+        console.error("Quiz elements missing");
+        this.onQuizCorrect();
+        return;
+    }
 
-        // Setup Quiz
-        const qData = this.quizzes[this.currentParaIndex];
+    // Setup Quiz
+    const qData = this.quizzes[this.currentParaIndex];
 
-        if (!qData) {
-            console.warn("No quiz data found");
-            this.onQuizCorrect();
-            if (modal) modal.style.display = "none";
-            return;
-        }
+    if (!qData) {
+        console.warn("No quiz data found");
+        this.onQuizCorrect();
+        if (modal) modal.style.display = "none";
+        return;
+    }
 
-        qEl.textContent = qData.q;
-        oEl.innerHTML = "";
+    qEl.textContent = qData.q;
+    oEl.innerHTML = "";
 
-        qData.o.forEach((optText, idx) => {
-            const btn = document.createElement("button");
-            btn.className = "quiz-btn";
-            btn.textContent = optText;
-            btn.onclick = () => {
-                const display = document.getElementById("modal-gem-display");
-                if (idx === qData.a) {
-                    btn.classList.add("correct");
-                    Game.state.gems = (Game.state.gems || 0) + 1;
-                    if (display) {
-                        display.textContent = `💎 ${Game.state.gems} (+1)`;
-                        display.style.color = "#00ff00"; // Green for gain
-                    }
-                    Game.updateUI();
-
-                    setTimeout(() => {
-                        modal.style.display = "none";
-                        this.onQuizCorrect();
-                    }, 1000);
-                } else {
-                    btn.classList.add("wrong");
-                    Game.state.gems = Math.max(0, (Game.state.gems || 0) - 1);
-                    if (display) {
-                        display.textContent = `💎 ${Game.state.gems} (-1)`;
-                        display.style.color = "#ff4444"; // Red for loss
-                    }
-                    Game.updateUI();
-
-                    setTimeout(() => {
-                        btn.classList.remove("wrong");
-                        // Reset color after brief delay
-                        if (display) {
-                            display.textContent = `💎 ${Game.state.gems}`;
-                            display.style.color = "#00d4ff";
-                        }
-                    }, 500);
+    qData.o.forEach((optText, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "quiz-btn";
+        btn.textContent = optText;
+        btn.onclick = () => {
+            const display = document.getElementById("modal-gem-display");
+            if (idx === qData.a) {
+                btn.classList.add("correct");
+                Game.state.gems = (Game.state.gems || 0) + 1;
+                if (display) {
+                    display.textContent = `💎 ${Game.state.gems} (+1)`;
+                    display.style.color = "#00ff00"; // Green for gain
                 }
-            };
-            oEl.appendChild(btn);
-        });
-    },
+                Game.updateUI();
 
-    onQuizCorrect() {
-        this.currentParaIndex++;
-        this.hideDebugVisuals();
-
-        // Check if all paragraphs done -> Boss Battle
-        if (this.currentParaIndex >= this.paragraphs.length) {
-            this.startBossBattle();
-        } else {
-            this.playNextParagraph();
-        }
-    },
-
-    startBossBattle() {
-        if (this.wpmInterval) clearInterval(this.wpmInterval);
-        this.hideDebugVisuals();
-        Game.switchScreen("screen-boss");
-
-        const qEl = document.getElementById("boss-question");
-        const oEl = document.getElementById("boss-options");
-
-        // Hard coded Boss Question for now
-        qEl.textContent = "What is the true underlying theme of Alice's journey down the rabbit hole?";
-        oEl.innerHTML = "";
-
-        const options = [
-            "The struggle against societal norms.",
-            "The loss of childhood innocence.",
-            "The chaotic nature of dream logic."
-        ];
-        const answerIdx = 1; // Let's say #2
-
-        options.forEach((optText, idx) => {
-            const btn = document.createElement("button");
-            btn.className = "quiz-btn";
-            btn.textContent = optText;
-            btn.onclick = () => {
-                if (idx === answerIdx) {
-                    // Boss Defeated
-                    // alert(`Boss Defeated! You sealed the rift with ${Game.state.ink} Ink and ${Game.state.gems} Gems!`);
-                    Game.updateUI(); // Update UI before switching to win screen
-                    Game.switchScreen("screen-win");
-                } else {
-                    // Boss Damage
-                    Game.state.gems = Math.max(0, (Game.state.gems || 0) - 10); // Big penalty
-                    Game.updateUI();
-
-                    if (Game.state.gems <= 0) {
-                        alert("Game Over! Your Gems have been depleted.");
-                        location.reload();
-                    } else {
-                        // Visual feedback for wrong answer instead of alert
-                        btn.classList.add("wrong");
-                        setTimeout(() => btn.classList.remove("wrong"), 500);
-                        // Optional: Shake effect on screen
-                    }
+                setTimeout(() => {
+                    modal.style.display = "none";
+                    this.onQuizCorrect();
+                }, 1000);
+            } else {
+                btn.classList.add("wrong");
+                Game.state.gems = Math.max(0, (Game.state.gems || 0) - 1);
+                if (display) {
+                    display.textContent = `💎 ${Game.state.gems} (-1)`;
+                    display.style.color = "#ff4444"; // Red for loss
                 }
-            };
-            oEl.appendChild(btn);
-        });
-    },
+                Game.updateUI();
 
-    showFullTextReview() {
-        Game.switchScreen("screen-review");
-        const container = document.getElementById("full-text-container");
-        if (container) {
-            // Join paragraphs and clean up slashes
-            const fullText = this.paragraphs.join("\n\n").replace(/\//g, "");
-            container.textContent = fullText;
-
-            // --- DRAW FIXATIONS ---
-            if (window.gazeDataManager) {
-                const fixations = window.gazeDataManager.getFixations();
-                console.log("[Game] Fixations to draw:", fixations.length);
-
-                // We need to map screen coordinates to the container relative coords?
-                // Or just absolute positioning over the container.
-                // Since the container scrolls, absolute positioning over it might move with scroll ONLY if appended to container.
-                // But container has textContent set, which kills children.
-                // So let's wrap text in a div and append dots to the container.
-                container.innerHTML = `<div style="position:relative; z-index:1;">${fullText}</div>`;
-
-                // Get container bounds to offset if needed, but gaze is screen coordinates usually (clientXY).
-                // However, container position on screen matters.
-                // If gaze is screen coordinates (pageX/Y-ish), we need to place dots absolutely in body OR relative to a full-screen overlay.
-                // Let's create a canvas overlay on top of the container text.
-                // Simpler approach: Just append absolute divs to the container or body.
-                // CAUTION: Text might scroll. Fixations captured DURING reading might align with WHERE the text was.
-                // But here we are just reviewing. The gaze data collected was from the previous screen ("screen-read").
-                // The coordinates form the reading session won't match the new "Review" screen layout!
-                // The user request says: "위 자료구조를 활용해 텍스트 지문을 읽고 나서 화면에 픽세이션인 점을을... 그린다."
-                // Since the layout is different (Reading Mode vs Review Mode), the dots will be in "wrong" places relative to text content 
-                // UNLESS the prompt implies plotting them WHERE THEY WERE LOOKING during reading (spatial heatmap) 
-                // OR plotting them relative to the text (which is very hard without word-level timestamp mapping).
-
-                // Given "Reading Game", assuming we just overlay where they looked on the SCREEN to show their pattern.
-                // But the review screen has the text. If we just plot X,Y coords, and the text layout changed, 
-                // it might look weird. However, re-creating the EXACT reading environment is complex.
-                // We will assume plotting the RAW screen coordinates is the goal (to show scan path pattern).
-                // We will append a fullscreen transparent container for dots.
-
-                const dotContainer = document.createElement("div");
-                dotContainer.style.position = "absolute";
-                dotContainer.style.top = "0";
-                dotContainer.style.left = "0";
-                dotContainer.style.width = "100%";
-                dotContainer.style.height = "100%";
-                dotContainer.style.pointerEvents = "none";
-                dotContainer.style.zIndex = "100";
-                document.getElementById("screen-review").appendChild(dotContainer); // Append to screen-review to keep scoped
-
-                fixations.forEach(fix => {
-                    // Filter out 0,0 or invalid
-                    if (fix.x <= 0 && fix.y <= 0) return;
-
-                    const dot = document.createElement("div");
-                    dot.className = "fixation-dot";
-                    dot.style.position = "fixed"; // Use fixed to match screen coords
-                    dot.style.left = (fix.x - 5) + "px"; // Radius 5px -> width 10px? "반지름 5px" means width 10px
-                    dot.style.top = (fix.y - 5) + "px";
-                    dot.style.width = "10px";
-                    dot.style.height = "10px";
-                    dot.style.borderRadius = "50%";
-                    dot.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; // Semi-transparent red
-                    dot.style.zIndex = "999";
-                    dotContainer.appendChild(dot);
-                });
+                setTimeout(() => {
+                    btn.classList.remove("wrong");
+                    // Reset color after brief delay
+                    if (display) {
+                        display.textContent = `💎 ${Game.state.gems}`;
+                        display.style.color = "#00d4ff";
+                    }
+                }, 500);
             }
-        }
-    },
-
-    showSummaryShare() {
-        Game.switchScreen("screen-share");
-    },
-
-    async shareResult() {
-        const shareData = {
-            title: 'The Book Wardens',
-            text: `I just finished reading Alice's Adventures in Wonderland with ${Game.state.ink} Ink and ${Game.state.gems} Gems!`,
-            url: window.location.href
         };
+        oEl.appendChild(btn);
+    });
+},
 
-        // Try to share image if supported (requires File object usually, checking generic support first)
-        if (navigator.share) {
-            try {
-                // Fetch the image to create a File object
-                const response = await fetch('./alice_summary_card.png');
-                const blob = await response.blob();
-                const file = new File([blob], 'reading_summary.png', { type: 'image/png' });
+onQuizCorrect() {
+    this.currentParaIndex++;
+    this.hideDebugVisuals();
 
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: shareData.title,
-                        text: shareData.text
-                    });
+    // Check if all paragraphs done -> Boss Battle
+    if (this.currentParaIndex >= this.paragraphs.length) {
+        this.startBossBattle();
+    } else {
+        this.playNextParagraph();
+    }
+},
+
+startBossBattle() {
+    if (this.wpmInterval) clearInterval(this.wpmInterval);
+    this.hideDebugVisuals();
+    Game.switchScreen("screen-boss");
+
+    const qEl = document.getElementById("boss-question");
+    const oEl = document.getElementById("boss-options");
+
+    // Hard coded Boss Question for now
+    qEl.textContent = "What is the true underlying theme of Alice's journey down the rabbit hole?";
+    oEl.innerHTML = "";
+
+    const options = [
+        "The struggle against societal norms.",
+        "The loss of childhood innocence.",
+        "The chaotic nature of dream logic."
+    ];
+    const answerIdx = 1; // Let's say #2
+
+    options.forEach((optText, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "quiz-btn";
+        btn.textContent = optText;
+        btn.onclick = () => {
+            if (idx === answerIdx) {
+                // Boss Defeated
+                // alert(`Boss Defeated! You sealed the rift with ${Game.state.ink} Ink and ${Game.state.gems} Gems!`);
+                Game.updateUI(); // Update UI before switching to win screen
+                Game.switchScreen("screen-win");
+            } else {
+                // Boss Damage
+                Game.state.gems = Math.max(0, (Game.state.gems || 0) - 10); // Big penalty
+                Game.updateUI();
+
+                if (Game.state.gems <= 0) {
+                    alert("Game Over! Your Gems have been depleted.");
+                    location.reload();
                 } else {
-                    await navigator.share(shareData);
+                    // Visual feedback for wrong answer instead of alert
+                    btn.classList.add("wrong");
+                    setTimeout(() => btn.classList.remove("wrong"), 500);
+                    // Optional: Shake effect on screen
                 }
-            } catch (err) {
-                console.error("Share failed:", err);
-                alert("Sharing failed, but you can screenshot this!");
             }
-        } else {
-            alert("Sharing is not supported on this browser/device. Try taking a screenshot!");
-        }
-    },
+        };
+        oEl.appendChild(btn);
+    });
+},
 
-    // --- Gaze Feedback Logic ---
-    hideDebugVisuals() {
-        if (this.debugEl100) this.debugEl100.style.display = "none";
-        if (this.debugEl300) this.debugEl300.style.display = "none";
-        const labelEl = document.getElementById("gaze-feedback-label");
-        if (labelEl) labelEl.textContent = "";
-    },
+showFullTextReview() {
+    Game.switchScreen("screen-review");
+    const container = document.getElementById("full-text-container");
+    if (container) {
+        // Join paragraphs and clean up slashes
+        const fullText = this.paragraphs.join("\n\n").replace(/\//g, "");
+        container.textContent = fullText;
 
-    checkGazeDistance(gazeX, gazeY) {
-        if (!this.cursorBlob) return;
-        // If cursor is removed (end of paragraph), hide debug
-        if (!this.cursorBlob.isConnected) {
-            this.hideDebugVisuals();
-            return;
-        }
+        // --- DRAW FIXATIONS ---
+        if (window.gazeDataManager) {
+            const fixations = window.gazeDataManager.getFixations();
+            console.log("[Game] Fixations to draw:", fixations.length);
 
-        const rect = this.cursorBlob.getBoundingClientRect();
-        // Center of cursor
-        const cursorX = rect.left + rect.width / 2;
-        const cursorY = rect.top + rect.height / 2;
+            // We need to map screen coordinates to the container relative coords?
+            // Or just absolute positioning over the container.
+            // Since the container scrolls, absolute positioning over it might move with scroll ONLY if appended to container.
+            // But container has textContent set, which kills children.
+            // So let's wrap text in a div and append dots to the container.
+            container.innerHTML = `<div style="position:relative; z-index:1;">${fullText}</div>`;
 
-        // Safety check if cursor is off-screen or hidden
-        if (cursorX === 0 && cursorY === 0) return;
+            // Get container bounds to offset if needed, but gaze is screen coordinates usually (clientXY).
+            // However, container position on screen matters.
+            // If gaze is screen coordinates (pageX/Y-ish), we need to place dots absolutely in body OR relative to a full-screen overlay.
+            // Let's create a canvas overlay on top of the container text.
+            // Simpler approach: Just append absolute divs to the container or body.
+            // CAUTION: Text might scroll. Fixations captured DURING reading might align with WHERE the text was.
+            // But here we are just reviewing. The gaze data collected was from the previous screen ("screen-read").
+            // The coordinates form the reading session won't match the new "Review" screen layout!
+            // The user request says: "위 자료구조를 활용해 텍스트 지문을 읽고 나서 화면에 픽세이션인 점을을... 그린다."
+            // Since the layout is different (Reading Mode vs Review Mode), the dots will be in "wrong" places relative to text content 
+            // UNLESS the prompt implies plotting them WHERE THEY WERE LOOKING during reading (spatial heatmap) 
+            // OR plotting them relative to the text (which is very hard without word-level timestamp mapping).
 
-        const dist = Math.hypot(gazeX - cursorX, gazeY - cursorY);
+            // Given "Reading Game", assuming we just overlay where they looked on the SCREEN to show their pattern.
+            // But the review screen has the text. If we just plot X,Y coords, and the text layout changed, 
+            // it might look weird. However, re-creating the EXACT reading environment is complex.
+            // We will assume plotting the RAW screen coordinates is the goal (to show scan path pattern).
+            // We will append a fullscreen transparent container for dots.
 
-        this.updateDebugVisuals(cursorX, cursorY, dist);
-    },
+            const dotContainer = document.createElement("div");
+            dotContainer.style.position = "absolute";
+            dotContainer.style.top = "0";
+            dotContainer.style.left = "0";
+            dotContainer.style.width = "100%";
+            dotContainer.style.height = "100%";
+            dotContainer.style.pointerEvents = "none";
+            dotContainer.style.zIndex = "100";
+            document.getElementById("screen-review").appendChild(dotContainer); // Append to screen-review to keep scoped
 
-    updateDebugVisuals(cx, cy, dist) {
-        // Create circles if not exist
-        if (!this.debugEl100) {
-            this.debugEl100 = document.createElement("div");
-            this.debugEl100.className = "debug-circle debug-circle-100";
-            document.body.appendChild(this.debugEl100);
+            fixations.forEach(fix => {
+                // Filter out 0,0 or invalid
+                if (fix.x <= 0 && fix.y <= 0) return;
 
-            this.debugEl300 = document.createElement("div");
-            this.debugEl300.className = "debug-circle debug-circle-300";
-            document.body.appendChild(this.debugEl300);
-
-            // Note: labelEl is now static in HTML (#gaze-feedback-label)
-        }
-
-        // Update Position (Circles centered on cursor)
-        this.debugEl100.style.left = cx + "px";
-        this.debugEl100.style.top = cy + "px";
-        this.debugEl100.style.display = "block";
-
-        this.debugEl300.style.left = cx + "px";
-        this.debugEl300.style.top = cy + "px";
-        this.debugEl300.style.display = "block";
-
-        // Update Label (Static Position above WPM)
-        const labelEl = document.getElementById("gaze-feedback-label");
-        if (!labelEl) return;
-
-        if (dist <= 100) {
-            labelEl.textContent = "Perfect";
-            labelEl.style.color = "#00ff00";
-            labelEl.style.textShadow = "0 0 5px #00ff00";
-            labelEl.style.display = "block";
-
-            if (this.cursorBlob) {
-                this.cursorBlob.className = "cursor glow-perfect";
-            }
-        } else if (dist <= 300) {
-            labelEl.textContent = "Good";
-            labelEl.style.color = "#ffd700";
-            labelEl.style.textShadow = "none";
-            labelEl.style.display = "block";
-
-            if (this.cursorBlob) {
-                this.cursorBlob.className = "cursor glow-good";
-            }
-        } else {
-            // > 300: Clear or show nothing
-            labelEl.textContent = "";
-            if (this.cursorBlob) {
-                this.cursorBlob.className = "cursor"; // Normal
-            }
+                const dot = document.createElement("div");
+                dot.className = "fixation-dot";
+                dot.style.position = "fixed"; // Use fixed to match screen coords
+                dot.style.left = (fix.x - 5) + "px"; // Radius 5px -> width 10px? "반지름 5px" means width 10px
+                dot.style.top = (fix.y - 5) + "px";
+                dot.style.width = "10px";
+                dot.style.height = "10px";
+                dot.style.borderRadius = "50%";
+                dot.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; // Semi-transparent red
+                dot.style.zIndex = "999";
+                dotContainer.appendChild(dot);
+            });
         }
     }
+},
+
+showSummaryShare() {
+    Game.switchScreen("screen-share");
+},
+
+    async shareResult() {
+    const shareData = {
+        title: 'The Book Wardens',
+        text: `I just finished reading Alice's Adventures in Wonderland with ${Game.state.ink} Ink and ${Game.state.gems} Gems!`,
+        url: window.location.href
+    };
+
+    // Try to share image if supported (requires File object usually, checking generic support first)
+    if (navigator.share) {
+        try {
+            // Fetch the image to create a File object
+            const response = await fetch('./alice_summary_card.png');
+            const blob = await response.blob();
+            const file = new File([blob], 'reading_summary.png', { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: shareData.title,
+                    text: shareData.text
+                });
+            } else {
+                await navigator.share(shareData);
+            }
+        } catch (err) {
+            console.error("Share failed:", err);
+            alert("Sharing failed, but you can screenshot this!");
+        }
+    } else {
+        alert("Sharing is not supported on this browser/device. Try taking a screenshot!");
+    }
+},
+
+// --- Gaze Feedback Logic ---
+hideDebugVisuals() {
+    if (this.debugEl100) this.debugEl100.style.display = "none";
+    if (this.debugEl300) this.debugEl300.style.display = "none";
+    const labelEl = document.getElementById("gaze-feedback-label");
+    if (labelEl) labelEl.textContent = "";
+},
+
+checkGazeDistance(gazeX, gazeY) {
+    if (!this.cursorBlob) return;
+    // If cursor is removed (end of paragraph), hide debug
+    if (!this.cursorBlob.isConnected) {
+        this.hideDebugVisuals();
+        return;
+    }
+
+    const rect = this.cursorBlob.getBoundingClientRect();
+    // Center of cursor
+    const cursorX = rect.left + rect.width / 2;
+    const cursorY = rect.top + rect.height / 2;
+
+    // Safety check if cursor is off-screen or hidden
+    if (cursorX === 0 && cursorY === 0) return;
+
+    const dist = Math.hypot(gazeX - cursorX, gazeY - cursorY);
+
+    this.updateDebugVisuals(cursorX, cursorY, dist);
+},
+
+updateDebugVisuals(cx, cy, dist) {
+    // Create circles if not exist
+    if (!this.debugEl100) {
+        this.debugEl100 = document.createElement("div");
+        this.debugEl100.className = "debug-circle debug-circle-100";
+        document.body.appendChild(this.debugEl100);
+
+        this.debugEl300 = document.createElement("div");
+        this.debugEl300.className = "debug-circle debug-circle-300";
+        document.body.appendChild(this.debugEl300);
+
+        // Note: labelEl is now static in HTML (#gaze-feedback-label)
+    }
+
+    // Update Position (Circles centered on cursor)
+    this.debugEl100.style.left = cx + "px";
+    this.debugEl100.style.top = cy + "px";
+    this.debugEl100.style.display = "block";
+
+    this.debugEl300.style.left = cx + "px";
+    this.debugEl300.style.top = cy + "px";
+    this.debugEl300.style.display = "block";
+
+    // Update Label (Static Position above WPM)
+    const labelEl = document.getElementById("gaze-feedback-label");
+    if (!labelEl) return;
+
+    if (dist <= 100) {
+        labelEl.textContent = "Perfect";
+        labelEl.style.color = "#00ff00";
+        labelEl.style.textShadow = "0 0 5px #00ff00";
+        labelEl.style.display = "block";
+
+        if (this.cursorBlob) {
+            this.cursorBlob.className = "cursor glow-perfect";
+        }
+    } else if (dist <= 300) {
+        labelEl.textContent = "Good";
+        labelEl.style.color = "#ffd700";
+        labelEl.style.textShadow = "none";
+        labelEl.style.display = "block";
+
+        if (this.cursorBlob) {
+            this.cursorBlob.className = "cursor glow-good";
+        }
+    } else {
+        // > 300: Clear or show nothing
+        labelEl.textContent = "";
+        if (this.cursorBlob) {
+            this.cursorBlob.className = "cursor"; // Normal
+        }
+    }
+}
 };
 
 // Override startReadingSession
