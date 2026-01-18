@@ -103,8 +103,8 @@ export class GazeDataManager {
 
         this.data.push(entry);
 
-        // Debug Log (First 5 frames)
-        if (this.data.length < 5) console.log("[GazeData] Processed:", entry);
+        // Debug Log (Every ~1 sec aka 60 frames)
+        if (this.data.length % 60 === 0) console.log("[GazeData] Count:", this.data.length, "Latest:", entry);
     }
 
     getFixations() {
