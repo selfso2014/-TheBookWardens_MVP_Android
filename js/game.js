@@ -137,6 +137,9 @@ const Game = {
     updateUI() {
         const gemEl = document.getElementById("gem-count");
         if (gemEl) gemEl.textContent = this.state.gems;
+
+        const inkEl = document.getElementById("ink-count");
+        if (inkEl) inkEl.textContent = this.state.ink || 0;
     },
 
     // --- 1. Word Forge ---
