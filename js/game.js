@@ -299,8 +299,10 @@ Game.typewriter = {
         this.isPaused = false;
 
         this.currentP = document.createElement("p");
-        // Font size 30% of original (1.8rem -> 0.6rem)
-        this.currentP.style.fontSize = "0.6rem";
+        // Font size 2x of previous 0.6rem -> 1.2rem
+        // Force Left Alignment
+        this.currentP.style.fontSize = "1.2rem";
+        this.currentP.style.textAlign = "left";
         this.currentP.style.lineHeight = "1.8";
         this.currentP.style.fontFamily = "'Crimson Text', serif";
         this.currentP.style.margin = "20px";
