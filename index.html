@@ -430,7 +430,42 @@
       <h1 style="color: gold;">Rift Sealed!</h1>
       <p>You have restored the meaning of this page.</p>
       <div style="font-size: 3rem; margin: 20px;">💎 +50</div>
-      <button class="btn-primary" onclick="location.reload()">Next Day</button>
+      <button class="btn-primary" onclick="Game.typewriter.showFullTextReview()">Review Reading</button>
+    </section>
+
+    <!-- SCREEN 5: FULL TEXT REVIEW -->
+    <section id="screen-review" class="screen" style="justify-content: flex-start; padding-top: 80px;">
+      <h2 style="color: #fff; margin-bottom: 20px;">Today's Reading</h2>
+      <div id="full-text-container" style="
+            width: 90%; 
+            max-width: 800px; 
+            height: 60vh; 
+            overflow-y: auto; 
+            background: rgba(255,255,255,0.1); 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: left; 
+            font-family: 'Crimson Text', serif; 
+            font-size: 1.2rem; 
+            line-height: 1.6;
+            margin-bottom: 20px;
+            white-space: pre-wrap;">
+        <!-- Full text injected here -->
+      </div>
+      <button class="btn-primary" onclick="Game.typewriter.showSummaryShare()">Next</button>
+    </section>
+
+    <!-- SCREEN 6: SUMMARY & SHARE -->
+    <section id="screen-share" class="screen">
+      <h2 style="color: #f0c420; margin-bottom: 20px;">Reading Complete</h2>
+      <div class="share-card"
+        style="background: #fff; padding: 10px; border-radius: 10px; max-width: 400px; margin-bottom: 20px;">
+        <img src="./alice_summary_card.png" alt="Summary Card" style="width: 100%; border-radius: 5px; display: block;">
+      </div>
+      <div style="display: flex; gap: 15px;">
+        <button class="btn-primary" onclick="Game.typewriter.shareResult()">Share to Friends</button>
+        <button class="btn-primary" style="background: #555;" onclick="location.reload()">Home</button>
+      </div>
     </section>
 
   </div>

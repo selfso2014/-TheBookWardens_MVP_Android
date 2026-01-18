@@ -631,6 +631,53 @@ Game.typewriter = {
         });
     },
 
+    showFullTextReview() {
+        Game.switchScreen("screen-review");
+        const container = document.getElementById("full-text-container");
+        if (container) {
+            // Join paragraphs and clean up slashes
+            const fullText = this.paragraphs.join("\n\n").replace(/\//g, "");
+            container.textContent = fullText;
+        }
+    },
+
+    showSummaryShare() {
+        Game.switchScreen("screen-share");
+    },
+
+    async shareResult() {
+        const shareData = {
+            title: 'The Book Wardens',
+            text: `I just finished reading Alice's Adventures in Wonderland with ${Game.state.ink} Ink and ${Game.state.gems} Gems!`,
+            url: window.location.href
+        };
+
+        // Try to share image if supported (requires File object usually, checking generic support first)
+        if (navigator.share) {
+            try {
+                // Fetch the image to create a File object
+                const response = await fetch('./alice_summary_card.png');
+                const blob = await response.blob();
+                const file = new File([blob], 'reading_summary.png', { type: 'image/png' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: shareData.title,
+                        text: shareData.text
+                    });
+                } else {
+                    await navigator.share(shareData);
+                }
+            } catch (err) {
+                console.error("Share failed:", err);
+                alert("Sharing failed, but you can screenshot this!");
+            }
+        } else {
+            alert("Sharing is not supported on this browser/device. Try taking a screenshot!");
+        }
+    },
+
     // --- Gaze Feedback Logic ---
     hideDebugVisuals() {
         if (this.debugEl100) this.debugEl100.style.display = "none";
