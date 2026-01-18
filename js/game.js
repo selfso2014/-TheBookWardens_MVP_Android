@@ -496,6 +496,11 @@ Game.typewriter = {
     },
 
     openQuizModal() {
+        console.log("[Game] openQuizModal called");
+
+        // Safety check for quiz index
+        if (this.currentParaIndex === undefined) this.currentParaIndex = 0;
+
         const modal = document.getElementById("villain-modal");
         const quizContainer = document.getElementById("quiz-container");
         const rewardContainer = document.getElementById("reward-container");
@@ -527,7 +532,10 @@ Game.typewriter = {
         }
 
         // Setup Quiz
-        const qData = this.quizzes[this.currentParaIndex];
+        const debugIndex = (this.currentParaIndex || 0) % this.quizzes.length;
+        const qData = this.quizzes[debugIndex];
+
+        console.log("[Game] Quiz Data:", qData, "Index:", debugIndex);
 
         if (!qData) {
             console.warn("No quiz data found");
