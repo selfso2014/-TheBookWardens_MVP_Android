@@ -1,6 +1,12 @@
 // js/app.js
 import { loadWebpackModule } from "./webpack-loader.js";
 import { CalibrationManager } from "./calibration.js";
+import { GazeDataManager } from "./gaze-data-manager.js"; // Import
+
+// Initialize Manager
+const gazeDataManager = new GazeDataManager();
+// Expose to Game if needed, or Game accesses via window
+window.gazeDataManager = gazeDataManager;
 
 /**
  * SeeSo Eye Tracking Web Demo
@@ -550,6 +556,10 @@ function attachSeesoCallbacks() {
   if (typeof seeso.addGazeCallback === "function") {
     seeso.addGazeCallback((gazeInfo) => {
       lastGazeAt = performance.now();
+
+      if (window.gazeDataManager) {
+        window.gazeDataManager.processGaze(gazeInfo);
+      }
 
       // Raw values (for HUD/log)
       const xRaw = gazeInfo?.x;
