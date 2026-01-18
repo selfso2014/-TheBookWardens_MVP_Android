@@ -502,6 +502,18 @@ Game.typewriter = {
         const qEl = document.getElementById("quiz-text");
         const oEl = document.getElementById("quiz-options");
 
+        // Add or Update Gem Display in Modal
+        let gemDisplay = document.getElementById("modal-gem-display");
+        if (!gemDisplay) {
+            gemDisplay = document.createElement("div");
+            gemDisplay.id = "modal-gem-display";
+            gemDisplay.style.cssText = "position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: #00d4ff; font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 20px;";
+            // Append to villain-card, not container directly if possible, but modal works too 
+            const card = modal.querySelector(".villain-card");
+            if (card) card.appendChild(gemDisplay);
+        }
+        gemDisplay.textContent = `💎 ${Game.state.gems || 0}`;
+
         if (!qEl || !oEl) {
             console.error("Quiz elements missing");
             this.onQuizCorrect();
@@ -526,19 +538,37 @@ Game.typewriter = {
             btn.className = "quiz-btn";
             btn.textContent = optText;
             btn.onclick = () => {
+                const display = document.getElementById("modal-gem-display");
                 if (idx === qData.a) {
                     btn.classList.add("correct");
                     Game.state.gems = (Game.state.gems || 0) + 1;
+                    if (display) {
+                        display.textContent = `💎 ${Game.state.gems} (+1)`;
+                        display.style.color = "#00ff00"; // Green for gain
+                    }
                     Game.updateUI();
+
                     setTimeout(() => {
                         modal.style.display = "none";
                         this.onQuizCorrect();
-                    }, 500);
+                    }, 1000);
                 } else {
                     btn.classList.add("wrong");
                     Game.state.gems = Math.max(0, (Game.state.gems || 0) - 1);
+                    if (display) {
+                        display.textContent = `💎 ${Game.state.gems} (-1)`;
+                        display.style.color = "#ff4444"; // Red for loss
+                    }
                     Game.updateUI();
-                    setTimeout(() => btn.classList.remove("wrong"), 500);
+
+                    setTimeout(() => {
+                        btn.classList.remove("wrong");
+                        // Reset color after brief delay
+                        if (display) {
+                            display.textContent = `💎 ${Game.state.gems}`;
+                            display.style.color = "#00d4ff";
+                        }
+                    }, 500);
                 }
             };
             oEl.appendChild(btn);
