@@ -498,6 +498,12 @@ Game.typewriter = {
     openQuizModal() {
         console.log("[Game] openQuizModal called");
 
+        // Export Gaze Data as CSV (User Requirement: Output when villain dialogue appears)
+        if (window.gazeDataManager) {
+            console.log("Exporting Gaze CSV...");
+            window.gazeDataManager.exportCSV();
+        }
+
         // Safety check for quiz index
         if (this.currentParaIndex === undefined) this.currentParaIndex = 0;
 

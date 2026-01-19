@@ -18,7 +18,8 @@ export class GazeDataManager {
     processGaze(gazeInfo) {
         if (!gazeInfo) return;
 
-        const t = gazeInfo.timestamp;
+        // Ensure timestamp is in ms (integer)
+        const t = Math.floor(gazeInfo.timestamp);
         const x = gazeInfo.x;
         const y = gazeInfo.y;
 
