@@ -399,24 +399,21 @@ Game.typewriter = {
         // Advance character
         let char = this.currentText[this.charIndex];
 
-        let isChunkEnd = false;
+        // 1. Chunk End Handling
         if (char === '/') {
-            isChunkEnd = true;
-            // No longer increment LineIndex on chunk end. 
-            // We visually detect line breaks now.
-
             // Insert chunk separator (space)
             const separator = document.createTextNode(" ");
             this.currentP.insertBefore(separator, this.cursorBlob);
 
-            this.charIndex++;
-            if (this.charIndex < this.currentText.length) {
-                char = this.currentText[this.charIndex];
-            } else {
-                char = "";
-            }
+            this.charIndex++; // Skip the slash
+
+            // Schedule the pause and RETURN. 
+            // The next character will be printed in the *next* tick call.
+            this.timer = setTimeout(() => this.tick(), 800);
+            return;
         }
 
+        // 2. Normal Character Printing
         // Add char to P (insert before cursor)
         if (this.charIndex < this.currentText.length) {
             const charNode = document.createTextNode(char);
@@ -427,48 +424,20 @@ Game.typewriter = {
             this.charIndex++;
         }
 
-        // --- Visual Line Detection ---
-        // Measure cursor position to see if we wrapped to a new line
-        const rect = this.cursorBlob.getBoundingClientRect();
-        if (this.lastCursorTop === undefined || this.lastCursorTop === null) {
-            this.lastCursorTop = rect.top;
-        }
-
-        // If cursor top has increased significantly (e.g. > 10px), it's a new visual line
-        // Note: We use a threshold to avoid jitter. 
-        // 1.2rem font is approx 19-24px height. line-height 1.5 is ~30px.
-        // A drop of > 5px is safe enough to detect wrap.
-        if (rect.top > this.lastCursorTop + 5) {
-            this.visualLineIndex = (this.visualLineIndex || 0) + 1;
-            this.lastCursorTop = rect.top;
-        }
-        // Note: If user scrolls, rect.top changes? 
-        // getBoundingClientRect is viewport relative. 
-        // So scrolling *WILL* affect rect.top if we don't account for it.
-        // HOWEVER: The container "book-content" scrolls. 
-        // If auto-scroll happens (el.scrollTop = el.scrollHeight), the text moves UP physically.
-        // If text moves UP, rect.top DECREASES. 
-        // A line wrap means cursor moves DOWN relative to previous char. 
-        // But if we scroll immediately...
-        // Let's rely on offsetTop relative to paragraph parent?
-        // NO, offsetTop is relative to offsetParent.
-        // If paragraph is long, offsetTop increases as we go down lines.
-        // This is safer against scrolling.
-
-        if (this.cursorBlob.offsetTop > (this.lastOffsetTop || 0)) {
-            // Initialize lastOffsetTop if first run
-            if (this.lastOffsetTop === undefined) {
-                this.lastOffsetTop = this.cursorBlob.offsetTop;
-            } else {
-                // Check difference
-                if (this.cursorBlob.offsetTop > this.lastOffsetTop + 5) {
-                    this.visualLineIndex = (this.visualLineIndex || 0) + 1;
-                    this.lastOffsetTop = this.cursorBlob.offsetTop;
-                }
+        // 3. Visual Line Detection
+        // Use offsetTop which is relative to the paragraph and stable against container scrolling
+        const currentTop = this.cursorBlob.offsetTop;
+        if (this.lastOffsetTop === undefined) {
+            this.lastOffsetTop = currentTop;
+        } else {
+            // Check difference (> 5px threshold for new line)
+            if (currentTop > this.lastOffsetTop + 5) {
+                this.visualLineIndex = (this.visualLineIndex || 0) + 1;
+                this.lastOffsetTop = currentTop;
             }
         }
 
-        // Handle auto-scroll AFTER measurement
+        // Auto-scroll
         const el = document.getElementById("book-content");
         if (el) el.scrollTop = el.scrollHeight;
 
@@ -487,19 +456,16 @@ Game.typewriter = {
             // Speed Logic
             let nextDelay = this.baseSpeed;
 
-            if (isChunkEnd) {
-                nextDelay = 800; // Explicit chunk pause
-            } else {
-                const lastChar = char;
-                if (lastChar === '.' || lastChar === '!' || lastChar === '?') {
-                    nextDelay = 600;
-                }
+            // Punctuation pause
+            const lastChar = char;
+            if (lastChar === '.' || lastChar === '!' || lastChar === '?') {
+                nextDelay = 600;
             }
 
             this.timer = setTimeout(() => this.tick(), nextDelay);
         }
 
-        // Update Gaze Context
+        // Update Gaze Context in Real-time
         if (window.gazeDataManager) {
             window.gazeDataManager.setContext({
                 lineIndex: this.visualLineIndex || 0,
