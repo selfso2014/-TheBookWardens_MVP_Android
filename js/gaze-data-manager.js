@@ -155,8 +155,8 @@ export class GazeDataManager {
                 d.vx !== undefined ? d.vx.toFixed(4) : "",
                 d.vy !== undefined ? d.vy.toFixed(4) : "",
                 d.type,
-                d.lineIndex !== undefined ? d.lineIndex : "",
-                d.charIndex !== undefined ? d.charIndex : ""
+                (d.lineIndex !== undefined && d.lineIndex !== null) ? d.lineIndex : "",
+                (d.charIndex !== undefined && d.charIndex !== null) ? d.charIndex : ""
             ];
             csv += row.join(",") + "\n";
         });

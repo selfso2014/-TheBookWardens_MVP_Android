@@ -280,6 +280,14 @@ Game.typewriter = {
         Game.hasExported = false; // Reset export flag
         Game.updateUI();
 
+        // Initialize Context
+        if (window.gazeDataManager) {
+            window.gazeDataManager.setContext({
+                lineIndex: 0,
+                charIndex: 0
+            });
+        }
+
         const el = document.getElementById("book-content");
         if (el) {
             el.innerHTML = "";
@@ -444,7 +452,7 @@ Game.typewriter = {
         // Update Gaze Context in Real-time
         if (window.gazeDataManager) {
             window.gazeDataManager.setContext({
-                lineIndex: this.currentParaIndex,
+                lineIndex: Game.typewriter.currentParaIndex !== undefined ? Game.typewriter.currentParaIndex : 0,
                 charIndex: this.charIndex
             });
         }
