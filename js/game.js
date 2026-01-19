@@ -263,6 +263,7 @@ Game.typewriter = {
 
     // Speed and WPM
     baseSpeed: 30, // ms delay
+    chunkDelay: 800, // delay between chunks
     startTime: null,
     totalPausedTime: 0,
     pauseStartTimestamp: null,
@@ -409,7 +410,7 @@ Game.typewriter = {
 
             // Schedule the pause and RETURN. 
             // The next character will be printed in the *next* tick call.
-            this.timer = setTimeout(() => this.tick(), 3000);
+            this.timer = setTimeout(() => this.tick(), this.chunkDelay);
             return;
         }
 
@@ -543,6 +544,7 @@ Game.typewriter = {
         if (this.currentParaIndex === undefined) this.currentParaIndex = 0;
 
         const modal = document.getElementById("villain-modal");
+        const quizContainer = document.getElementById("quiz-container"); // Define quizContainer
         const rewardContainer = document.getElementById("reward-container");
 
         // Show Quiz immediately
