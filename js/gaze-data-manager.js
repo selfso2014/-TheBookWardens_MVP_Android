@@ -161,12 +161,21 @@ export class GazeDataManager {
             csv += row.join(",") + "\n";
         });
 
+        // Detect Device Type for Filename
+        const ua = navigator.userAgent.toLowerCase();
+        let deviceType = "desktop";
+        if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) {
+            deviceType = "smartphone";
+        } else if (/tablet|ipad|playbook|silk/i.test(ua)) {
+            deviceType = "tablet";
+        }
+
         // Download
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
         link.href = url;
-        link.setAttribute("download", `gaze_session_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
+        link.setAttribute("download", `${deviceType}_gaze_session_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
         link.style.display = "none";
         document.body.appendChild(link);
         link.click();

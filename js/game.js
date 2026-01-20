@@ -277,6 +277,7 @@ Game.typewriter = {
         this.wordCount = 0;
         this.startTime = null;
         this.totalPausedTime = 0;
+        this.renderedNodes = []; // Track text nodes for eraser
         Game.state.ink = 0; // Reset Ink
         Game.hasExported = false; // Reset export flag
         Game.updateUI();
@@ -404,23 +405,27 @@ Game.typewriter = {
 
         // Advance character
         let char = this.currentText[this.charIndex];
+        let insertedNode = null;
 
         // 1. Chunk End Handling
         if (char === '/') {
             // Insert chunk separator (space)
             const separator = document.createTextNode(" ");
             this.currentP.insertBefore(separator, this.cursorBlob);
+            insertedNode = separator;
+
+            this.renderedNodes.push({ node: separator, line: this.visualLineIndex || 0 });
 
             this.charIndex++; // Skip the slash
 
-            // Skip any immediate space after slash so the pause is felt BEFORE the next word starts
-            // We do NOT add extra spaces to the DOM here, because we already added 'separator' above.
+            // Skip any immediate space after slash
             while (this.charIndex < this.currentText.length && this.currentText[this.charIndex] === ' ') {
                 this.charIndex++;
             }
 
-            // Schedule the pause and RETURN. 
-            // The next character (the start of the real word) will be printed in the *next* tick call.
+            // Eraser Check (also for separator)
+            this.applyMagicEraser();
+
             const delay = this.chunkDelay || 1000;
             console.log(`[Game] Chunk Pause: ${delay}ms`);
             this.timer = setTimeout(() => this.tick(), delay);
@@ -428,10 +433,10 @@ Game.typewriter = {
         }
 
         // 2. Normal Character Printing
-        // Add char to P (insert before cursor)
         if (this.charIndex < this.currentText.length) {
             const charNode = document.createTextNode(char);
             this.currentP.insertBefore(charNode, this.cursorBlob);
+            insertedNode = charNode;
 
             if (char === ' ') this.wordCount++;
 
@@ -439,7 +444,6 @@ Game.typewriter = {
         }
 
         // 3. Visual Line Detection
-        // Use offsetTop which is relative to the paragraph and stable against container scrolling
         const currentTop = this.cursorBlob.offsetTop;
         if (this.lastOffsetTop === undefined) {
             this.lastOffsetTop = currentTop;
@@ -449,6 +453,12 @@ Game.typewriter = {
                 this.visualLineIndex = (this.visualLineIndex || 0) + 1;
                 this.lastOffsetTop = currentTop;
             }
+        }
+
+        // 4. Track Node & Magic Eraser
+        if (insertedNode) {
+            this.renderedNodes.push({ node: insertedNode, line: this.visualLineIndex || 0 });
+            this.applyMagicEraser();
         }
 
         // Auto-scroll
@@ -490,22 +500,37 @@ Game.typewriter = {
         } else {
             // Speed Logic
             let nextDelay = this.baseSpeed;
-
-            // Punctuation pause
             const lastChar = char;
             if (lastChar === '.' || lastChar === '!' || lastChar === '?') {
                 nextDelay = 600;
             }
-
             this.timer = setTimeout(() => this.tick(), nextDelay);
         }
 
-        // Update Gaze Context in Real-time
         if (window.gazeDataManager) {
             window.gazeDataManager.setContext({
                 lineIndex: this.visualLineIndex || 0,
                 charIndex: this.charIndex
             });
+        }
+    },
+
+    applyMagicEraser() {
+        const ERASE_START_LINE = 2; // When starting (index 2), erase (index 0)
+        const currentLine = this.visualLineIndex || 0;
+
+        if (currentLine >= ERASE_START_LINE) {
+            // Erase nodes from line (currentLine - 2) or older
+            // We only erase ONE node per tick to create the "following" effect
+            if (this.renderedNodes.length > 0) {
+                const head = this.renderedNodes[0];
+                if (head.line <= currentLine - 2) {
+                    const item = this.renderedNodes.shift();
+                    if (item.node.parentNode) {
+                        item.node.parentNode.removeChild(item.node);
+                    }
+                }
+            }
         }
     },
 
