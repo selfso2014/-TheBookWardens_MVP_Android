@@ -475,11 +475,16 @@ export class GazeDataManager {
 
                 // Validate 1: Is start point after the previous line?
                 if (prevMinIdx > lastLineEnd) {
+                    // Check Width (PosMax - MinVal) using SmoothX (gx)
+                    // Note: minVal is already found above from gx
+                    const width = this.data[pMax.index].gx - minVal;
+                    const AMP_THRESHOLD = 100; // 100px threshold
+
                     // Validate 2: Duration Check (Too short reading is noise)
                     const duration = this.data[pMax.index].t - this.data[prevMinIdx].t;
-                    const MIN_DURATION = 150; // ms (Shortest line reading time)
+                    const MIN_DURATION = 1000; // ms (Stricter threshold: 1s)
 
-                    if (duration > MIN_DURATION) {
+                    if (width > AMP_THRESHOLD && duration > MIN_DURATION) {
                         validLines.push({
                             startIdx: prevMinIdx,
                             endIdx: pMax.index,
@@ -501,11 +506,25 @@ export class GazeDataManager {
         const lastDetectedEndInfo = (validLines.length > 0) ? validLines[validLines.length - 1] : null;
         const lastUsedEndIdx = lastDetectedEndInfo ? lastDetectedEndInfo.endIdx : -1;
 
-        // Improved Logic: Find the Global Maxima in the remaining data (after lastUsedEndIdx)
-        // instead of just looking at the very last local extrema (which could be noise).
+        // Constraint: Search for Last Line ONLY AFTER the text display logic has finished showing the last line (if possible to know)
+        // Or simply after the last 'lineIndex' appeared in data.
+        let lastTextIndex = 0;
+        for (let i = this.data.length - 1; i >= 0; i--) {
+            if (this.data[i].lineIndex !== undefined && this.data[i].lineIndex !== null && this.data[i].lineIndex !== "") {
+                lastTextIndex = i;
+                break;
+            }
+        }
 
-        // Define search range for the last line peak
-        const remainingStart = (lastUsedEndIdx === -1) ? 0 : lastUsedEndIdx + 1;
+        // Search Start must be after the last detected line AND ideally closer to where text actually finished.
+        // But simply: strictly after last detected line.
+        // AND to avoid detecting the previous line as the last line again, ensure we look sufficiently forward.
+
+        // Let's use max of (last detected line end, lastTextIndex - some buffer) ??
+        // Actually, the user requirement says: "Recognize after Last LineIndex is exposed + 2 sec check"
+        // So we should look for peaks that occur *around or after* lastTextIndex.
+
+        const remainingStart = Math.max(lastUsedEndIdx + 1, lastTextIndex - 300); // 300 samples ~ 5 sec buffer before end
 
         if (remainingStart < this.data.length) {
             let bestMaxObj = null;
@@ -522,12 +541,12 @@ export class GazeDataManager {
             }
 
             if (bestMaxObj) {
-                // Find Start of this potential last line
+                // Find Start of this potential last line (Global Min in previous window)
                 let prevMinIdx = 0;
                 let minVal = 9999;
 
-                // Search range limited to reasonable past (e.g., 5 seconds = ~300 samples)
-                const searchLimit = Math.max(remainingStart, bestMaxObj.index - 300);
+                // Deep Search: Look back up to 5 seconds (300 samples) or until last Used Line
+                const searchLimit = Math.max((lastUsedEndIdx + 1), bestMaxObj.index - 300);
 
                 for (let k = bestMaxObj.index; k >= searchLimit; k--) {
                     const val = this.data[k].gx;
@@ -537,11 +556,11 @@ export class GazeDataManager {
                     }
                 }
 
-                // Validate: Width > Threshold (80px) AND Duration
+                // Validate: Width > Threshold (100px) AND Duration
                 const width = bestMaxObj.value - minVal;
                 const duration = this.data[bestMaxObj.index].t - this.data[prevMinIdx].t;
-                const AMP_THRESHOLD = 80;
-                const MIN_DURATION = 150;
+                const AMP_THRESHOLD = 100;
+                const MIN_DURATION = 1000;
 
                 if (width > AMP_THRESHOLD && duration > MIN_DURATION) {
                     validLines.push({
