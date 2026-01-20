@@ -57,6 +57,10 @@ export class GazeDataManager {
 
         this.data.push(entry);
 
+        // Debug Log (Raw Stream Check)
+        // User Request: "콘솔로 시선좌표 및 fixation saccade인지 띄워라."
+        console.log(`[GazeRaw] Frame T:${t} | (${x.toFixed(1)}, ${y.toFixed(1)}) | Type: ${type} | State: ${gazeInfo.eyemovementState}`);
+
         // Debug Log (Every ~1 sec aka 60 frames)
         if (this.data.length % 60 === 0) console.log("[GazeData] Count:", this.data.length, "Latest:", entry);
     }
