@@ -237,19 +237,23 @@ export class GazeDataManager {
             return;
         }
 
-        const width = 1200;
-        const heightPerChart = 400;
-        const gap = 50;
+        // Configuration matching Matplotlib 5x2 grid
+        const cols = 2;
+        const rows = 5;
+        const chartWidth = 1000;
+        const chartHeight = 400;
+        const totalWidth = chartWidth * cols;
+        const totalHeight = chartHeight * rows;
+
         const charts = ['RawX', 'RawY', 'SmoothX', 'SmoothY', 'VelX', 'VelY', 'LineIndex', 'CharIndex', 'AlgoLineIndex'];
-        const totalHeight = (heightPerChart + gap) * charts.length;
 
         // Create a single large canvas to draw everything on
         const mainCanvas = document.createElement('canvas');
-        mainCanvas.width = width;
+        mainCanvas.width = totalWidth;
         mainCanvas.height = totalHeight;
         const ctx = mainCanvas.getContext('2d');
         ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, width, totalHeight);
+        ctx.fillRect(0, 0, totalWidth, totalHeight);
 
         // Prepare Data
         const times = this.data.map(d => d.t);
@@ -279,9 +283,15 @@ export class GazeDataManager {
         // Loop through each chart type and draw to a temp canvas
         for (let i = 0; i < charts.length; i++) {
             const chartName = charts[i];
+            // Grid Position
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const xOffset = col * chartWidth;
+            const yOffset = row * chartHeight;
+
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = width;
-            tempCanvas.height = heightPerChart;
+            tempCanvas.width = chartWidth;
+            tempCanvas.height = chartHeight;
 
             const chartConfig = {
                 type: 'line',
@@ -290,9 +300,9 @@ export class GazeDataManager {
                     datasets: [{
                         label: chartName,
                         data: datasets[chartName],
-                        borderColor: '#2196F3',
+                        borderColor: 'rgba(33, 150, 243, 0.7)',
                         borderWidth: 1.5,
-                        pointRadius: 0,
+                        pointRadius: 2,
                         tension: 0.1,
                         fill: false
                     }]
@@ -306,7 +316,7 @@ export class GazeDataManager {
                         legend: { display: false }
                     },
                     scales: {
-                        x: { display: (i === charts.length - 1) }, // Only show X axis on last chart
+                        x: { display: true, ticks: { maxTicksLimit: 10 } },
                         y: { beginAtZero: false } // Auto scale
                     }
                 }
@@ -349,7 +359,7 @@ export class GazeDataManager {
                 const chart = new Chart(tempCanvas, chartConfig);
                 setTimeout(() => {
                     // Draw temp canvas onto main canvas
-                    ctx.drawImage(tempCanvas, 0, i * (heightPerChart + gap));
+                    ctx.drawImage(tempCanvas, xOffset, yOffset);
                     chart.destroy();
                     resolve();
                 }, 100); // Small delay to ensure render
