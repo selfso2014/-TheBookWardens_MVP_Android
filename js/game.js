@@ -972,37 +972,36 @@ Game.typewriter = {
         const lineGroups = {};
 
         // 2. Pre-calculation: Min/Max X per line
+        // BUG FIX: Use SDK Fixation coordinate if available to match user request
         validData.forEach(d => {
             const idx = d.detectedLineIndex;
+            // Use sdkFixationX if Fixation type, else gx
+            const val = (d.type === 'Fixation' && d.sdkFixationX) ? d.sdkFixationX : d.gx;
+
             if (!lineGroups[idx]) lineGroups[idx] = { minX: 99999, maxX: -99999 };
-            if (d.gx < lineGroups[idx].minX) lineGroups[idx].minX = d.gx;
-            if (d.gx > lineGroups[idx].maxX) lineGroups[idx].maxX = d.gx;
+            if (val < lineGroups[idx].minX) lineGroups[idx].minX = val;
+            if (val > lineGroups[idx].maxX) lineGroups[idx].maxX = val;
         });
 
         // 3. Build Replay Stream (Frame-by-Frame)
-        // We do NOT merge events. We use the stream directly.
         const replayData = [];
         let virtualTime = 0;
         let lastRawT = validData[0].t;
         let lastLineIdx = validData[0].detectedLineIndex;
 
-        // Visual State for "Growing Circle"
-        // We track this purely for rendering properties, not to merge data.
+        // Visual State
         let inFixation = false;
-        let fixAnchor = { x: 0, y: 0, startTime: 0, duration: 0 };
+        let fixAnchor = { x: 0, y: 0, startTime: 0 };
+        let lastFixX = -999; // To check coordinate stability
 
         validData.forEach((d, i) => {
-            // A. Time Compression (Handle Line Jumps)
+            // A. Time Compression
             if (i > 0) {
                 const rawDelta = d.t - lastRawT;
                 let effectiveDelta = rawDelta;
-
-                // Algorithm: If Line Changed, Force Fast Transition
                 if (d.detectedLineIndex !== lastLineIdx) {
-                    // If difference > 50ms, clamp to 50ms
                     if (rawDelta > 50) effectiveDelta = 50;
                 }
-
                 virtualTime += effectiveDelta;
             }
             lastRawT = d.t;
@@ -1011,6 +1010,9 @@ Game.typewriter = {
             // B. Visual Mapping
             const idx = d.detectedLineIndex;
             const visualIdx = idx - 1;
+
+            // PRIORITY: Use SDK Fixation Coordinate
+            const valX = (d.type === 'Fixation' && d.sdkFixationX) ? d.sdkFixationX : d.gx;
             let Dx = 0, Dy = 0;
 
             if (visualIdx >= 0 && visualIdx < visualLines.length) {
@@ -1018,42 +1020,44 @@ Game.typewriter = {
                 const gInfo = lineGroups[idx];
                 let normX = 0;
                 if (gInfo.maxX > gInfo.minX) {
-                    normX = (d.gx - gInfo.minX) / (gInfo.maxX - gInfo.minX);
+                    normX = (valX - gInfo.minX) / (gInfo.maxX - gInfo.minX);
                 }
                 normX = Math.max(0, Math.min(1, normX));
                 Dx = vLine.left + normX * (vLine.right - vLine.left);
                 Dy = vLine.top + (vLine.bottom - vLine.top) * 0.35;
             } else {
-                return; // Skip mapping failure
+                return;
             }
 
-            // C. Fixation Logic (Directly from SDK)
-            // Use d.type directly. 0 or 'Fixation'
-            const isFixation = (d.type === 0 || d.type === 'Fixation');
-
+            // C. Fixation Logic (Strict SDK Trust)
+            const isFixation = (d.type === 'Fixation' || d.type === 0);
             let renderX = Dx;
             let renderY = Dy;
             let radius = 10;
             let drawType = isFixation ? 'Fixation' : 'Saccade';
 
             if (isFixation) {
+                // User Request: Trust SDK 100%. No custom algorithms.
+                // If the SDK says it's a fixation, we treat it as part of the current fixation sequence 
+                // IF we are already in one. We don't check coordinate distance.
+
+                // However, to show the expanding animation, we still need to know when a "visual" fixation starts.
+                // Simple Logic: If previous frame was NOT fixation, START.
+                // If previous frame WAS fixation, CONTINUE.
+
                 if (!inFixation) {
-                    // New Fixation Sequence Start
                     inFixation = true;
-                    // Set Anchor to CURRENT mapped position effectively
                     fixAnchor = { x: Dx, y: Dy, startTime: virtualTime };
                 }
 
-                // Use Anchor Position
+                // Always anchor to the start of this continuous fixation sequence
                 renderX = fixAnchor.x;
                 renderY = fixAnchor.y;
 
-                // Grow Radius: 0.05px per ms from start of this sequence
-                const fixationDuration = virtualTime - fixAnchor.startTime;
-                radius = 10 + (fixationDuration * 0.05);
-
-                // Cap radius? (Optional, e.g. max 50)
-                if (radius > 40) radius = 40;
+                // Radius Bonus
+                const dur = virtualTime - fixAnchor.startTime;
+                radius = 10 + (dur * 0.05);
+                if (radius > 45) radius = 45;
 
             } else {
                 inFixation = false;
