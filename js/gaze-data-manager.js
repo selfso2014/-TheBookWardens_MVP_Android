@@ -236,10 +236,8 @@ export class GazeDataManager {
 
         // 3. Advanced Validation (Return Sweep & Reading)
         const validLines = []; // Stores { startIdx, endIdx, lineNum }
-        const AMP_THRESHOLD = 50; // Min line width (px)
-        const SPEED_THRESHOLD = 0.3; // Min Return Sweep Speed (px/ms)
+        const AMP_THRESHOLD = 80; // Min line width (px) - Increased from 50 to 80
         const READING_MIN_DURATION = 200; // Min time to read a line (ms)
-        const Y_TOLERANCE = 50; // Allowed upward drift (px) - generous for mobile
 
         let lineCounter = 1;
 
@@ -272,15 +270,8 @@ export class GazeDataManager {
             const sweepAmp = currentPeak.value - nextValley.value;
             if (sweepAmp < AMP_THRESHOLD) continue;
 
-            // Check 2: Return Sweep Velocity
-            const sweepDuration = nextValley.t - currentPeak.t;
-            if (sweepDuration <= 0) continue;
-            const sweepSpeed = sweepAmp / sweepDuration;
-            if (sweepSpeed < SPEED_THRESHOLD) continue;
-
-            // Check 3: Y-Trend (Should go down or stay similar)
-            // Next Valley Y should be >= Current Peak Y (allowing tolerance)
-            if (nextValley.y < currentPeak.y - Y_TOLERANCE) continue;
+            // REMOVED: Check 2: Return Sweep Velocity
+            // REMOVED: Check 3: Y-Trend
 
             // Check 4: Reading Duration (PrevValley -> Peak)
             const readDuration = currentPeak.t - prevValley.t;
@@ -294,11 +285,32 @@ export class GazeDataManager {
             });
         }
 
+        // Limit detected lines to actual total lines + 1 (if available)
+        // Find max line index from data context
+        let maxActualLines = 999;
+        if (this.data.length > 0) {
+            // Check the last few data points for context lineIndex
+            for (let k = this.data.length - 1; k >= 0; k--) {
+                if (this.data[k].lineIndex !== undefined && this.data[k].lineIndex !== null) {
+                    maxActualLines = this.data[k].lineIndex + 1;
+                    break;
+                }
+            }
+        }
+
+        // Cap the validLines array
+        if (validLines.length > maxActualLines) {
+            console.log(`[GazeDataManager] Capping detected lines from ${validLines.length} to ${maxActualLines}`);
+            validLines.length = maxActualLines;
+        }
+
         // 4. Mark Data for CSV
         // Reset old markings
         for (let i = 0; i < this.data.length; i++) delete this.data[i].detectedLineIndex;
 
         validLines.forEach(line => {
+            // Correct the lineNum if we capped (though slicing array handles it implicitly)
+            // line.lineNum is already set sequentially 1..N
             for (let k = line.startIdx; k <= line.endIdx; k++) {
                 this.data[k].detectedLineIndex = line.lineNum;
             }
