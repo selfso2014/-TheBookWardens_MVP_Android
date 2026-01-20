@@ -638,10 +638,10 @@ Game.typewriter = {
 
         // Export Gaze Data as CSV (User Requirement: Output when villain dialogue appears)
         // Prevent double export: check if we just exported
-        if (window.gazeDataManager && !this.hasExported) {
+        if (window.gazeDataManager && !Game.hasExported) {
             console.log("Exporting Gaze CSV...");
             window.gazeDataManager.exportCSV();
-            this.hasExported = true; // Set flag
+            Game.hasExported = true; // Set flag
         }
 
         // Safety check for quiz index
