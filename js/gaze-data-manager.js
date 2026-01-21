@@ -185,7 +185,7 @@ export class GazeDataManager {
         this.context = {};
     }
 
-    exportCSV() {
+    exportCSV(startTime = 0, endTime = Infinity) {
         if (!this.data || this.data.length === 0) {
             alert("No gaze data to export.");
             return;
@@ -199,6 +199,8 @@ export class GazeDataManager {
 
         // Rows
         this.data.forEach(d => {
+            if (d.t < startTime || d.t > endTime) return;
+
             const row = [
                 d.t,
                 d.x, d.y,
@@ -409,12 +411,16 @@ export class GazeDataManager {
     }
 
     // --- Line Detection Algorithm (MAD-based) ---
-    detectLinesMobile() {
+    detectLinesMobile(startTime = 0, endTime = Infinity) {
         if (this.data.length < 10) return 0;
         this.preprocessData(); // Ensure velX is calculated
 
+        // Filter data by time range
+        const validData = this.data.filter(d => d.t >= startTime && d.t <= endTime);
+        if (validData.length < 10) return 0;
+
         // Prepare samples for MAD detector
-        const samples = this.data.map(d => ({
+        const samples = validData.map(d => ({
             ts_ms: d.t,
             velX: d.vx
         }));

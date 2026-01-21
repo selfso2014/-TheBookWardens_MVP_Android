@@ -474,9 +474,62 @@ Game.typewriter = {
             setTimeout(() => {
                 let detectedLines = 0;
                 if (window.gazeDataManager) {
+                    // Define valid time range: Start of first char to Now
+                    // Now is already roughly 3s after last char, but user requested "2s after last char".
+                    // this.startTime is absolute Date.now().
+                    // GazeDataManager uses Relative Timestamp (ms from session start).
+                    // We need to convert absolute times to relative times.
+
+                    // However, GazeDataManager.firstTimestamp is the absolute timestamp of the first gaze point.
+                    // Ideally, we should use that. But we don't have access to it easily here unless we expose it or use relative from start.
+
+                    // Simpler approach: 
+                    // Calculate 'duration since start' and assume gaze started at roughly similar time or just use relative.
+                    // Start relative time = this.startTime (typing start) - GazeDataManager.firstTimestamp
+
+                    // Use a unified relative time if possible. 
+                    // Let's assume GazeDataManager resets at start().
+                    // Best way: Capture gaze timestamp at start of typing.
+                    // But we don't need sub-millisecond precision sync for this filter.
+
+                    // Better approach:
+                    // In start(), we called window.gazeDataManager.reset().
+                    // So t=0 is roughly start of session? No, t=0 is first gaze sample.
+                    // Typing starts after 2400ms delay.
+                    // So valid Start T should be around 2400.
+                    // Valid End T should be (Now - StartTime) + 2400 - 1000 (since we waited 3000ms, but want 2000ms after last char).
+
+                    // Let's rely on the fact that reset() was called.
+                    // Typing Started at: this.typingStartRelTime (need to capture this)
+
+                    // Let's capture the relative timestamp of the first character print.
+
+                    const validStart = Game.typewriter.typingStartRelTime || 0;
+                    const validEnd = (window.gazeDataManager.lastTimestamp || 99999999);
+                    // Wait, user said "Last character output + 2 seconds".
+                    // The current time is 3 seconds after last character.
+                    // So validEnd = validStart + (Duration of Typing) + 2000.
+
+                    // We can just use the timestamps from the gaze data itself if we knew them.
+
+                    // Actually, let's just use the current relative time minus 1000ms (since we are in a 3000ms timeout).
+                    // This gives "Last char time + 2000ms".
+
+                    // To do this simply:
+                    // We need the latest gaze timestamp.
+                    // Let's ask GazeDataManager for it? Or just assume it matches flow.
+
+                    const allData = window.gazeDataManager.getAllData();
+                    const lastGazeT = allData.length > 0 ? allData[allData.length - 1].t : 0;
+
+                    // If we are 3000ms after finish, then "2000ms after finish" is "lastGazeT - 1000".
+                    // Assuming data collection continued.
+                    const cutoffTime = lastGazeT - 1000;
+
                     // 1. Line Detection Algorithm
-                    detectedLines = window.gazeDataManager.detectLinesMobile();
-                    console.log(`[Game] Line Detection Result: ${detectedLines}`);
+                    // Range: [0, cutoffTime] (Assuming typing started near 0 relative to reset)
+                    detectedLines = window.gazeDataManager.detectLinesMobile(0, cutoffTime);
+                    console.log(`[Game] Line Detection Result: ${detectedLines} (Range: 0 ~ ${cutoffTime}ms)`);
 
                     // 2. Display on UI
                     const resEl = document.getElementById("line-detect-result");
@@ -484,8 +537,8 @@ Game.typewriter = {
 
                     // 3. Export CSV (End of Recording)
                     if (!Game.hasExported) {
-                        console.log("[Game] 3s elapsed. Exporting CSV.");
-                        window.gazeDataManager.exportCSV();
+                        console.log("[Game] Exporting CSV (Range: 0 ~ ${cutoffTime}ms).");
+                        window.gazeDataManager.exportCSV(0, cutoffTime);
                         Game.hasExported = true;
                     }
                 }
