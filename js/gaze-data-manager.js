@@ -381,7 +381,7 @@ export class GazeDataManager {
         document.body.removeChild(link);
     }
 
-    // --- Line Detection Algorithm V4.7 (No Last Line Filter) ---
+    // --- Line Detection Algorithm V5.1 (Last Peak Rescue Only) ---
     detectLinesMobile() {
         if (this.data.length < 10) return 0;
 
@@ -454,52 +454,90 @@ export class GazeDataManager {
         if (trendDistance < 50) return 0;
 
         // ---------------------------------------------------------
-        // Step 8. Validate Return Sweeps (Peak -> Valley) - PRIORITY
+        // Step 8. Filter Reading Segments by Distance
         // ---------------------------------------------------------
-        // User Request: Verify Peak -> Valley distance FIRST.
-        // Logic: If (Peak - Valley) < distThreshold, it's not a line break. 
-        // Discard both to merge segments.
+        // Rule: Valley -> Peak distance must be >= 50% Trend Distance.
+        // If fail, discard BOTH Valley and Peak.
 
         for (let i = 0; i < candidates.length - 1; i++) {
-            if (candidates[i].type === 'Peak' && candidates[i + 1].type === 'Valley') {
-                const p = candidates[i];
-                const v = candidates[i + 1];
+            if (candidates[i].type === 'Valley' && candidates[i + 1].type === 'Peak') {
+                const cv = candidates[i];
+                const cp = candidates[i + 1];
+                const dx = cp.val - cv.val;
 
-                const returnDist = p.val - v.val;
-
-                if (returnDist < distThreshold) {
-                    p.valid = false;
-                    v.valid = false;
+                if (dx < distThreshold) {
+                    cv.valid = false;
+                    cp.valid = false;
                 }
             }
         }
 
         // ---------------------------------------------------------
-        // Step 9. Validate Reading Segments (Valley -> Peak)
+        // Step 9. Filter Reading Segments by Time
         // ---------------------------------------------------------
-        // Check Time Duration (>= 500ms) for remaining valid pairs.
+        // Rule: Valley -> Peak time difference must be >= 500ms.
+        // If fail, discard BOTH Valley and Peak.
 
-        // Iterate only VALID candidates to respect Step 8 outcomes
-        const validAfterStep8 = candidates.filter(c => c.valid);
+        // Re-evaluate valid candidates after Step 8
+        let step9Candidates = candidates.filter(c => c.valid);
 
-        for (let i = 0; i < validAfterStep8.length - 1; i++) {
-            if (validAfterStep8[i].type === 'Valley' && validAfterStep8[i + 1].type === 'Peak') {
-                const v = validAfterStep8[i];
-                const p = validAfterStep8[i + 1];
-
-                const dt = p.t - v.t;
+        for (let i = 0; i < step9Candidates.length - 1; i++) {
+            if (step9Candidates[i].type === 'Valley' && step9Candidates[i + 1].type === 'Peak') {
+                const cv = step9Candidates[i];
+                const cp = step9Candidates[i + 1];
+                const dt = cp.t - cv.t;
 
                 if (dt < 500) {
-                    v.valid = false;
-                    p.valid = false;
+                    cv.valid = false;
+                    cp.valid = false;
                 }
             }
         }
 
         // ---------------------------------------------------------
-        // Step 10. Finalize (Count Valid Lines)
+        // Step 10. Rescue Missing Peak (Last Line Only)
         // ---------------------------------------------------------
-        const finalCandidates = candidates.filter(c => c.valid);
+        // Logic: Simply find valid candidates. Check the LAST one.
+        // If it is a Valley, and the one before it was a Peak (i.e. valid history),
+        // scan after this Valley for a new Peak and insert it.
+
+        // Note: 'finalCandidates' needs to be derived from 'candidates' first
+        let finalCandidates = candidates.filter(c => c.valid);
+
+        if (finalCandidates.length > 1) {
+            const lastCand = finalCandidates[finalCandidates.length - 1];
+            const prevCand = finalCandidates[finalCandidates.length - 2];
+
+            // Condition: Last item is Valley AND Previous item was a Peak
+            if (lastCand.type === 'Valley' && prevCand.type === 'Peak') {
+
+                // Search for a new Peak after this last Valley
+                let maxVal = -9999;
+                let maxIdx = -1;
+                let maxT = 0;
+
+                // Search from Last Valley index to End of Data
+                for (let k = lastCand.index + 1; k < this.data.length; k++) {
+                    if (this.data[k].gx > maxVal) {
+                        maxVal = this.data[k].gx;
+                        maxIdx = k;
+                        maxT = this.data[k].t;
+                    }
+                }
+
+                if (maxIdx !== -1) {
+                    console.log(`[GazeDataManager] Rescued Last Peak at T:${maxT}`);
+                    finalCandidates.push({ type: 'Peak', index: maxIdx, t: maxT, val: maxVal, valid: true });
+                }
+            }
+        }
+
+
+        // ---------------------------------------------------------
+        // Step 11. Finalize (Count Valid Lines)
+        // ---------------------------------------------------------
+        // 'finalCandidates' is already updated with rescued peaks
+
         const validLines = [];
 
         // Reconstruct lines: V -> P
