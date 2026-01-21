@@ -238,25 +238,36 @@ export class GazeDataManager {
         link.click();
         document.body.removeChild(link);
 
-        // Also export chart image
-        this.exportChartImage(deviceType);
+        // Also export chart image with same range
+        this.exportChartImage(deviceType, startTime, endTime);
     }
 
-    async exportChartImage(deviceType) {
+    async exportChartImage(deviceType, startTime = 0, endTime = Infinity) {
         if (typeof Chart === 'undefined') {
             console.warn("Chart.js is not loaded. Skipping chart export.");
             return;
         }
 
-        // Configuration: 2x2 grid for requested 4 charts
-        const cols = 2;
-        const rows = 2;
+        // Filter Data for Chart
+        const chartData = this.data.filter(d => d.t >= startTime && d.t <= endTime);
+        if (chartData.length === 0) {
+            console.warn("No data for chart export in range.");
+            return;
+        }
+
+        // Configuration: 4 Charts (Raw, Smooth, Vel, LineIndex)
+        // 1. Raw X/Y + Events
+        // 2. Smooth X/Y
+        // 3. Velocity X/Y
+        // 4. Line Index / Algo Index
+        const cols = 1;
+        const rows = 4;
         const chartWidth = 1000;
-        const chartHeight = 400;
+        const chartHeight = 300;
         const totalWidth = chartWidth * cols;
         const totalHeight = chartHeight * rows;
 
-        const charts = ['SmoothX', 'SmoothY', 'LineIndex', 'AlgoLineIndex'];
+        const chartTypes = ['RawData', 'SmoothedData', 'Velocity', 'LineIndices'];
 
         // Create a single large canvas to draw everything on
         const mainCanvas = document.createElement('canvas');
@@ -266,138 +277,132 @@ export class GazeDataManager {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, totalWidth, totalHeight);
 
-        // Prepare Data
-        const times = this.data.map(d => d.t);
+        // Prepare Data Arrays
+        const times = chartData.map(d => d.t);
         const datasets = {
-            RawX: this.data.map(d => d.x),
-            RawY: this.data.map(d => d.y),
-            SmoothX: this.data.map(d => d.gx),
-            SmoothY: this.data.map(d => d.gy),
-            VelX: this.data.map(d => d.vx),
-            VelY: this.data.map(d => d.vy),
-            LineIndex: this.data.map(d => d.lineIndex || 0),
-            CharIndex: this.data.map(d => d.charIndex || 0),
-            AlgoLineIndex: this.data.map(d => d.detectedLineIndex || null)
+            RawX: chartData.map(d => d.x),
+            RawY: chartData.map(d => d.y),
+            SmoothX: chartData.map(d => d.gx),
+            SmoothY: chartData.map(d => d.gy),
+            VelX: chartData.map(d => d.vx),
+            VelY: chartData.map(d => d.vy),
+            LineIndex: chartData.map(d => d.lineIndex || null),
+            AlgoLineIndex: chartData.map(d => d.detectedLineIndex || null)
         };
 
-        // Extrema Points
+        // Identify Return Sweep Intervals for Shading
+        const returnSweepIntervals = [];
+        let rStart = null;
+        for (let i = 0; i < chartData.length; i++) {
+            if (chartData[i].isReturnSweep) {
+                if (rStart === null) rStart = chartData[i].t;
+            } else {
+                if (rStart !== null) {
+                    returnSweepIntervals.push({ start: rStart, end: chartData[i - 1].t });
+                    rStart = null;
+                }
+            }
+        }
+        if (rStart !== null) returnSweepIntervals.push({ start: rStart, end: chartData[chartData.length - 1].t });
+
+        // Helper for intervals
+        const intervalPlugin = {
+            id: 'intervalShading',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea, scales } = chart;
+                if (!chartArea) return;
+                const x = scales.x;
+                ctx.save();
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.15)'; // Magenta tint for Return Sweeps
+
+                for (const it of returnSweepIntervals) {
+                    const x0 = x.getPixelForValue(it.start);
+                    const x1 = x.getPixelForValue(it.end);
+                    if (Number.isFinite(x0) && Number.isFinite(x1)) {
+                        const left = Math.min(x0, x1);
+                        const right = Math.max(x0, x1);
+                        ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+                    }
+                }
+                ctx.restore();
+            }
+        };
+
+        // Extrema Points (Filtered)
         const lineStarts = [];
         const posMaxs = [];
-        const posMaxLasts = [];
+        const ignValleys = [];
+        const ignPeaks = [];
 
-        this.data.forEach(d => {
+        chartData.forEach(d => {
             if (d.extrema === 'LineStart') lineStarts.push({ x: d.t, y: d.gx });
             if (d.extrema === 'PosMax') posMaxs.push({ x: d.t, y: d.gx });
-            if (d.extrema === 'PosMax(Last)') posMaxLasts.push({ x: d.t, y: d.gx });
+            // Assuming ignored are still relevant? If not, skip.
         });
 
-        // Loop through each chart type and draw to a temp canvas
-        for (let i = 0; i < charts.length; i++) {
-            const chartName = charts[i];
-            // Grid Position
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const xOffset = col * chartWidth;
-            const yOffset = row * chartHeight;
+        // Loop through each chart type
+        for (let i = 0; i < chartTypes.length; i++) {
+            const chartName = chartTypes[i];
+            const yOffset = i * chartHeight;
 
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = chartWidth;
             tempCanvas.height = chartHeight;
 
-            const chartConfig = {
-                type: 'line',
-                data: {
-                    labels: times,
-                    datasets: [{
-                        label: chartName,
-                        data: datasets[chartName],
-                        borderColor: 'rgba(33, 150, 243, 0.7)',
-                        borderWidth: 1.5,
-                        pointRadius: 2,
-                        tension: 0.1,
-                        fill: false
-                    }]
+            let configData = { labels: times, datasets: [] };
+            let options = {
+                responsive: false,
+                animation: false,
+                plugins: {
+                    title: { display: true, text: chartName },
+                    legend: { display: true }
                 },
-                options: {
-                    responsive: false,
-                    animation: false,
-                    layout: { padding: { left: 20, right: 40, top: 20, bottom: 20 } },
-                    plugins: {
-                        title: { display: true, text: chartName },
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { display: true, ticks: { maxTicksLimit: 10 } },
-                        y: { beginAtZero: false } // Auto scale
-                    }
-                }
+                scales: { x: { display: true }, y: { beginAtZero: false } }
             };
 
-            // Add Extrema to SmoothX
-            if (chartName === 'SmoothX') {
-                chartConfig.data.datasets.push({
-                    label: 'Extrema: LineStart',
-                    data: lineStarts,
-                    type: 'scatter',
-                    backgroundColor: 'green',
-                    pointRadius: 6,
-                    pointStyle: 'triangle',
-                    rotation: 180,
-                    parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-                });
-                chartConfig.data.datasets.push({
-                    label: 'Extrema: PosMax',
-                    data: posMaxs,
-                    type: 'scatter',
-                    backgroundColor: 'red',
-                    pointRadius: 6,
-                    pointStyle: 'triangle',
-                    parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-                });
-
-                // Add Ignored Extrema Visualization
-                const valleyIgnored = [];
-                const peakIgnored = [];
-                this.data.forEach(d => {
-                    if (d.extrema === 'Valley(Ignored)') valleyIgnored.push({ x: d.t, y: d.gx });
-                    if (d.extrema === 'Peak(Ignored)') peakIgnored.push({ x: d.t, y: d.gx });
-                });
-
-                chartConfig.data.datasets.push({
-                    label: 'Ignored Valley',
-                    data: valleyIgnored,
-                    type: 'scatter',
-                    backgroundColor: 'rgba(50,50,50,0.5)',
-                    pointRadius: 4,
-                    pointStyle: 'triangle',
-                    rotation: 180,
-                    parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-                });
-                chartConfig.data.datasets.push({
-                    label: 'Ignored Peak',
-                    data: peakIgnored,
-                    type: 'scatter',
-                    backgroundColor: 'rgba(50,50,50,0.5)',
-                    pointRadius: 4,
-                    pointStyle: 'triangle',
-                    parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-                });
-
-                chartConfig.options.plugins.legend = { display: true };
+            // Build Datasets per Chart Type
+            if (chartName === 'RawData') {
+                configData.datasets.push(
+                    { label: 'RawX', data: datasets.RawX, borderColor: 'blue', borderWidth: 1, pointRadius: 0 },
+                    { label: 'RawY', data: datasets.RawY, borderColor: 'orange', borderWidth: 1, pointRadius: 0 }
+                );
+                // Add Extrema Markers
+                configData.datasets.push(
+                    { label: 'LineStart', data: lineStarts, type: 'scatter', backgroundColor: 'green', pointRadius: 5, pointStyle: 'triangle', rotation: 180 },
+                    { label: 'PosMax', data: posMaxs, type: 'scatter', backgroundColor: 'red', pointRadius: 5, pointStyle: 'triangle' }
+                );
+            } else if (chartName === 'SmoothedData') {
+                configData.datasets.push(
+                    { label: 'SmoothX', data: datasets.SmoothX, borderColor: 'dodgerblue', borderWidth: 1.5, pointRadius: 0, borderDash: [5, 5] },
+                    { label: 'SmoothY', data: datasets.SmoothY, borderColor: 'darkorange', borderWidth: 1.5, pointRadius: 0, borderDash: [5, 5] }
+                );
+            } else if (chartName === 'Velocity') {
+                configData.datasets.push(
+                    { label: 'VelX', data: datasets.VelX, borderColor: 'purple', borderWidth: 1, pointRadius: 0 },
+                    { label: 'VelY', data: datasets.VelY, borderColor: 'brown', borderWidth: 1, pointRadius: 0 }
+                );
+            } else if (chartName === 'LineIndices') {
+                configData.datasets.push(
+                    { label: 'LineIndex', data: datasets.LineIndex, borderColor: 'cyan', borderWidth: 2, pointRadius: 1, stepped: true },
+                    { label: 'AlgoLineIndex', data: datasets.AlgoLineIndex, borderColor: 'magenta', borderWidth: 2, pointRadius: 2, pointStyle: 'crossRot', showLine: false }
+                );
             }
 
-            // Render Chart on Temp Canvas
-            // Note: Chart.js renders asynchronously usually, but with animation:false it might be sync enough for image capture??
-            // Actually, we need to wait for it.
+            const chartConfig = {
+                type: 'line',
+                data: configData,
+                options: options,
+                plugins: [intervalPlugin] // Apply shading to all charts
+            };
 
+            // Render
             await new Promise(resolve => {
                 const chart = new Chart(tempCanvas, chartConfig);
                 setTimeout(() => {
-                    // Draw temp canvas onto main canvas
-                    ctx.drawImage(tempCanvas, xOffset, yOffset);
+                    ctx.drawImage(tempCanvas, 0, yOffset);
                     chart.destroy();
                     resolve();
-                }, 100); // Small delay to ensure render
+                }, 100);
             });
         }
 
