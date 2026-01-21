@@ -381,22 +381,24 @@ export class GazeDataManager {
 
     // --- Line Detection Algorithm V3 (Interpolation + Velocity Check) ---
     // --- Line Detection Algorithm V4 (Trend Line & Pattern Match) ---
+    // --- Line Detection Algorithm V4.1 (Refined Trend & Validation) ---
     detectLinesMobile() {
         if (this.data.length < 10) return 0;
 
         // ---------------------------------------------------------
-        // Step 0. Preprocessing (Interpolation, Smoothing)
+        // Step 0. Preprocessing
         // ---------------------------------------------------------
-        this.preprocessData();
+        this.preprocessData(); // Ensure gx (SmoothX) is ready
 
         // ---------------------------------------------------------
         // Step 1. Find All Extrema (Valleys & Peaks)
         // ---------------------------------------------------------
-        const win = 10; // Window size ~160ms
-        const candidates = []; // { type: 'Valley'|'Peak', index, t, val }
+        const win = 10;
+        let candidates = [];
 
         for (let i = win; i < this.data.length - win; i++) {
-            const currVal = this.data[i].gx; // Use Smoothed X (RawX with Gaussian)
+            const currVal = this.data[i].gx;
+            const t = this.data[i].t;
             if (currVal === null || currVal === undefined) continue;
 
             // Check Valley (Local Min)
@@ -406,7 +408,7 @@ export class GazeDataManager {
                     isMin = false; break;
                 }
             }
-            if (isMin) candidates.push({ type: 'Valley', index: i, t: this.data[i].t, val: currVal });
+            if (isMin) candidates.push({ type: 'Valley', index: i, t, val: currVal });
 
             // Check Peak (Local Max)
             let isMax = true;
@@ -415,117 +417,163 @@ export class GazeDataManager {
                     isMax = false; break;
                 }
             }
-            if (isMax) candidates.push({ type: 'Peak', index: i, t: this.data[i].t, val: currVal });
+            if (isMax) candidates.push({ type: 'Peak', index: i, t, val: currVal });
         }
 
         if (candidates.length < 2) return 0;
 
         // ---------------------------------------------------------
-        // Step 2 & 3. Calculate Trend Lines (Top 3 Avg)
+        // Step 2 & 3. Calculate Trend Lines
         // ---------------------------------------------------------
-        // Filter Peaks and Valleys
         const allPeaks = candidates.filter(c => c.type === 'Peak').map(c => c.val);
         const allValleys = candidates.filter(c => c.type === 'Valley').map(c => c.val);
 
         if (allPeaks.length === 0 || allValleys.length === 0) return 0;
 
-        // Get Top 3 Peaks (Descending)
+        // Top 3 Peaks
         allPeaks.sort((a, b) => b - a);
         const top3Peaks = allPeaks.slice(0, 3);
         const peakTrend = top3Peaks.reduce((sum, v) => sum + v, 0) / top3Peaks.length;
 
-        // Get Bottom 3 Valleys (Ascending)
+        // Bottom 3 Valleys
         allValleys.sort((a, b) => a - b);
         const bottom3Valleys = allValleys.slice(0, 3);
         const valleyTrend = bottom3Valleys.reduce((sum, v) => sum + v, 0) / bottom3Valleys.length;
 
-        // ---------------------------------------------------------
-        // Step 4. Calculate Reference Distance
-        // ---------------------------------------------------------
+        // Step 4. Trend Distance
         const trendDistance = peakTrend - valleyTrend;
-        // Safety check: if distance is too small (e.g. noise), avoid faulty detection
-        if (trendDistance < 50) {
-            console.warn("[LineDetection V4] Trend distance too small:", trendDistance);
-            return 0;
+        const distThreshold = trendDistance * 0.5;
+
+        // Safety: If trend distance is negligible, return 0
+        if (trendDistance < 50) return 0;
+
+        // ---------------------------------------------------------
+        // Step 6.5. Filter Last Line Candidates
+        // ---------------------------------------------------------
+        // Find timestamp of last text appearance
+        let lastTextTime = 0;
+        for (let i = this.data.length - 1; i >= 0; i--) {
+            if (this.data[i].lineIndex !== undefined && this.data[i].lineIndex !== null && this.data[i].lineIndex !== "") {
+                lastTextTime = this.data[i].t;
+                break;
+            }
         }
 
-        console.log(`[LineDetection V4] PeakTrend: ${peakTrend.toFixed(1)}, ValleyTrend: ${valleyTrend.toFixed(1)}, Dist: ${trendDistance.toFixed(1)}`);
+        // Logic: Keep all extrema BEFORE lastTextTime.
+        // For extrema AFTER lastTextTime, keep ONLY the FIRST valid (Valley->Peak) pair.
+        // A pair is valid if it meets the reading criteria (processed later), 
+        // but here we just need to truncate 'extra' candidates after the first potential post-text line.
+
+        const preCandidates = [];
+        const postCandidates = [];
+
+        candidates.forEach(c => {
+            if (c.t <= lastTextTime) preCandidates.push(c);
+            else postCandidates.push(c);
+        });
+
+        // Find the first valid-looking pair in postCandidates
+        let firstPostPairEndIdx = -1;
+
+        // Iterate postCandidates to find first Valley->Peak that MIGHT be a line
+        let tempValley = null;
+        for (let i = 0; i < postCandidates.length; i++) {
+            if (postCandidates[i].type === 'Valley') {
+                tempValley = postCandidates[i];
+            } else if (postCandidates[i].type === 'Peak' && tempValley) {
+                // Found a pair [tempValley, Peak]
+                // We keep up to this Peak.
+                firstPostPairEndIdx = i;
+                break;
+            }
+        }
+
+        // Combine: Pre + (First Post Pair)
+        candidates = [...preCandidates];
+        if (firstPostPairEndIdx !== -1) {
+            for (let i = 0; i <= firstPostPairEndIdx; i++) {
+                candidates.push(postCandidates[i]);
+            }
+        }
 
         // ---------------------------------------------------------
-        // Step 5, 6, 7. Validate Line Segments
+        // Step 5 & 6. Identify Reading Segments (Valley -> Peak)
         // ---------------------------------------------------------
-        const validLines = [];
-        let lineCounter = 1;
+        let segments = [];
+        let cv = null; // current valley
 
-        // We assume a line starts with a Valley and ends with a Peak.
-        // Process extrema in temporal order.
+        for (let c of candidates) {
+            if (c.type === 'Valley') {
+                cv = c;
+            } else if (c.type === 'Peak' && cv) {
+                const dt = c.t - cv.t;
+                const dx = c.val - cv.val;
 
-        let lastValley = null;
-
-        for (let k = 0; k < candidates.length; k++) {
-            const item = candidates[k];
-
-            if (item.type === 'Valley') {
-                // Potential Line Start
-                lastValley = item;
-            } else if (item.type === 'Peak') {
-                // Potential Line End
-                if (lastValley) {
-                    // Check logic
-                    const timeDiff = item.t - lastValley.t;
-                    const distDiff = item.val - lastValley.val;
-
-                    // Condition 5: Time > 500ms
-                    const isTimeValid = timeDiff >= 500;
-
-                    // Condition 6: Distance > 50% of Trend Distance
-                    const isDistValid = distDiff >= (trendDistance * 0.5);
-
-                    if (isTimeValid && isDistValid) {
-                        // Found a valid line!
-                        validLines.push({
-                            startIdx: lastValley.index,
-                            endIdx: item.index,
-                            lineNum: lineCounter++
-                        });
-
-                        // Mark Extrema for Visualization
-                        this.data[lastValley.index].extrema = 'LineStart';
-                        this.data[item.index].extrema = 'PosMax';
-
-                        // Reset lastValley to prevent reusing same start for multiple peaks (unless nested logic required)
-                        // Typically one valley starts one line.
-                        lastValley = null;
-                    }
+                // Criteria: Time >= 500ms AND Dist >= 50% Trend
+                if (dt >= 500 && dx >= distThreshold) {
+                    segments.push({ start: cv, end: c });
+                    cv = null; // Consumed
                 }
             }
         }
 
         // ---------------------------------------------------------
-        // Step 8. Count Lines & Finalize
+        // Step 7 & 8. Validate Return Sweeps (Peak -> Valley) & Merge
         // ---------------------------------------------------------
+        // If distance between Seg[i].End (Peak) and Seg[i+1].Start (Valley) 
+        // is LESS than 50% Trend, it is NOT a return sweep. It's a regression within a line.
+        // Action: Merge Seg[i] and Seg[i+1].
 
-        // Reset markings first
+        const mergedSegments = [];
+        if (segments.length > 0) {
+            let current = segments[0];
+
+            for (let i = 1; i < segments.length; i++) {
+                const next = segments[i];
+                // Check Return Sweep Distance (Peak -> Valley)
+                // Return sweep implies moving LEFT, so Peak > Valley. 
+                // Distance = current.end.val - next.start.val
+                const returnDist = current.end.val - next.start.val;
+
+                if (returnDist < distThreshold) {
+                    // Not a valid return sweep -> Merge!
+                    // Extend current segment's end to next segment's end
+                    // (Ignore the intermediate peak/valley)
+                    current.end = next.end;
+                } else {
+                    // Valid return sweep -> Push current, start new
+                    mergedSegments.push(current);
+                    current = next;
+                }
+            }
+            mergedSegments.push(current); // Push last one
+        }
+
+        // ---------------------------------------------------------
+        // Step 9. Finalize
+        // ---------------------------------------------------------
+        const validLines = mergedSegments.map((seg, idx) => ({
+            startIdx: seg.start.index,
+            endIdx: seg.end.index,
+            lineNum: idx + 1
+        }));
+
+        // Reset Extrema Visuals
+        for (let i = 0; i < this.data.length; i++) delete this.data[i].extrema;
+
+        // Apply
         for (let i = 0; i < this.data.length; i++) delete this.data[i].detectedLineIndex;
-
-        // Mark Detected Lines on Data Points
         validLines.forEach(line => {
+            this.data[line.startIdx].extrema = "LineStart";
+            this.data[line.endIdx].extrema = "PosMax"; // or "LineEnd"
+
             for (let k = line.startIdx; k <= line.endIdx; k++) {
                 this.data[k].detectedLineIndex = line.lineNum;
             }
         });
 
         const count = validLines.length;
-        console.log(`[GazeDataManager] V4 Line Detection: Found ${count} lines.`, validLines);
-
-        // Debug output
-        const extremaDebug = [];
-        this.data.forEach((d, i) => {
-            if (d.extrema) {
-                extremaDebug.push({ i, t: d.t, val: d.gx.toFixed(1), type: d.extrema });
-            }
-        });
-        if (extremaDebug.length > 0) console.table(extremaDebug);
+        console.log(`[GazeDataManager V4.1] Found ${count} lines. (TrendDist: ${trendDistance.toFixed(0)})`, validLines);
 
         return count;
     }
