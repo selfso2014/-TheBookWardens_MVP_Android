@@ -405,7 +405,7 @@ export class GazeDataManager {
         document.body.removeChild(link);
     }
 
-    // --- Line Detection Algorithm V5.2 (Best Peak Selection) ---
+    // --- Line Detection Algorithm V5.3 (Detailed Artifact Removal) ---
     detectLinesMobile() {
         if (this.data.length < 10) return 0;
 
@@ -541,6 +541,16 @@ export class GazeDataManager {
                 if (p !== bestP) p.valid = false;
                 else bestCandidates.push(bestP);
             }
+        }
+
+        // ---------------------------------------------------------
+        // Step 1.3. Exclude Last 2 Extrema (User Rule)
+        // ---------------------------------------------------------
+        // "Exclude the last two extrema values." (likely end artifacts)
+        if (bestCandidates.length >= 2) {
+            // Simply remove them. They remain tagged as 'Ignored' (or revert to it) in the data.
+            bestCandidates.pop();
+            bestCandidates.pop();
         }
 
         candidates = bestCandidates;
