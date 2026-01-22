@@ -370,7 +370,7 @@ Game.typewriter = {
         const isMobile = window.innerWidth <= 768;
         this.currentP.style.fontSize = isMobile ? "1.0rem" : "1.1rem";
         this.currentP.style.textAlign = "left";
-        this.currentP.style.lineHeight = "1.5";
+        this.currentP.style.lineHeight = "2.5"; // User Request: 1.5 -> 2.5
         this.currentP.style.fontFamily = "'Crimson Text', serif";
 
         // Mobile Layout: Wider box, smaller margins
