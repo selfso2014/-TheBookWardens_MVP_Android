@@ -1041,73 +1041,9 @@ Game.typewriter = {
         const contentRect = contentEl ? contentEl.getBoundingClientRect() : { top: 0 };
 
         // -------------------------------------------------------------
-        // PRE-CALCULATION: Average Gaze Y per Detected Line (for Stable Y)
-        const lineAvgYMap = {};
-        validData.forEach(d => {
-            const lIdx = d.detectedLineIndex;
-            if (lIdx !== undefined && lIdx !== null) {
-                if (!lineAvgYMap[lIdx]) { lineAvgYMap[lIdx] = { sum: 0, count: 0 }; }
-                lineAvgYMap[lIdx].sum += (d.gy || d.y);
-                lineAvgYMap[lIdx].count++;
-            }
-        });
-        // Convert to simple map (mean value)
-        Object.keys(lineAvgYMap).forEach(k => {
-            lineAvgYMap[k] = lineAvgYMap[k].sum / lineAvgYMap[k].count;
-        });
+        // PRE-CALCULATION: X-Axis Min/Max per line (for Normalization)
+        // (Y-axis uses direct Target Snap, so no pre-calc needed for Y)
         // -------------------------------------------------------------
-
-        // 2. Calculate Vertical Offset (Calibration based on Line 1)
-        // Find Line 1 Y (Target)
-        // lineYData stores relative Y inside valid area? Or accumulated? 
-        // We need Absolute Y relative to Viewport or at least relative to book-content top.
-        // Game.lineYData is stored during typewriting.
-
-        let targetY_Line1 = 0;
-        if (this.lineYData && this.lineYData.length > 0) {
-            // Assuming lineYData[0] is the first line. 
-            // lineYData stores 'top' offset relative to container?
-            // Need to check recordLineY. It stores 'y'.
-            // Let's assume 'y' is consistent with visual layout.
-            targetY_Line1 = this.lineYData[0].y;
-        }
-
-        // Find Average Gaze Y for Line 1
-        // We use 'detectedLineIndex' to filter for Line 1 data.
-        // Assuming line detection (Hybrid/Basic) assigned Line 1 correctly to start.
-
-        let sumY_Line1 = 0;
-        let countY_Line1 = 0;
-
-        // Use the min detected line as "Line 1"
-        validData.forEach(d => {
-            if (d.detectedLineIndex === minLineIdx) {
-                sumY_Line1 += (d.gy || d.y); // Use raw/smoothed Y
-                countY_Line1++;
-            }
-        });
-
-        let avgGazeY_Line1 = 0;
-        if (countY_Line1 > 0) {
-            avgGazeY_Line1 = sumY_Line1 / countY_Line1;
-        } else {
-            // Fallback: Use overall average of first 10 points?
-            for (let i = 0; i < Math.min(validData.length, 10); i++) {
-                avgGazeY_Line1 += (validData[i].gy || validData[i].y);
-            }
-            avgGazeY_Line1 /= Math.min(validData.length, 10);
-        }
-
-        // Calculate Offset
-        // Content Rect Top is needed if targetY_Line1 is relative.
-        // contentEl and contentRect are already defined above.
-
-        // Target Absolute Y = ContentTop + Line1_Relative_Y
-        const absTargetY = contentRect.top + targetY_Line1;
-
-        const offsetY = absTargetY - avgGazeY_Line1;
-
-        console.log(`[Replay] Offset Calibration: TargetY=${absTargetY.toFixed(1)}, AvgGazeY=${avgGazeY_Line1.toFixed(1)}, Offset=${offsetY.toFixed(1)}`);
 
         // 3. Build Replay Stream (Continuous Offset)
         const replayData = [];
