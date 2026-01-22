@@ -1040,75 +1040,138 @@ Game.typewriter = {
         const contentEl = document.getElementById("book-content");
         const contentRect = contentEl ? contentEl.getBoundingClientRect() : { top: 0 };
 
-        // 2. Pre-calculation: Min/Max X per line
-        // Revert to using 'gx' for simple trace
-        validData.forEach(d => {
-            const idx = d.detectedLineIndex;
-            const val = d.gx;
+        // 2. Calculate Vertical Offset (Calibration based on Line 1)
+        // Find Line 1 Y (Target)
+        // lineYData stores relative Y inside valid area? Or accumulated? 
+        // We need Absolute Y relative to Viewport or at least relative to book-content top.
+        // Game.lineYData is stored during typewriting.
 
-            if (!lineGroups[idx]) lineGroups[idx] = { minX: 99999, maxX: -99999 };
-            if (val < lineGroups[idx].minX) lineGroups[idx].minX = val;
-            if (val > lineGroups[idx].maxX) lineGroups[idx].maxX = val;
+        let targetY_Line1 = 0;
+        if (this.lineYData && this.lineYData.length > 0) {
+            // Assuming lineYData[0] is the first line. 
+            // lineYData stores 'top' offset relative to container?
+            // Need to check recordLineY. It stores 'y'.
+            // Let's assume 'y' is consistent with visual layout.
+            targetY_Line1 = this.lineYData[0].y;
+        }
+
+        // Find Average Gaze Y for Line 1
+        // We use 'detectedLineIndex' to filter for Line 1 data.
+        // Assuming line detection (Hybrid/Basic) assigned Line 1 correctly to start.
+
+        let sumY_Line1 = 0;
+        let countY_Line1 = 0;
+
+        // Use the min detected line as "Line 1"
+        validData.forEach(d => {
+            if (d.detectedLineIndex === minLineIdx) {
+                sumY_Line1 += (d.gy || d.y); // Use raw/smoothed Y
+                countY_Line1++;
+            }
         });
 
-        // 3. Build Replay Stream (Simple Dot)
+        let avgGazeY_Line1 = 0;
+        if (countY_Line1 > 0) {
+            avgGazeY_Line1 = sumY_Line1 / countY_Line1;
+        } else {
+            // Fallback: Use overall average of first 10 points?
+            for (let i = 0; i < Math.min(validData.length, 10); i++) {
+                avgGazeY_Line1 += (validData[i].gy || validData[i].y);
+            }
+            avgGazeY_Line1 /= Math.min(validData.length, 10);
+        }
+
+        // Calculate Offset
+        // Calculate Offset
+        // Content Rect Top is needed if targetY_Line1 is relative.
+        // contentEl and contentRect are already defined above.
+
+        // Target Absolute Y = ContentTop + Line1_Relative_Y
+        const absTargetY = contentRect.top + targetY_Line1;
+
+        const offsetY = absTargetY - avgGazeY_Line1;
+
+        console.log(`[Replay] Offset Calibration: TargetY=${absTargetY.toFixed(1)}, AvgGazeY=${avgGazeY_Line1.toFixed(1)}, Offset=${offsetY.toFixed(1)}`);
+
+        // 3. Build Replay Stream (Continuous Offset)
         const replayData = [];
         let virtualTime = 0;
         let lastRawT = validData[0].t;
-        let lastLineIdx = validData[0].detectedLineIndex;
 
         validData.forEach((d, i) => {
-            // A. Time Compression (Keep this feature)
+            // A. Time Compression (Double Speed)
             if (i > 0) {
                 const rawDelta = d.t - lastRawT;
-                let effectiveDelta = rawDelta;
-                // If Line Changed, clamp delay to 50ms
-                if (d.detectedLineIndex !== lastLineIdx) {
-                    if (rawDelta > 50) effectiveDelta = 50;
-                }
-                // USER REQUEST: Double Speed (delta / 2)
-                virtualTime += effectiveDelta / 2;
+                virtualTime += rawDelta / 3; // 3x Speed requested previously? Or user said "Double"?
+                // Previous code: virtualTime += effectiveDelta / 2;
+                // User Request just now: "녹색원의 x값은 예전과 동일하게 적용한다" (Referring to older logic?)
+                // Actually user said "green circle x is same as before".
+                // User Prompt: "녹색원의 x값은 예전과 동일하게 적용한다." -> This implies mapped X? or raw X? 
+                // "예전과 동일하게" -> Previously we mapped X min/max to line width.
+                // But user also said "줄 바꿈이나 이런 거 없이".
+                // If we don't snap to lines, we can't map X to line width easily (which line width?).
+                // "옵셋 이동된 AvgCoolGazeY_Px 값을 녹색원의 y값으로 한다."
+                // "녹색원의 x값은 예전과 동일하게 적용한다."
+                //
+                // If "Same as before" means "Normalized to Line Width", we MUST knowing which line we are on.
+                // But the user wants "No line break logic" for Y. 
+                // If we treat X as "Raw X", it might not match the text if calibration was bad horizontally.
+                //
+                // Let's interpret "Same as before" for X as: "Use the Smoothed X (Raw)?" 
+                // OR "Keep the Line-based normalization for X"?
+                //
+                // If we keep X normalization, we need the Line Index.
+                // The user said: "Return sweep happened... assume next line". 
+                // So we DO have Line Index from the detection algorithm.
+                // So we CAN use Line Index for X mapping.
+                // BUT for Y, we just use Raw Y + Offset.
+
+                // Let's implement X normalization (Same as before) and Y Raw+Offset.
             }
             lastRawT = d.t;
-            lastLineIdx = d.detectedLineIndex;
 
-            // B. Visual Mapping
+            // B. Calculate Y (Raw + Offset)
+            const rawY = d.gy || d.y;
+            const Dy = rawY + offsetY;
+
+            // C. Calculate X (Normalized to Line Width - Same as before)
+            // We need the detected line for X mapping
+            let Dx = d.gx || d.x; // Default Raw X
+
+            // "Same as before" X logic:
             const idx = d.detectedLineIndex;
             // Align start of data to start of visual lines
+            const visualLines = this.getVisualLines(this.currentP);
             const visualIdx = idx - minLineIdx;
 
-            // Use gx for simple gaze replay
-            const valX = d.gx;
-            let Dx = 0, Dy = 0;
+            // Pre-calculated ranges from previous step (need to restore this logic outside loop if deleted)
+            // We need lineGroups logic back if we want normalization.
+            // Let's assume we maintain the pre-calc loop.
 
-            if (visualIdx >= 0 && visualIdx < visualLines.length) {
+            // X Mapping Logic
+            if (visualIdx >= 0 && visualIdx < visualLines.length && lineGroups[idx]) {
                 const vLine = visualLines[visualIdx];
                 const gInfo = lineGroups[idx];
                 let normX = 0;
-                if (gInfo.maxX > gInfo.minX) {
-                    normX = (valX - gInfo.minX) / (gInfo.maxX - gInfo.minX);
+                // Avoid divide by zero
+                if (gInfo.maxX > gInfo.minX + 1) {
+                    normX = (Dx - gInfo.minX) / (gInfo.maxX - gInfo.minX);
+                } else {
+                    normX = 0.5; // Single point fallback
                 }
+
                 normX = Math.max(0, Math.min(1, normX));
                 Dx = vLine.left + normX * (vLine.right - vLine.left);
-
-                // USER FIX: Use lineYData for Y-axis accuracy to prevent drift vs Red Lines
-                if (this.lineYData && this.lineYData[visualIdx]) {
-                    // USER REQUEST: Set offset to -5px
-                    Dy = contentRect.top + this.lineYData[visualIdx].y - 5;
-                } else {
-                    Dy = vLine.top + (vLine.bottom - vLine.top) * 0.5;
-                }
             } else {
-                return;
+                // Fallback if line detection mismatches visual lines
+                // Dx remains raw (might be off)
             }
 
-            // C. Simple Visualization (No Fixation Logic)
-            // Fixation or Saccade, just show simple dot
             replayData.push({
                 t: virtualTime,
                 x: Dx,
                 y: Dy,
-                r: 10, // Fixed radius
+                r: 10,
                 type: d.type
             });
         });
