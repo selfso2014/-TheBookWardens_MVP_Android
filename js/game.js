@@ -1233,7 +1233,7 @@ Game.typewriter = {
                     ctx.stroke();
                 } else {
                     // Saccade / Move
-                    ctx.fillStyle = 'rgba(100, 255, 100, 0.02)';
+                    ctx.fillStyle = 'rgba(100, 255, 100, 0.005)';
                     ctx.fill();
                 }
             }
