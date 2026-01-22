@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaze Data Debug Tool & Visualizer</title>
+    <title>Gaze Data Graph Visualizer</title>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -96,9 +96,8 @@
 <body>
 
     <div class="container">
-        <h1>Gaze Data Reprocessor & Visualizer</h1>
-        <p>Select a CSV file (timestamp, rawX, rawY) to re-run detection (k=3.5).<br>
-            This will auto-download the detection CSV and display 4 analysis charts below.</p>
+        <h1>Gaze Data Graph Visualizer</h1>
+        <p>Upload a CSV file to visualize gaze data analysis graphs instantly.</p>
 
         <div class="upload-area" id="dropZone">
             <p>Drag & Drop CSV file here or click to upload</p>
@@ -206,131 +205,141 @@
         }
 
         function runAlgo(rawContent, filename) {
-            log("Parsing CSV...");
+            log("Parsing CSV for Visualization (Skipping Reprocessing)...");
             const lines = rawContent.split(/\r?\n/).filter(line => line.trim() !== '');
             const data = [];
             let firstTimestamp = null;
             let ignoredLines = 0;
 
-            // Column Mapping (Default)
-            let colMap = { t: 0, x: 1, y: 2, lineIndex: -1 };
-            let startRow = 0;
+            // Column Mapping (Init with -1)
+            let colMap = {
+                t: -1, x: -1, y: -1,
+                gx: -1, gy: -1,
+                vx: -1, vy: -1,
+                lineIndex: -1, charIndex: -1,
+                targetY: -1, avgY: -1,
+                algoLineIndex: -1,
+                isReturnSweep: -1,
+                extrema: -1
+            };
 
-            // 1. Detect Delimiter
+            let startRow = 0;
             let delimiter = ',';
+
+            // 1. Detect Delimiter & Header
             if (lines.length > 0) {
-                const firstLine = lines[0];
+                const firstLine = lines[0].trim();
+
+                // Delimiter check
                 const commaCount = (firstLine.match(/,/g) || []).length;
                 const tabCount = (firstLine.match(/\t/g) || []).length;
                 if (tabCount > commaCount) delimiter = '\t';
-            }
 
-            // 1. Check for Header
-            if (lines.length > 0) {
-                const firstLine = lines[0].trim();
                 const parts = firstLine.split(delimiter).map(s => s.trim().toLowerCase());
 
-                // Heuristic: If first token is not a number, assume header
+                // Header Detection
                 if (isNaN(parseFloat(parts[0]))) {
-                    log("Header detected. Mapping columns...");
-                    colMap = { t: -1, x: -1, y: -1, lineIndex: -1 };
+                    log(`Header detected. Delimiter: '${delimiter === '\t' ? 'TAB' : 'COMMA'}'`);
 
                     parts.forEach((p, i) => {
-                        if (p.includes('time') || p === 't') colMap.t = i;
-                        else if (p.includes('rawx') || p === 'x') colMap.x = i;
-                        else if (p.includes('rawy') || p === 'y') colMap.y = i;
-                        else if (p.includes('lineindex') || p === 'line' || p === 'answer') colMap.lineIndex = i;
+                        // Time
+                        if (p.includes('relative') || p.includes('time') || p === 't') colMap.t = i;
+                        // Raw
+                        else if (p === 'rawx' || p === 'x') colMap.x = i;
+                        else if (p === 'rawy' || p === 'y') colMap.y = i;
+                        // Smooth
+                        else if (p === 'smoothx' || p === 'gx') colMap.gx = i;
+                        else if (p === 'smoothy' || p === 'gy') colMap.gy = i;
+                        // Velocity
+                        else if (p === 'velx' || p === 'vx') colMap.vx = i;
+                        else if (p === 'vely' || p === 'vy') colMap.vy = i;
+                        // Indices
+                        else if (p === 'lineindex') colMap.lineIndex = i;
+                        else if (p === 'charindex') colMap.charIndex = i;
+                        else if (p === 'algolineindex' || p.includes('algo')) colMap.algoLineIndex = i;
+                        // Metadata
+                        else if (p.includes('targety')) colMap.targetY = i;
+                        else if (p.includes('avgcool')) colMap.avgY = i;
+                        else if (p.includes('returnsweep')) colMap.isReturnSweep = i;
+                        else if (p.includes('extrema')) colMap.extrema = i;
                     });
 
-                    // Fallbacks if header parsing failed for core fields
-                    if (colMap.t === -1) colMap.t = 0;
-                    if (colMap.x === -1) colMap.x = 1;
-                    if (colMap.y === -1) colMap.y = 2;
-
-                    log(`Mapped: T=${colMap.t}, X=${colMap.x}, Y=${colMap.y}, LineIndex=${colMap.lineIndex}`);
                     startRow = 1;
                 } else {
-                    // Check if it really is tab separated but we missed it?
-                    if (lines[0].includes('\t')) delimiter = '\t';
-                    log(`No Header detected. Using default indices. Delimiter: ${delimiter === '\t' ? 'TAB' : 'COMMA'}`);
+                    // No Header - Default Mapping (Assume Raw Format)
+                    log("No Header detected. Using default Raw indices (T=0, X=1, Y=2).");
+                    colMap.t = 0; colMap.x = 1; colMap.y = 2;
                 }
             }
 
+            log(`Mapped Columns: T=${colMap.t}, X=${colMap.x}, SmoothX=${colMap.gx}, LineIndex=${colMap.lineIndex}, AlgoIdx=${colMap.algoLineIndex}`);
+
+            // 2. Parse Data
             let lastValidLineIndex = null;
+
             for (let i = startRow; i < lines.length; i++) {
                 const line = lines[i];
-                // CRITICAL FIX: Use the actually detected delimiter!
                 const parts = line.split(delimiter).map(s => s.trim());
 
-                if (parts.length < 3) {
-                    ignoredLines++;
-                    continue;
-                }
+                if (parts.length < 2) { ignoredLines++; continue; }
 
-                const t_raw = parseFloat(parts[colMap.t]);
-                const x = parseFloat(parts[colMap.x]);
-                const y = parseFloat(parts[colMap.y]);
+                // Safe Parse Helper
+                const getVal = (idx) => {
+                    if (idx === -1 || idx >= parts.length) return null;
+                    const val = parts[idx];
+                    if (val === "" || val === "null" || val === undefined) return null;
+                    const num = parseFloat(val);
+                    return isNaN(num) ? val : num; // Return number if possible, else string (for extrema/type)
+                };
 
-                // Parse optional LineIndex with Carry-Forward
-                let lIdx = null;
-                if (colMap.lineIndex !== -1 && parts[colMap.lineIndex] !== undefined) {
-                    const rawVal = parts[colMap.lineIndex];
-                    if (rawVal !== "" && rawVal !== undefined && rawVal !== null && rawVal !== "null") {
-                        const parsed = parseFloat(rawVal);
-                        if (Number.isFinite(parsed)) lIdx = parsed;
-                        else lIdx = rawVal;
+                const t = getVal(colMap.t);
+                if (t === null || typeof t !== 'number') continue; // Timestamp is mandatory
 
-                        // Update persisted value
-                        lastValidLineIndex = lIdx;
-                    } else {
-                        // If empty, use the last valid one
-                        lIdx = lastValidLineIndex;
-                    }
-                } else if (lastValidLineIndex !== null) {
-                    // If column missing but we have history, use history
+                // Parsing Logic
+                let lIdx = getVal(colMap.lineIndex);
+                // Carry-Forward LineIndex Logic
+                if (lIdx !== null && typeof lIdx === 'number') {
+                    lastValidLineIndex = lIdx;
+                } else {
                     lIdx = lastValidLineIndex;
                 }
 
-                if (isNaN(t_raw)) continue;
+                const gx = getVal(colMap.gx);
+                const gy = getVal(colMap.gy);
 
-                if (firstTimestamp === null) firstTimestamp = t_raw;
-
-                let t = t_raw;
+                // Return Sweep Parsing (Boolean check)
+                let isRS = false;
+                const rsVal = getVal(colMap.isReturnSweep);
+                if (rsVal === "TRUE" || rsVal === "true" || rsVal === true) isRS = true;
 
                 data.push({
-                    t,
-                    x: isNaN(x) ? null : x,
-                    y: isNaN(y) ? null : y,
-                    gx: null, gy: null,
-                    vx: null, vy: null,
-                    type: 'Unknown',
+                    t: t,
+                    x: getVal(colMap.x),
+                    y: getVal(colMap.y),
+                    gx: gx,
+                    gy: gy,
+                    vx: getVal(colMap.vx),
+                    vy: getVal(colMap.vy),
                     lineIndex: lIdx,
-                    detectedLineIndex: undefined,
-                    extrema: undefined,
-                    isReturnSweep: false
+                    charIndex: getVal(colMap.charIndex),
+                    targetY: getVal(colMap.targetY),
+                    avgY: getVal(colMap.avgY),
+                    detectedLineIndex: getVal(colMap.algoLineIndex),
+                    extrema: getVal(colMap.extrema),
+                    isReturnSweep: isRS,
+                    type: 'Unknown' // Not critically used in viz
                 });
             }
 
-            log(`Loaded ${data.length} valid samples. (Ignored ${ignoredLines} lines)`);
-
-
-            console.log("----------------------------------------------");
+            log(`Loaded ${data.length} valid rows. (Ignored ${ignoredLines} lines)`);
+            log("Skipping internal reprocessing (Interpolation/Smoothing/Detection) as requested.");
 
             if (data.length < 10) {
-                log("Error: Not enough data points.");
-                return;
+                log("Warning: Less than 10 data points loaded.");
             }
 
-            log("Preprocessing: Interpolation, Smoothing (Sigma=3), Velocity...");
-            preprocessData(data);
-
-            log("Running Line Detection (MAD, k=3.5)...");
-            detectLinesMobile(data);
-
-            log("Generating CSV...");
-            exportCSV(data, filename);
-
-            log("Rendering Charts...");
+            // Directly Render
+            log("Rendering Charts with CSV Data...");
             setTimeout(() => renderCharts(data), 100);
         }
 
@@ -573,16 +582,15 @@
                 return document.getElementById(id).getContext('2d');
             };
 
-            // --- Chart 1: RawX, RawY, SmoothY ---
-            const ctx1 = createCanvas('chart1', "Chart 1: Raw X/Y & Smooth Y (with Return Sweeps)");
+            // --- Chart 1: RawX, RawY ---
+            const ctx1 = createCanvas('chart1', "Chart 1: Raw X/Y");
             const chart1 = new Chart(ctx1, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
                         { label: 'RawX', data: data.map(d => d.x), borderColor: '#888', borderWidth: 1, pointRadius: 0 },
-                        { label: 'RawY', data: data.map(d => d.y), borderColor: '#ffcc00', borderWidth: 1, pointRadius: 0 },
-                        { label: 'SmoothY', data: data.map(d => d.gy), borderColor: 'orange', borderWidth: 2, pointRadius: 0 }
+                        { label: 'RawY', data: data.map(d => d.y), borderColor: '#ffcc00', borderWidth: 1, pointRadius: 0 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } },
@@ -590,52 +598,47 @@
             });
             algoCharts.push(chart1);
 
-            // --- Chart 2: SmoothX, Extrema, ReturnSweep ---
-            // Prepare Extrema
-            const lineStarts = data.map(d => d.extrema === 'LineStart' ? d.gx : null);
-            const posMaxs = data.map(d => d.extrema === 'PosMax' ? d.gx : null);
-
-            const ctx2 = createCanvas('chart2', "Chart 2: SmoothX, Extrema & Return Sweeps");
+            // --- Chart 2: SmoothY, TargetY, AvgCoolGazeY ---
+            const ctx2 = createCanvas('chart2', "Chart 2: Vertical Y Analysis");
             const chart2 = new Chart(ctx2, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'SmoothX', data: data.map(d => d.gx), borderColor: 'blue', borderWidth: 1.5, pointRadius: 0 },
-                        {
-                            label: 'LineStart',
-                            data: lineStarts,
-                            type: 'scatter',
-                            backgroundColor: 'green',
-                            pointStyle: 'triangle',
-                            radius: 6,
-                            rotation: 180
-                        },
-                        {
-                            label: 'PosMax',
-                            data: posMaxs,
-                            type: 'scatter',
-                            backgroundColor: 'red',
-                            pointStyle: 'triangle',
-                            radius: 6
-                        }
+                        { label: 'SmoothY', data: data.map(d => d.gy), borderColor: 'orange', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'TargetY_Px', data: data.map(d => d.targetY), borderColor: 'blue', borderWidth: 2, pointRadius: 0, stepped: true },
+                        { label: 'AvgCoolGazeY_Px', data: data.map(d => d.avgY), borderColor: 'green', borderWidth: 2, pointRadius: 0, borderDash: [5, 5], stepped: true }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { x: { ticks: { maxTicksLimit: 20 } } },
-                    plugins: {
-                        legend: { labels: { usePointStyle: true } }
-                    }
-                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } },
                 plugins: [shadingPlugin]
             });
             algoCharts.push(chart2);
 
-            // --- Chart 3: VelX, VelY ---
-            const ctx3 = createCanvas('chart3', "Chart 3: Velocity X/Y");
+            // --- Chart 3: SmoothX, Extrema, ReturnSweep ---
+            const lineStarts = data.map(d => d.extrema === 'LineStart' ? d.gx : null);
+            const posMaxs = data.map(d => d.extrema === 'PosMax' ? d.gx : null);
+
+            const ctx3 = createCanvas('chart3', "Chart 3: SmoothX & Extrema & ReturnSweeps");
             const chart3 = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'SmoothX', data: data.map(d => d.gx), borderColor: 'blue', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'ReturnSweep', data: data.map(d => d.isReturnSweep ? d.gx : null), type: 'scatter', backgroundColor: 'magenta', pointStyle: 'rectRot', radius: 4 },
+                        { label: 'LineStart', data: lineStarts, type: 'scatter', backgroundColor: 'green', pointStyle: 'triangle', radius: 6, rotation: 180 },
+                        { label: 'PosMax', data: posMaxs, type: 'scatter', backgroundColor: 'red', pointStyle: 'triangle', radius: 6 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } }, plugins: { legend: { labels: { usePointStyle: true } } } },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart3);
+
+            // --- Chart 4: VelX, VelY ---
+            const ctx4 = createCanvas('chart4', "Chart 4: Velocity X/Y");
+            const chart4 = new Chart(ctx4, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -646,90 +649,53 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
             });
-            algoCharts.push(chart3);
+            algoCharts.push(chart4);
 
-            // --- Chart 4: LineIndex, AlgoLineIndex ---
-            // Note: LineIndex might be missing if input doesn't have it
-            const ctx4 = createCanvas('chart4', "Chart 4: Line Indices");
-
-            // Custom Tooltip for Timestamp & LineIndex Text
-            const textPlugin = {
-                id: 'textInfo',
-                afterDraw(chart) {
-                    if (chart.tooltip?._active?.length) {
-                        const { ctx } = chart;
-                        const activePoint = chart.tooltip._active[0];
-                        const idx = activePoint.index;
-                        const d = data[idx];
-
-                        ctx.save();
-                        ctx.font = '14px Arial';
-                        ctx.fillStyle = 'black';
-                        ctx.textAlign = 'right';
-
-                        const text = `Raw T: ${d.t} | Orig Line: ${d.lineIndex !== null ? d.lineIndex : 'N/A'} | Algo Line: ${d.detectedLineIndex !== undefined ? d.detectedLineIndex : 'N/A'}`;
-                        ctx.fillText(text, chart.chartArea.right - 10, chart.chartArea.top + 20);
-                        ctx.restore();
-                    }
-                }
-            };
-
-            const chart4 = new Chart(ctx4, {
+            // --- Chart 5: LineIndex, AlgoLineIndex ---
+            const ctx5 = createCanvas('chart5', "Chart 5: Line Indices");
+            const chart5 = new Chart(ctx5, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
                         {
-                            label: 'LineIndex (Original)',
+                            label: 'LineIndex',
                             data: data.map(d => d.lineIndex),
-                            borderColor: 'rgba(0, 255, 255, 0.4)', // Semi-transparent Cyan
-                            backgroundColor: 'rgba(0, 255, 255, 0.4)',
-                            borderWidth: 6, // Thicker
+                            borderColor: 'rgba(0, 255, 255, 0.6)',
+                            backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                            borderWidth: 8, // Very thick
                             stepped: true,
                             pointRadius: 0
                         },
                         {
-                            label: 'AlgoLineIndex (Detected)',
+                            label: 'AlgoLineIndex',
                             data: data.map(d => d.detectedLineIndex),
-                            borderColor: '#ff00ff', // Vivid Magenta
-                            borderWidth: 2, // Thinner
-                            borderDash: [6, 4], // Clear dash
+                            borderColor: '#ff00ff',
+                            borderWidth: 2,
+                            borderDash: [0, 0], // Solid line for visibility
                             stepped: true,
-                            pointRadius: 0
+                            pointRadius: 3, // Add points to make it stand out on top
+                            pointBackgroundColor: '#ff00ff'
                         }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { x: { ticks: { maxTicksLimit: 20 } } },
-                    plugins: {
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                label: function (context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y;
-                                    }
-                                    return label;
-                                },
-                                title: function (tooltipItems) {
-                                    const idx = tooltipItems[0].dataIndex;
-                                    const d = data[idx];
-                                    return `Time: ${d.t} | Orig Line: ${d.lineIndex} | Algo Line: ${d.detectedLineIndex}`;
-                                }
-                            }
-                        }
-                    }
-                },
-                plugins: [textPlugin]
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
             });
-            algoCharts.push(chart4);
+            algoCharts.push(chart5);
+
+            // --- Chart 6: CharIndex ---
+            const ctx6 = createCanvas('chart6', "Chart 6: Char Index");
+            const chart6 = new Chart(ctx6, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'CharIndex', data: data.map(d => d.charIndex), borderColor: 'black', borderWidth: 2, pointRadius: 0, stepped: true }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
+            });
+            algoCharts.push(chart6);
         }
 
         // --- 3. UI Events ---

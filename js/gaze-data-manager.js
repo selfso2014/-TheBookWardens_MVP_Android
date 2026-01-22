@@ -51,6 +51,7 @@ export class GazeDataManager {
             // Pre-allocate fields for post-processing
             gx: null, gy: null,
             vx: null, vy: null,
+            targetY: null, avgY: null, // Persisted Analysis Data
             type,
             // Original raw fixation from SDK if present
             sdkFixationX: gazeInfo.fixationX,
@@ -256,8 +257,12 @@ export class GazeDataManager {
             let avgY = "";
 
             if (lIdx !== undefined && lIdx !== null) {
-                targetY = targetYMap[lIdx] !== undefined ? targetYMap[lIdx] : "";
-                avgY = lineYAvg[lIdx] !== undefined ? lineYAvg[lIdx].toFixed(2) : "";
+                // Store in Data Structure Permanently
+                d.targetY = targetYMap[lIdx] !== undefined ? targetYMap[lIdx] : null;
+                d.avgY = lineYAvg[lIdx] !== undefined ? parseFloat(lineYAvg[lIdx].toFixed(2)) : null;
+
+                targetY = d.targetY !== null ? d.targetY : "";
+                avgY = d.avgY !== null ? d.avgY : "";
             }
 
             const row = [
