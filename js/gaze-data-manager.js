@@ -194,12 +194,53 @@ export class GazeDataManager {
         // Ensure data is preprocessed (Interpolated, Smoothed, Velocity) before export
         this.preprocessData();
 
+        // Create Map for Target Y (Ref Y) from Game.typewriter
+        const targetYMap = {};
+        if (window.Game && window.Game.typewriter && window.Game.typewriter.lineYData) {
+            window.Game.typewriter.lineYData.forEach(item => {
+                targetYMap[item.lineIndex] = item.y;
+            });
+        }
+
+        // Calculate Average SmoothY (gy) per LineIndex
+        const lineYSum = {};
+        const lineYCount = {};
+        const lineYAvg = {};
+
+        this.data.forEach(d => {
+            if (d.t < startTime || d.t > endTime) return;
+            const lIdx = d.lineIndex;
+            if (lIdx !== undefined && lIdx !== null) {
+                if (d.gy !== undefined && d.gy !== null) {
+                    if (!lineYSum[lIdx]) { lineYSum[lIdx] = 0; lineYCount[lIdx] = 0; }
+                    lineYSum[lIdx] += d.gy;
+                    lineYCount[lIdx]++;
+                }
+            }
+        });
+
+        Object.keys(lineYSum).forEach(k => {
+            if (lineYCount[k] > 0) {
+                lineYAvg[k] = lineYSum[k] / lineYCount[k];
+            }
+        });
+
         // CSV Header
-        let csv = "RelativeTimestamp_ms,RawX,RawY,SmoothX,SmoothY,VelX,VelY,Type,ReturnSweep,LineIndex,CharIndex,AlgoLineIndex,Extrema\n";
+        let csv = "RelativeTimestamp_ms,RawX,RawY,SmoothX,SmoothY,VelX,VelY,Type,ReturnSweep,LineIndex,CharIndex,AlgoLineIndex,Extrema,TargetY_Px,AvgCoolGazeY_Px\n";
 
         // Rows
         this.data.forEach(d => {
             if (d.t < startTime || d.t > endTime) return;
+
+            // Get Metadata
+            const lIdx = d.lineIndex;
+            let targetY = "";
+            let avgY = "";
+
+            if (lIdx !== undefined && lIdx !== null) {
+                targetY = targetYMap[lIdx] !== undefined ? targetYMap[lIdx] : "";
+                avgY = lineYAvg[lIdx] !== undefined ? lineYAvg[lIdx].toFixed(2) : "";
+            }
 
             const row = [
                 d.t,
@@ -213,7 +254,9 @@ export class GazeDataManager {
                 (d.lineIndex !== undefined && d.lineIndex !== null) ? d.lineIndex : "",
                 (d.charIndex !== undefined && d.charIndex !== null) ? d.charIndex : "",
                 (d.detectedLineIndex !== undefined) ? d.detectedLineIndex : "",
-                (d.extrema !== undefined) ? d.extrema : ""
+                (d.extrema !== undefined) ? d.extrema : "",
+                targetY,
+                avgY
             ];
             csv += row.join(",") + "\n";
         });
