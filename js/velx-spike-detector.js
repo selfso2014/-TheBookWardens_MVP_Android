@@ -20,7 +20,7 @@ export function mad(arr, med) {
  * @param {Object} options - { k, gapMs, expandOneSample }
  * @returns {Object} { threshold, spikeIntervals, spikeMask }
  */
-export function detectVelXSpikes(samples, { k = 6, gapMs = 120, expandOneSample = true } = {}) {
+export function detectVelXSpikes(samples, { k = 3.5, gapMs = 120, expandOneSample = true } = {}) {
     const ts = samples.map(s => Number(s.ts_ms));
     const velX = samples.map(s => Number(s.velX));
     const absVel = velX.map(v => Math.abs(v));

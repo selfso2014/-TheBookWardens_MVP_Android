@@ -457,8 +457,8 @@ export class GazeDataManager {
         }));
 
         // 3. Detect Spikes using MAD (Sensitivity k=5)
-        // Adjusted to 5 to be LESS sensitive (stricter), catching only clearer/faster return sweeps
-        const { threshold, spikeIntervals } = detectVelXSpikes(samples, { k: 5, gapMs: 120, expandOneSample: true });
+        // Adjusted to 3.5 to be MORE sensitive, catching missed return sweeps
+        const { threshold, spikeIntervals } = detectVelXSpikes(samples, { k: 3.5, gapMs: 120, expandOneSample: true });
 
         // 4. Identify Return Sweeps
         const returnSweeps = spikeIntervals.filter(interval => {
