@@ -185,6 +185,24 @@ export class GazeDataManager {
         this.context = {};
     }
 
+    getCharIndexTimeRange() {
+        let startTime = null;
+        let endTime = null;
+
+        for (let i = 0; i < this.data.length; i++) {
+            const d = this.data[i];
+            // Check if charIndex is valid (not null/undefined)
+            // Note: charIndex 0 is valid.
+            if (d.charIndex !== undefined && d.charIndex !== null) {
+                if (startTime === null) startTime = d.t;
+                endTime = d.t;
+            }
+        }
+
+        if (startTime === null) return { startTime: 0, endTime: Infinity };
+        return { startTime, endTime };
+    }
+
     exportCSV(startTime = 0, endTime = Infinity) {
         if (!this.data || this.data.length === 0) {
             alert("No gaze data to export.");

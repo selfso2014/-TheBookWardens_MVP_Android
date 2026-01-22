@@ -499,24 +499,26 @@ Game.typewriter = {
                 this.currentP.removeChild(this.cursorBlob);
             }
 
+            // --- STOP CHAR INDEX STAMPING ---
+            // Mark the end of the "Text" session in the data stream
+            if (window.gazeDataManager) {
+                window.gazeDataManager.setContext({ charIndex: null });
+            }
+
             // User Requirement: End recording 3 seconds after last character
             // But detection only uses data up to +2000ms.
-            console.log("[Game] Text finished. Waiting 3s (but will use data up to +2s)...");
+            console.log("[Game] Text finished. Waiting 3s (Data collection continues, but charIndex is null)...");
             setTimeout(() => {
                 let detectedLines = 0;
                 if (window.gazeDataManager) {
-                    // Strict Timestamp Range: Start ~ (Captured End + 2000ms)
-                    const tStart = Game.typewriter.typingStartGazeTime !== null ? Game.typewriter.typingStartGazeTime : 0;
+                    // Use STRICT CharIndex Range
+                    const { startTime, endTime } = window.gazeDataManager.getCharIndexTimeRange();
 
-                    // Use the captured end time. If 0/null, fallback to current - 1000.
-                    let baseEnd = Game.typewriter.typingEndGazeTime;
-                    if (!baseEnd) {
-                        const allData = window.gazeDataManager.getAllData();
-                        baseEnd = allData.length > 0 ? allData[allData.length - 1].t - 1000 : 0;
-                    }
-                    const tEnd = baseEnd + 2000;
+                    // Fallback if valid range not found (e.g. error)
+                    const tStart = startTime !== null ? startTime : 0;
+                    const tEnd = endTime !== null ? endTime : Infinity;
 
-                    console.log(`[Game] Processing Gaze Data for Range: ${tStart}ms ~ ${tEnd}ms (End Base: ${baseEnd})`);
+                    console.log(`[Game] Processing Gaze Data for Range based on CharIndex: ${tStart}ms ~ ${tEnd}ms`);
 
                     // 1. Line Detection Algorithm
                     detectedLines = window.gazeDataManager.detectLinesMobile(tStart, tEnd);
@@ -537,6 +539,8 @@ Game.typewriter = {
                 // 4. Proceed to Gaze Replay
                 this.startGazeReplay();
             }, 3000);
+
+            return; // Early return to prevent updating context with old charIndex
         } else {
             // Speed Logic
             let nextDelay = this.baseSpeed;
@@ -1002,9 +1006,21 @@ Game.typewriter = {
     startGazeReplay() {
         console.log("[Game] Starting Gaze Replay (Direct Stream Mode)...");
 
-        // 1. Data Source (SeeSo SDK)
+        // 1. Data Source (SeeSo SDK) with Time Range Filter
+        const { startTime, endTime } = window.gazeDataManager.getCharIndexTimeRange();
+        const tStart = startTime !== null ? startTime : 0;
+        const tEnd = endTime !== null ? endTime : Infinity;
+
+        console.log(`[Replay] Filtering Data using CharIndex Range: ${tStart} ~ ${tEnd}ms`);
+
         const rawData = window.gazeDataManager.getAllData();
-        const validData = rawData.filter(d => d.detectedLineIndex !== undefined && d.detectedLineIndex !== null);
+        // Filter by Time Range AND LineIndex
+        const validData = rawData.filter(d =>
+            d.t >= tStart &&
+            d.t <= tEnd &&
+            d.detectedLineIndex !== undefined &&
+            d.detectedLineIndex !== null
+        );
 
         // Find minimum detected line index for auto-alignment
         let minLineIdx = 9999;
@@ -1013,7 +1029,7 @@ Game.typewriter = {
         });
 
         if (validData.length === 0) {
-            console.warn("No valid gaze data for replay.");
+            console.warn("No valid gaze data for replay (filtered by CharIndex time range).");
             this.showVillainQuiz();
             return;
         }
