@@ -1176,7 +1176,7 @@ Game.typewriter = {
                 t: virtualTime,
                 x: Dx,
                 y: Dy,
-                r: 10,
+                r: 20,
                 type: d.type
             });
         });
