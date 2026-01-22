@@ -1040,6 +1040,23 @@ Game.typewriter = {
         const contentEl = document.getElementById("book-content");
         const contentRect = contentEl ? contentEl.getBoundingClientRect() : { top: 0 };
 
+        // -------------------------------------------------------------
+        // PRE-CALCULATION: Average Gaze Y per Detected Line (for Stable Y)
+        const lineAvgYMap = {};
+        validData.forEach(d => {
+            const lIdx = d.detectedLineIndex;
+            if (lIdx !== undefined && lIdx !== null) {
+                if (!lineAvgYMap[lIdx]) { lineAvgYMap[lIdx] = { sum: 0, count: 0 }; }
+                lineAvgYMap[lIdx].sum += (d.gy || d.y);
+                lineAvgYMap[lIdx].count++;
+            }
+        });
+        // Convert to simple map (mean value)
+        Object.keys(lineAvgYMap).forEach(k => {
+            lineAvgYMap[k] = lineAvgYMap[k].sum / lineAvgYMap[k].count;
+        });
+        // -------------------------------------------------------------
+
         // 2. Calculate Vertical Offset (Calibration based on Line 1)
         // Find Line 1 Y (Target)
         // lineYData stores relative Y inside valid area? Or accumulated? 
@@ -1081,7 +1098,6 @@ Game.typewriter = {
             avgGazeY_Line1 /= Math.min(validData.length, 10);
         }
 
-        // Calculate Offset
         // Calculate Offset
         // Content Rect Top is needed if targetY_Line1 is relative.
         // contentEl and contentRect are already defined above.
@@ -1130,9 +1146,11 @@ Game.typewriter = {
             }
             lastRawT = d.t;
 
-            // B. Calculate Y (Raw + Offset)
-            const rawY = d.gy || d.y;
-            const Dy = rawY + offsetY;
+            // B. Calculate Y (Line Average + Offset)
+            // Use the average Y of the current LINE, not the raw Y of the point.
+            // This ensures the green circle stays perfectly flat for the line duration.
+            const lineAvgY = lineAvgYMap[d.detectedLineIndex] || (d.gy || d.y);
+            const Dy = lineAvgY + offsetY;
 
             // C. Calculate X (Normalized to Line Width - Same as before)
             // We need the detected line for X mapping
