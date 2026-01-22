@@ -1,5 +1,5 @@
 /**
- * The Book Wardens: Game Logic
+ * The Book Wardens: Game Logic (Algorithm V9.0 - Mean-Gaze Anchored Replay)
  */
 const Game = {
     state: {
