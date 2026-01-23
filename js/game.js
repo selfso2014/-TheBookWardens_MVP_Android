@@ -1003,8 +1003,8 @@ Game.typewriter = {
 
         // -------------------------------------------------------------
         // POST-PROCESSING:
-        // 1. Filter out short spikes (< 800ms) in Ry -> set to null
-        // 2. Linearly Interpolate null gaps in Ry
+        // 1. Filter out short spikes (< 100ms) in Ry -> set to null
+        // 2. Fill gaps with "Dominant Neighbor" Ry (Majority Rule)
         // -------------------------------------------------------------
         if (validData.length > 0) {
             // Step 1: Filter short segments to null
@@ -1013,37 +1013,86 @@ Game.typewriter = {
                 const ryChanged = (i < validData.length) && (validData[i].ry !== validData[i - 1].ry);
                 if (i === validData.length || ryChanged) {
                     const duration = validData[i - 1].t - validData[segmentStartIdx].t;
-                    if (duration < 800) { // < 800ms
+                    if (duration < 100) { // Reduced to 100ms
                         for (let k = segmentStartIdx; k < i; k++) {
                             validData[k].ry = null;
                             // Rx is PRESERVED
                         }
-                        console.log(`[Replay] Filtered out spike of ${duration.toFixed(0)}ms at index ${segmentStartIdx}`);
+                        // console.log(`[Replay] Filtered out spike of ${duration.toFixed(0)}ms at index ${segmentStartIdx}`);
                     }
                     segmentStartIdx = i;
                 }
             }
 
-            // Step 2: Linear Interpolation for null Ry
-            let lastValidIdx = -1;
-            for (let i = 0; i < validData.length; i++) {
-                if (validData[i].ry !== null) {
-                    if (lastValidIdx !== -1) {
-                        const gapSize = i - lastValidIdx - 1;
-                        if (gapSize > 0) {
-                            const startY = validData[lastValidIdx].ry;
-                            const endY = validData[i].ry;
-                            const startT = validData[lastValidIdx].t;
-                            const endT = validData[i].t;
-                            const span = endT - startT;
+            // Step 2: Fill null gaps with Dominant Neighbor
+            // Iterate through data to find gaps
+            let i = 0;
+            while (i < validData.length) {
+                if (validData[i].ry === null) {
+                    // Found start of a gap
+                    const gapStart = i;
+                    let gapEnd = i;
+                    while (gapEnd < validData.length && validData[gapEnd].ry === null) {
+                        gapEnd++;
+                    }
+                    // Gap is [gapStart, gapEnd-1]
 
-                            for (let k = lastValidIdx + 1; k < i; k++) {
-                                const ratio = (validData[k].t - startT) / span;
-                                validData[k].ry = startY + (endY - startY) * ratio;
-                            }
+                    // Analyze Prev Neighbor
+                    let prevRy = null;
+                    let prevDuration = 0;
+                    if (gapStart > 0) {
+                        prevRy = validData[gapStart - 1].ry;
+                        let p = gapStart - 1;
+                        const pStartT = validData[p].t;
+                        while (p >= 0 && validData[p].ry === prevRy) {
+                            p--;
+                        }
+                        // duration is roughly t_end - t_start of the block
+                        // Block is [p+1, gapStart-1]
+                        if (p + 1 < gapStart) {
+                            prevDuration = validData[gapStart - 1].t - validData[p + 1].t;
                         }
                     }
-                    lastValidIdx = i;
+
+                    // Analyze Next Neighbor
+                    let nextRy = null;
+                    let nextDuration = 0;
+                    if (gapEnd < validData.length) {
+                        nextRy = validData[gapEnd].ry;
+                        let n = gapEnd;
+                        // segment continues as long as Ry is same
+                        // (Note: there might be another gap later, but we just look at the immediate valid block)
+                        while (n < validData.length && validData[n].ry === nextRy) {
+                            n++;
+                        }
+                        // Block is [gapEnd, n-1]
+                        if (n - 1 >= gapEnd) {
+                            nextDuration = validData[n - 1].t - validData[gapEnd].t;
+                        }
+                    }
+
+                    // Decision
+                    let fillVal = null;
+                    if (prevRy !== null && nextRy !== null) {
+                        // Compare durations
+                        fillVal = (prevDuration >= nextDuration) ? prevRy : nextRy;
+                    } else if (prevRy !== null) {
+                        fillVal = prevRy;
+                    } else if (nextRy !== null) {
+                        fillVal = nextRy;
+                    }
+
+                    // Fill
+                    if (fillVal !== null) {
+                        for (let k = gapStart; k < gapEnd; k++) {
+                            validData[k].ry = fillVal;
+                        }
+                    }
+
+                    // Continue from end of gap
+                    i = gapEnd;
+                } else {
+                    i++;
                 }
             }
         }
