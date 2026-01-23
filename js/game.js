@@ -966,7 +966,15 @@ Game.typewriter = {
             // A. Ry: Sequential Mapping based on Segments
             segments.forEach((seg, segIdx) => {
                 let targetLineRelIdx = segIdx;
-                if (targetLineRelIdx >= totalLines) targetLineRelIdx = totalLines - 1; // Clamp
+
+                // Smart Clamp: Only clamp if the projected line index does NOT exist in lineYData.
+                // This allows accessing the last line even if 'totalLines' was under-calculated (e.g. outlier filtering removed the last line's sparse data).
+                const projectedLineIdx = minLineIdx + targetLineRelIdx;
+                const hasYData = this.lineYData && this.lineYData.some(y => y.lineIndex === projectedLineIdx);
+
+                if (!hasYData) {
+                    if (targetLineRelIdx >= totalLines) targetLineRelIdx = totalLines - 1; // Fallback Clamp
+                }
 
                 const targetLineIdx = minLineIdx + targetLineRelIdx;
 
