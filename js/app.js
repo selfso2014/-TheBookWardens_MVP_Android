@@ -449,6 +449,22 @@ window.showGazeDot = function (durationMs = 15000) {
   }, 33); // ~30fps update
 };
 
+window.setGazeDotState = function (isOn) {
+  // Clear fade timers
+  if (gazeFadeTimer) clearTimeout(gazeFadeTimer);
+  if (gazeFadeInterval) clearInterval(gazeFadeInterval);
+  gazeFadeTimer = null;
+  gazeFadeInterval = null;
+
+  overlay.gazeOpacity = isOn ? 1.0 : 0;
+
+  const stage = document.getElementById("stage");
+  if (stage) {
+    if (isOn) stage.classList.add("visible");
+    else if (!overlay.calRunning) stage.classList.remove("visible");
+  }
+};
+
 window.addEventListener("resize", () => {
   resizeCanvas();
   renderOverlay();

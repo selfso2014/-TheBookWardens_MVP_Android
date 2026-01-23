@@ -1356,10 +1356,32 @@ Game.typewriter = {
     }
 };
 
+Game.toggleGazeDisplay = function () {
+    this.gazeDisplayOn = !this.gazeDisplayOn;
+    const btn = document.getElementById("btn-toggle-gaze");
+
+    if (window.setGazeDotState) {
+        window.setGazeDotState(this.gazeDisplayOn);
+    }
+
+    if (btn) {
+        if (this.gazeDisplayOn) {
+            btn.innerHTML = "👁️ Gaze Point: <span style='color:#0f0'>ON</span>";
+            btn.style.backgroundColor = "#555";
+            btn.style.border = "1px solid #0f0";
+        } else {
+            btn.innerHTML = "👁️ Gaze Point: OFF";
+            btn.style.backgroundColor = "#444";
+            btn.style.border = "1px solid #555";
+        }
+    }
+};
+
 // Override startReadingSession
 Game.startReadingSession = function () {
     console.log("Starting Typewriter Logic...");
-    if (typeof window.showGazeDot === "function") window.showGazeDot(999999);
+    // Default OFF requested by user
+    // if (typeof window.showGazeDot === "function") window.showGazeDot(999999);
 
     const el = document.getElementById("book-content");
     if (el) {
