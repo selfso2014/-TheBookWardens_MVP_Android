@@ -1160,8 +1160,8 @@ Game.typewriter = {
                     t: virtualTime,
                     x: d.rx, // Use pre-calculated Rx
                     y: d.ry, // Use pre-calculated Ry (possibly null if edge gap)
-                    // V18 Vis: Use AvgCoolGazeY (avgY) as the 'SmoothY' visualization requested.
-                    gy: (d.avgY !== undefined && d.avgY !== null) ? d.avgY : d.gy,
+                    // V18 Vis: Use raw SmoothY (gy) as explicitly requested.
+                    gy: d.gy,
                     r: 20,
                     type: d.type
                 });
