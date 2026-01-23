@@ -1026,9 +1026,13 @@ Game.typewriter = {
 
         // Find minimum detected line index for auto-alignment
         let minLineIdx = 9999;
+        let maxLineIdx = -9999;
         validData.forEach(d => {
             if (d.detectedLineIndex < minLineIdx) minLineIdx = d.detectedLineIndex;
+            if (d.detectedLineIndex > maxLineIdx) maxLineIdx = d.detectedLineIndex;
         });
+
+        const detectionResults = { minLine: minLineIdx, maxLine: maxLineIdx };
 
         if (validData.length === 0) {
             console.warn("No valid gaze data for replay (filtered by CharIndex time range).");
@@ -1117,31 +1121,50 @@ Game.typewriter = {
             }
             lastRawT = d.t;
 
-            // B. Calculate Y (CSV AvgCoolGazeY_Px Mode)
-            // Use the Average Smooth Y calculated during export (AvgCoolGazeY_Px)
-            const idx = d.detectedLineIndex;
-            const visualIdx = idx - minLineIdx;
+            // B. Calculate Y (Refined Logic V9.0: Time-Constrained Y-Snap)
+            const currentGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
+            const alignedGy = currentGy + globalYOffset;
 
-            let Dy = d.avgY;
+            const totalDuration = validData[validData.length - 1].t - validData[0].t;
+            let progress = (totalDuration > 0) ? (d.t - validData[0].t) / totalDuration : 0;
+            progress = Math.max(0, Math.min(1.0, progress));
 
-            // Apply Global Offset if avgY exists
-            if (Dy !== undefined && Dy !== null) {
-                Dy += globalYOffset;
-            } else {
-                // Fallback mechanisms
-                if (this.lineYData && this.lineYData[visualIdx]) {
-                    Dy = this.lineYData[visualIdx].y + contentRect.top - 5;
-                } else {
-                    Dy = d.gy || d.y;
+            const maxL = detectionResults.maxLine || 9999;
+            const totalL = (maxL - minLineIdx) + 1;
+            let allowedCount = Math.ceil(progress * totalL);
+            if (allowedCount < 1) allowedCount = 1;
+            const effectiveMaxLineIdx = minLineIdx + allowedCount - 1;
+
+            let bestLineIdx = minLineIdx;
+            let minDiff = Infinity;
+            for (let k = minLineIdx; k <= effectiveMaxLineIdx; k++) {
+                const vIdx = k - minLineIdx;
+                if (this.lineYData && this.lineYData[vIdx]) {
+                    const targetY = this.lineYData[vIdx].y + contentRect.top;
+                    const diff = Math.abs(alignedGy - targetY);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestLineIdx = k;
+                    }
                 }
             }
 
+            const bestVIdx = bestLineIdx - minLineIdx;
+            let Dy = alignedGy; // Default fallback
+            if (this.lineYData && this.lineYData[bestVIdx]) {
+                Dy = this.lineYData[bestVIdx].y + contentRect.top;
+            }
+            // Refine with Offset for perfect centering
+            Dy -= 5;
+
             // C. Calculate X (Normalized to Line Width - Same as before)
             // We need the detected line for X mapping
+            const idx = d.detectedLineIndex;
+            const visualIdx = idx - minLineIdx;
+
             let Dx = d.gx || d.x; // Default Raw X
 
             // "Same as before" X logic:
-            // idx and visualIdx already calculated above.
 
             // Determine Visual Lines (Moved up in logic flow, but safe to call)
             // We already called getVisualLines in fallback, but it's cheap (cached results ideally, but DOM read is fast here)
