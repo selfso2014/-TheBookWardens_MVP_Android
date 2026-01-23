@@ -878,11 +878,11 @@ Game.typewriter = {
     // --- Gaze Feedback Logic ---
     // --- Gaze Replay Logic ---
 
-    // NEW FUNCTION: Calculate Rx and Ry based on User-Requested V10 Logic (2026-01-23)
+    // NEW FUNCTION: Calculate Rx and Ry based on V11 Logic (Segment-based)
     calculateReplayCoords(tStart, tEnd) {
-        console.log("[Game] Calculating Replay Coordinates (Rx, Ry) - User Logic Rewrite V10...");
+        console.log("[Game] Calculating Replay Coordinates (Rx, Ry) - User Logic V11...");
 
-        // 1. Filter Data
+        // 1. Data Filtering
         const rawData = window.gazeDataManager.getAllData();
         const validData = rawData.filter(d =>
             d.t >= tStart &&
@@ -893,7 +893,7 @@ Game.typewriter = {
 
         if (validData.length === 0) return;
 
-        // 2. Identify Meta Info (Min/Max Line, X-Bounds)
+        // 2. Identify Metadata
         let minLineIdx = 9999;
         let maxLineIdx = -9999;
         validData.forEach(d => {
@@ -901,12 +901,13 @@ Game.typewriter = {
             if (d.detectedLineIndex > maxLineIdx) maxLineIdx = d.detectedLineIndex;
         });
 
+        const totalLines = (maxLineIdx - minLineIdx) + 1;
         const visualLines = this.getVisualLines(this.currentP);
         const lineGroups = {};
         const contentEl = document.getElementById("book-content");
         const contentRect = contentEl ? contentEl.getBoundingClientRect() : { top: 0 };
 
-        // X Pre-calc (Keep existing Rx logic)
+        // X Pre-calc (Rx Logic Preservation)
         validData.forEach(d => {
             const idx = d.detectedLineIndex;
             if (idx !== undefined && idx !== null) {
@@ -917,102 +918,116 @@ Game.typewriter = {
             }
         });
 
-        // 3. Step 0 & 1: Calculate Global Y Offset based on First Line
-        // "AvgCoolGazeY_Px 값이 처음줄의 TargetY_Px 값과 동일"
-        let globalYOffset = 0;
-        let sumY_Line0 = 0;
-        let countY_Line0 = 0;
-
-        // Use data detected as minLineIdx to calculate average of first line
+        // 3. Segmentation by ReturnSweep
+        // "returnsweep 1개: 2구간, n개: n+1 구간"
+        const segments = [];
+        let currentSegment = [];
         validData.forEach(d => {
-            if (d.detectedLineIndex === minLineIdx) {
-                const valY = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
-                sumY_Line0 += valY;
-                countY_Line0++;
+            currentSegment.push(d);
+            if (d.isReturnSweep) {
+                segments.push(currentSegment);
+                currentSegment = [];
             }
         });
-
-        if (countY_Line0 > 0 && this.lineYData && this.lineYData[0]) {
-            const avgY_Line0 = sumY_Line0 / countY_Line0;
-            const targetY_Line0 = this.lineYData[0].y + contentRect.top;
-            globalYOffset = targetY_Line0 - avgY_Line0;
-            console.log(`[Replay] Global Offset: ${globalYOffset.toFixed(2)}px (Target: ${targetY_Line0}, Avg: ${avgY_Line0})`);
-        } else {
-            console.warn("[Replay] Global Offset calc failed (no Line 0 data or no TargetY).");
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment);
         }
 
-        // 4. Main Loop for Ry
-        let currentFloorLine = minLineIdx; // "현재 있는 줄"
-        let lastSweepState = false;
+        const numSegments = segments.length;
+        console.log(`[Replay] Total Lines: ${totalLines}, Segments: ${numSegments}`);
 
-        // Time constant
-        const startTime = validData[0].t;
-        const totalDuration = validData[validData.length - 1].t - startTime;
-        const totalLineCount = (maxLineIdx - minLineIdx) + 1;
+        // 4. Algorithm Branching
+        if (numSegments >= totalLines) {
+            // --- Case A: Sweep Count Sufficient (Sequential Assignment) ---
+            console.log("[Replay] Case A: Sufficient Sweeps. Mapping segments to lines sequentially.");
 
-        validData.forEach((d) => {
-            // Check Return Sweep (Step 2)
-            // x축 기준으로 returnsweep이 있으면... Ry는 지금 있는 값에다 한 줄 간격 만큼 증가함.
-            // 즉 CurrentFloor 증가.
-            if (d.isReturnSweep) {
-                if (!lastSweepState) {
-                    currentFloorLine++; // Move down one line
-                    if (currentFloorLine > maxLineIdx) currentFloorLine = maxLineIdx;
-                }
-                lastSweepState = true;
-            } else {
-                lastSweepState = false;
-            }
+            segments.forEach((seg, segIdx) => {
+                // Map segment index to line index (clamp to max)
+                let targetLineRelIdx = segIdx;
+                if (targetLineRelIdx >= totalLines) targetLineRelIdx = totalLines - 1;
 
-            // Calculate 'alignedGy'
-            const rawGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
-            const alignedGy = rawGy + globalYOffset;
+                // Absolute Line Index
+                const targetLineIdx = minLineIdx + targetLineRelIdx;
 
-            // Step 3: if NO return sweep...
-            // "해당 시간대에서의 AvgCoolGazeY_Px 값이 해당하는 타임 구간의 이동 가능한 예상 줄 중에 가장 가까운 값을 취함"
-
-            // Calculate Allowed Max Line based on Time Progress
-            let progress = (totalDuration > 0) ? (d.t - startTime) / totalDuration : 0;
-            progress = Math.max(0, Math.min(1, progress));
-
-            // Map progress 0..1 to 1..TotalLines
-            let allowedLinesCount = Math.ceil(progress * totalLineCount);
-            if (allowedLinesCount < 1) allowedLinesCount = 1;
-
-            // Convert to LineIndex
-            let timeAllowedMaxLine = minLineIdx + allowedLinesCount - 1;
-
-            // Ensure we at least check up to currentFloorLine (if sweep pushed us ahead of time)
-            if (timeAllowedMaxLine < currentFloorLine) timeAllowedMaxLine = currentFloorLine;
-
-            // Find Best Line in Range [currentFloorLine, timeAllowedMaxLine]
-            let bestLineIdx = currentFloorLine;
-            let minDiff = Infinity;
-
-            for (let k = currentFloorLine; k <= timeAllowedMaxLine; k++) {
-                const vIdx = k - minLineIdx;
-                if (this.lineYData && this.lineYData[vIdx]) {
-                    const tY = this.lineYData[vIdx].y + contentRect.top;
-                    const diff = Math.abs(alignedGy - tY);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        bestLineIdx = k;
+                // Get Target Y
+                let targetY = 0;
+                if (this.lineYData) {
+                    const yData = this.lineYData.find(y => y.lineIndex === targetLineIdx) || this.lineYData[targetLineRelIdx];
+                    if (yData) {
+                        targetY = yData.y + contentRect.top;
                     }
                 }
+
+                // Assign Ry to all points in this segment (Visual Offset -5)
+                seg.forEach(d => {
+                    d.ry = targetY - 5;
+                    // Rx logic is handled below
+                });
+            });
+
+        } else {
+            // --- Case B: Sweep Count Insufficient (Time-Proximity Logic) ---
+            console.log("[Replay] Case B: Insufficient Sweeps. Using Time-Proximity Logic.");
+
+            // Global Offset for Proximity Check
+            let globalYOffset = 0;
+            let sumY0 = 0, countY0 = 0;
+            validData.forEach(d => {
+                if (d.detectedLineIndex === minLineIdx) {
+                    sumY0 += (d.gy !== undefined && d.gy !== null ? d.gy : d.y);
+                    countY0++;
+                }
+            });
+            if (countY0 > 0 && this.lineYData && this.lineYData[0]) {
+                globalYOffset = (this.lineYData[0].y + contentRect.top) - (sumY0 / countY0);
             }
 
-            // Final Ry Assignment
-            const bestVIdx = bestLineIdx - minLineIdx;
-            let finalRy = alignedGy; // Fallback
-            if (this.lineYData && this.lineYData[bestVIdx]) {
-                finalRy = this.lineYData[bestVIdx].y + contentRect.top;
-            }
-            // Optional visual offset (-5px) for centering
-            finalRy -= 5;
+            const startTime = validData[0].t;
+            const totalDuration = validData[validData.length - 1].t - startTime;
 
-            d.ry = finalRy;
+            validData.forEach(d => {
+                const rawGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
+                const alignedGy = rawGy + globalYOffset;
 
-            // Rx Calculation (Keep existing)
+                // Time Progress
+                let progress = (totalDuration > 0) ? (d.t - startTime) / totalDuration : 0;
+                progress = Math.max(0, Math.min(1, progress));
+
+                // Allowed Max Line (0 to totalLines-1)
+                // "시간이 지나면 첫 줄, 둘째줄 만 가능성 존재... 마지막엔 모두 존재"
+                let maxAllowedRelIdx = Math.floor(progress * totalLines);
+                if (maxAllowedRelIdx >= totalLines) maxAllowedRelIdx = totalLines - 1;
+
+                // Find best line in range [0, maxAllowedRelIdx]
+                let bestRelIdx = 0;
+                let minDiff = Infinity;
+
+                for (let i = 0; i <= maxAllowedRelIdx; i++) {
+                    const tLineIdx = minLineIdx + i;
+                    // Find Y for this line
+                    const yData = this.lineYData && (this.lineYData.find(y => y.lineIndex === tLineIdx) || this.lineYData[i]);
+                    if (yData) {
+                        const tY = yData.y + contentRect.top;
+                        const diff = Math.abs(alignedGy - tY);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestRelIdx = i;
+                        }
+                    }
+                }
+
+                // Final Assignment
+                const bestYData = this.lineYData && (this.lineYData.find(y => y.lineIndex === (minLineIdx + bestRelIdx)) || this.lineYData[bestRelIdx]);
+                if (bestYData) {
+                    d.ry = bestYData.y + contentRect.top - 5;
+                } else {
+                    d.ry = alignedGy; // fallback
+                }
+            });
+        }
+
+        // 5. Rx Calculation (Existing Logic, applied to all)
+        validData.forEach(d => {
             const idx = d.detectedLineIndex;
             const visualIdx = idx - minLineIdx;
             let Dx = d.gx || d.x;
@@ -1032,7 +1047,7 @@ Game.typewriter = {
             d.rx = Dx;
         });
 
-        console.log(`[Replay] V10 Calculation Complete. Processed ${validData.length} points.`);
+        console.log(`[Replay] V11 Calculation Complete.`);
     },
 
     startGazeReplay() {
