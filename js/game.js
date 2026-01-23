@@ -920,15 +920,23 @@ Game.typewriter = {
 
         // 3. Segmentation by ReturnSweep
         // "returnsweep 1개: 2구간, n개: n+1 구간"
+        // FIXED: Group consecutive sweep points as a single event.
         const segments = [];
         let currentSegment = [];
+        let wasSweep = false;
+
         validData.forEach(d => {
-            currentSegment.push(d);
-            if (d.isReturnSweep) {
-                segments.push(currentSegment);
-                currentSegment = [];
+            // Rising Edge: Previous segment ends, New segment (Sweep + Line) starts
+            if (d.isReturnSweep && !wasSweep) {
+                if (currentSegment.length > 0) {
+                    segments.push(currentSegment);
+                    currentSegment = [];
+                }
             }
+            currentSegment.push(d);
+            wasSweep = d.isReturnSweep;
         });
+
         if (currentSegment.length > 0) {
             segments.push(currentSegment);
         }
