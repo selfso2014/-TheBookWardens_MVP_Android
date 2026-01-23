@@ -1026,13 +1026,9 @@ Game.typewriter = {
 
         // Find minimum detected line index for auto-alignment
         let minLineIdx = 9999;
-        let maxLineIdx = -9999;
         validData.forEach(d => {
             if (d.detectedLineIndex < minLineIdx) minLineIdx = d.detectedLineIndex;
-            if (d.detectedLineIndex > maxLineIdx) maxLineIdx = d.detectedLineIndex;
         });
-
-        const detectionResults = { minLine: minLineIdx, maxLine: maxLineIdx };
 
         if (validData.length === 0) {
             console.warn("No valid gaze data for replay (filtered by CharIndex time range).");
@@ -1086,8 +1082,14 @@ Game.typewriter = {
 
         // 3. Build Replay Stream (Continuous Offset)
         const replayData = [];
+        // 3. Build Replay Stream (Continuous Offset)
+        const replayData = [];
         let virtualTime = 0;
         let lastRawT = validData[0].t;
+
+        // V9.1 Logic State
+        let currentFloorLine = minLineIdx;
+        window._lastSweepState = false; // Reset sweep state tracker
 
         validData.forEach((d, i) => {
             // A. Time Compression (Double Speed)
@@ -1121,7 +1123,25 @@ Game.typewriter = {
             }
             lastRawT = d.t;
 
-            // B. Calculate Y (Refined Logic V9.0: Time-Constrained Y-Snap)
+            // B. Calculate Y (Refined Logic V9.1: Sweep-Priority + Time-Constraint)
+            // Priority 1: Return Sweep sets the "Floor" (Minimum Allowed Line)
+            if (d.isReturnSweep && !d._sweepHandled) {
+                // Only increment on the leading edge or once per sweep event?
+                // data.isReturnSweep is usually true for a sequence. We need edge detection.
+                if (!window._lastSweepState) {
+                    currentFloorLine++;
+                    // Clamp to max
+                    if (currentFloorLine > maxLineIdx) currentFloorLine = maxLineIdx;
+                }
+                window._lastSweepState = true;
+            } else if (!d.isReturnSweep) {
+                window._lastSweepState = false;
+            }
+            d._sweepHandled = true; // prevent double counting if re-iterated? No, local loop.
+
+            // Priority 2: Time-Constrained Candidate Selection (Logic V9.0)
+            // BUT constrained by 'currentFloorLine' from Sweep Logic.
+
             const currentGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
             const alignedGy = currentGy + globalYOffset;
 
@@ -1129,15 +1149,29 @@ Game.typewriter = {
             let progress = (totalDuration > 0) ? (d.t - validData[0].t) / totalDuration : 0;
             progress = Math.max(0, Math.min(1.0, progress));
 
-            const maxL = detectionResults.maxLine || 9999;
-            const totalL = (maxL - minLineIdx) + 1;
+            const totalL = (maxLineIdx - minLineIdx) + 1;
             let allowedCount = Math.ceil(progress * totalL);
             if (allowedCount < 1) allowedCount = 1;
-            const effectiveMaxLineIdx = minLineIdx + allowedCount - 1;
 
-            let bestLineIdx = minLineIdx;
+            // Effective Range: [currentFloorLine ... TimeAllowedMax]
+            // We ensure currentFloorLine represents the "minimum logic line".
+
+            // Map currentFloorLine (detected count) to Visual Index loop
+            // And TimeConstraint extends the UPPER bound.
+
+            // However, allowedCount is relative to minLineIdx. 
+            // TimeAllowedMaxLine = minLineIdx + allowedCount - 1
+            let timeAllowedMaxLine = minLineIdx + allowedCount - 1;
+
+            // Ensure our Search Range is valid: [Floor, Max(Floor, TimeMax)]
+            // If Sweep pushed us beyond TimeMax, Sweep wins (Floor).
+            if (timeAllowedMaxLine < currentFloorLine) timeAllowedMaxLine = currentFloorLine;
+
+            let bestLineIdx = currentFloorLine;
             let minDiff = Infinity;
-            for (let k = minLineIdx; k <= effectiveMaxLineIdx; k++) {
+
+            // Search for closest TargetY in range [currentFloorLine, timeAllowedMaxLine]
+            for (let k = currentFloorLine; k <= timeAllowedMaxLine; k++) {
                 const vIdx = k - minLineIdx;
                 if (this.lineYData && this.lineYData[vIdx]) {
                     const targetY = this.lineYData[vIdx].y + contentRect.top;
@@ -1150,21 +1184,23 @@ Game.typewriter = {
             }
 
             const bestVIdx = bestLineIdx - minLineIdx;
-            let Dy = alignedGy; // Default fallback
+            let Dy = alignedGy; // Return to raw/aligned if no match
             if (this.lineYData && this.lineYData[bestVIdx]) {
                 Dy = this.lineYData[bestVIdx].y + contentRect.top;
             }
             // Refine with Offset for perfect centering
             Dy -= 5;
 
-            // C. Calculate X (Normalized to Line Width - Same as before)
-            // We need the detected line for X mapping
+            // Prepare indices for X calc
             const idx = d.detectedLineIndex;
             const visualIdx = idx - minLineIdx;
 
+            // C. Calculate X (Normalized to Line Width - Same as before)
+            // We need the detected line for X mapping
             let Dx = d.gx || d.x; // Default Raw X
 
             // "Same as before" X logic:
+            // idx and visualIdx already calculated above.
 
             // Determine Visual Lines (Moved up in logic flow, but safe to call)
             // We already called getVisualLines in fallback, but it's cheap (cached results ideally, but DOM read is fast here)
