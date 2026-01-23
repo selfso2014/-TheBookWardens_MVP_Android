@@ -940,7 +940,7 @@ Game.typewriter = {
         });
 
         // 3. Segmentation (Fixed Logic with Rising Edge)
-        const segments = [];
+        let segments = [];
         let currentSegment = [];
         let wasSweep = false;
 
@@ -956,6 +956,35 @@ Game.typewriter = {
         });
         if (currentSegment.length > 0) segments.push(currentSegment);
 
+        // V18 Enhancement: Fallback to Time-Sliced Segmentation if Sweeps are Missing
+        // This addresses the issue where segmentation is incorrect due to missed return sweeps.
+        const rawNumSegments = segments.length;
+        if (rawNumSegments < totalLines && totalLines > 0) {
+            console.warn(`[Replay] Not enough sweeps (${rawNumSegments} < ${totalLines}). Switching to Time-Sliced Segmentation.`);
+
+            segments = [];
+            const duration = tEnd - tStart;
+            // Prevent division by zero
+            if (duration > 0) {
+                const sliceDuration = duration / totalLines;
+
+                // Initialize buckets
+                for (let i = 0; i < totalLines; i++) {
+                    segments.push([]); // Create empty segments for each line
+                }
+
+                // Distribute data points into time slices
+                validData.forEach(d => {
+                    let sliceIdx = Math.floor((d.t - tStart) / sliceDuration);
+                    // Clamp index
+                    if (sliceIdx < 0) sliceIdx = 0;
+                    if (sliceIdx >= totalLines) sliceIdx = totalLines - 1;
+
+                    segments[sliceIdx].push(d);
+                });
+            }
+        }
+
         const numSegments = segments.length;
 
         // 1.5. Calculate AvgSmoothY & Global Offset (AvgSmoothY Correction)
@@ -970,6 +999,12 @@ Game.typewriter = {
             const firstLineY = this.lineYData[0].y + (contentRect ? contentRect.top : 0);
             globalYOffset = firstLineY - firstSegMean;
         }
+
+        // Correct AvgCoolGazeY (d.avgY) using current segmentation
+        segments.forEach((seg, i) => {
+            const alignedSegY = segmentMeans[i] + globalYOffset;
+            seg.forEach(d => d.avgY = alignedSegY);
+        });
 
         console.log(`[Replay] Total Lines: ${totalLines}, Segments: ${numSegments}, Offset: ${globalYOffset.toFixed(2)}`);
 
