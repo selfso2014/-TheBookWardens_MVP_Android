@@ -1256,28 +1256,20 @@ Game.typewriter = {
 
         // 4. Render
         const overlay = document.createElement('canvas');
-        overlay.id = "gaze-replay-overlay"; // ID for verification
+        overlay.id = "gaze-replay-overlay";
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
         overlay.style.left = '0';
         overlay.style.width = '100vw';
         overlay.style.height = '100vh';
         overlay.style.pointerEvents = 'none';
-        overlay.style.zIndex = '99999'; // Super high Z
+        overlay.style.zIndex = '9999'; // High Z, but not excessive
         document.body.appendChild(overlay);
 
         overlay.width = window.innerWidth;
         overlay.height = window.innerHeight;
 
         const ctx = overlay.getContext('2d');
-
-        // DEBUG: Draw a STATIC Red Test Dot at Center to prove Canvas works
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.arc(window.innerWidth / 2, window.innerHeight / 2, 50, 0, Math.PI * 2);
-        ctx.fill();
-        console.log("[Replay] Drawn Red Test Dot at Center");
-
         const totalDuration = replayData.length > 0 ? replayData[replayData.length - 1].t : 0;
         let startAnimTime = null;
 
@@ -1286,10 +1278,6 @@ Game.typewriter = {
             const progress = timestamp - startAnimTime;
 
             ctx.clearRect(0, 0, overlay.width, overlay.height);
-
-            // Redraw Test Dot (Small) in corner to confirm loop running
-            ctx.fillStyle = "red";
-            ctx.fillRect(10, 10, 10, 10);
 
             // Find current point in stream
             let pt = null;
@@ -1303,29 +1291,21 @@ Game.typewriter = {
             if (!pt && progress >= totalDuration && replayData.length > 0) pt = replayData[replayData.length - 1];
 
             if (pt) {
-                // Determine logic for styles
-                const isFixation = (pt.type === 'Fixation');
-
                 ctx.beginPath();
                 ctx.arc(pt.x, pt.y, pt.r, 0, 2 * Math.PI);
 
-                // Make ALL points visible - High Opacity for Debug
-                if (isFixation) {
-                    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.lineWidth = 3;
+                // Make ALL points visible - High Opacity
+                if (pt.type === 'Fixation') {
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                    ctx.lineWidth = 2;
                 } else {
-                    ctx.fillStyle = 'rgba(0, 200, 0, 0.5)';
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillStyle = 'rgba(0, 200, 0, 0.3)';
+                    ctx.strokeStyle = 'rgba(0, 200, 0, 0.4)';
                     ctx.lineWidth = 1;
                 }
                 ctx.fill();
                 ctx.stroke();
-
-                // Draw coordinate text next to dot
-                ctx.fillStyle = "#fff";
-                ctx.font = "14px monospace";
-                ctx.fillText(`(${Math.round(pt.x)}, ${Math.round(pt.y)})`, pt.x + 25, pt.y);
             }
 
             if (progress < totalDuration + 1000) {
