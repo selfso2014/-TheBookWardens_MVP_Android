@@ -878,10 +878,11 @@ Game.typewriter = {
     // --- Gaze Feedback Logic ---
     // --- Gaze Replay Logic ---
 
-    // NEW FUNCTION: Calculate Rx and Ry based on V9.1 Logic and store in data
+    // NEW FUNCTION: Calculate Rx and Ry based on User-Requested V10 Logic (2026-01-23)
     calculateReplayCoords(tStart, tEnd) {
-        console.log("[Game] Calculating Replay Coordinates (Rx, Ry)...");
+        console.log("[Game] Calculating Replay Coordinates (Rx, Ry) - User Logic Rewrite V10...");
 
+        // 1. Filter Data
         const rawData = window.gazeDataManager.getAllData();
         const validData = rawData.filter(d =>
             d.t >= tStart &&
@@ -892,6 +893,7 @@ Game.typewriter = {
 
         if (validData.length === 0) return;
 
+        // 2. Identify Meta Info (Min/Max Line, X-Bounds)
         let minLineIdx = 9999;
         let maxLineIdx = -9999;
         validData.forEach(d => {
@@ -904,7 +906,7 @@ Game.typewriter = {
         const contentEl = document.getElementById("book-content");
         const contentRect = contentEl ? contentEl.getBoundingClientRect() : { top: 0 };
 
-        // X Pre-calc
+        // X Pre-calc (Keep existing Rx logic)
         validData.forEach(d => {
             const idx = d.detectedLineIndex;
             if (idx !== undefined && idx !== null) {
@@ -915,56 +917,83 @@ Game.typewriter = {
             }
         });
 
-        // Y Offset
+        // 3. Step 0 & 1: Calculate Global Y Offset based on First Line
+        // "AvgCoolGazeY_Px 값이 처음줄의 TargetY_Px 값과 동일"
         let globalYOffset = 0;
-        const firstLineData = validData.find(d => d.detectedLineIndex === minLineIdx && d.avgY !== undefined && d.avgY !== null);
-        if (firstLineData && this.lineYData && this.lineYData[0]) {
-            const targetY_Line1 = this.lineYData[0].y + contentRect.top;
-            const avgY_Line1 = firstLineData.avgY;
-            globalYOffset = targetY_Line1 - avgY_Line1;
+        let sumY_Line0 = 0;
+        let countY_Line0 = 0;
+
+        // Use data detected as minLineIdx to calculate average of first line
+        validData.forEach(d => {
+            if (d.detectedLineIndex === minLineIdx) {
+                const valY = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
+                sumY_Line0 += valY;
+                countY_Line0++;
+            }
+        });
+
+        if (countY_Line0 > 0 && this.lineYData && this.lineYData[0]) {
+            const avgY_Line0 = sumY_Line0 / countY_Line0;
+            const targetY_Line0 = this.lineYData[0].y + contentRect.top;
+            globalYOffset = targetY_Line0 - avgY_Line0;
+            console.log(`[Replay] Global Offset: ${globalYOffset.toFixed(2)}px (Target: ${targetY_Line0}, Avg: ${avgY_Line0})`);
+        } else {
+            console.warn("[Replay] Global Offset calc failed (no Line 0 data or no TargetY).");
         }
 
-        // Logic Loop
-        let currentFloorLine = minLineIdx;
-        // Local state for sweep tracking (avoid window global)
+        // 4. Main Loop for Ry
+        let currentFloorLine = minLineIdx; // "현재 있는 줄"
         let lastSweepState = false;
 
+        // Time constant
+        const startTime = validData[0].t;
+        const totalDuration = validData[validData.length - 1].t - startTime;
+        const totalLineCount = (maxLineIdx - minLineIdx) + 1;
+
         validData.forEach((d) => {
-            // Priority 1: Sweep sets Floor
-            if (d.isReturnSweep && !d._sweepHandled) {
+            // Check Return Sweep (Step 2)
+            // x축 기준으로 returnsweep이 있으면... Ry는 지금 있는 값에다 한 줄 간격 만큼 증가함.
+            // 즉 CurrentFloor 증가.
+            if (d.isReturnSweep) {
                 if (!lastSweepState) {
-                    currentFloorLine++;
+                    currentFloorLine++; // Move down one line
                     if (currentFloorLine > maxLineIdx) currentFloorLine = maxLineIdx;
                 }
                 lastSweepState = true;
-            } else if (!d.isReturnSweep) {
+            } else {
                 lastSweepState = false;
             }
-            d._sweepHandled = true;
 
-            // Priority 2: Time-Constraint
-            const currentGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
-            const alignedGy = currentGy + globalYOffset;
+            // Calculate 'alignedGy'
+            const rawGy = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
+            const alignedGy = rawGy + globalYOffset;
 
-            const totalDuration = validData[validData.length - 1].t - validData[0].t;
-            let progress = (totalDuration > 0) ? (d.t - validData[0].t) / totalDuration : 0;
-            progress = Math.max(0, Math.min(1.0, progress));
+            // Step 3: if NO return sweep...
+            // "해당 시간대에서의 AvgCoolGazeY_Px 값이 해당하는 타임 구간의 이동 가능한 예상 줄 중에 가장 가까운 값을 취함"
 
-            const totalL = (maxLineIdx - minLineIdx) + 1;
-            let allowedCount = Math.ceil(progress * totalL);
-            if (allowedCount < 1) allowedCount = 1;
+            // Calculate Allowed Max Line based on Time Progress
+            let progress = (totalDuration > 0) ? (d.t - startTime) / totalDuration : 0;
+            progress = Math.max(0, Math.min(1, progress));
 
-            let timeAllowedMaxLine = minLineIdx + allowedCount - 1;
+            // Map progress 0..1 to 1..TotalLines
+            let allowedLinesCount = Math.ceil(progress * totalLineCount);
+            if (allowedLinesCount < 1) allowedLinesCount = 1;
+
+            // Convert to LineIndex
+            let timeAllowedMaxLine = minLineIdx + allowedLinesCount - 1;
+
+            // Ensure we at least check up to currentFloorLine (if sweep pushed us ahead of time)
             if (timeAllowedMaxLine < currentFloorLine) timeAllowedMaxLine = currentFloorLine;
 
+            // Find Best Line in Range [currentFloorLine, timeAllowedMaxLine]
             let bestLineIdx = currentFloorLine;
             let minDiff = Infinity;
 
             for (let k = currentFloorLine; k <= timeAllowedMaxLine; k++) {
                 const vIdx = k - minLineIdx;
                 if (this.lineYData && this.lineYData[vIdx]) {
-                    const targetY = this.lineYData[vIdx].y + contentRect.top;
-                    const diff = Math.abs(alignedGy - targetY);
+                    const tY = this.lineYData[vIdx].y + contentRect.top;
+                    const diff = Math.abs(alignedGy - tY);
                     if (diff < minDiff) {
                         minDiff = diff;
                         bestLineIdx = k;
@@ -972,14 +1001,18 @@ Game.typewriter = {
                 }
             }
 
+            // Final Ry Assignment
             const bestVIdx = bestLineIdx - minLineIdx;
-            let Dy = alignedGy;
+            let finalRy = alignedGy; // Fallback
             if (this.lineYData && this.lineYData[bestVIdx]) {
-                Dy = this.lineYData[bestVIdx].y + contentRect.top;
+                finalRy = this.lineYData[bestVIdx].y + contentRect.top;
             }
-            Dy -= 5;
+            // Optional visual offset (-5px) for centering
+            finalRy -= 5;
 
-            // X Calculation
+            d.ry = finalRy;
+
+            // Rx Calculation (Keep existing)
             const idx = d.detectedLineIndex;
             const visualIdx = idx - minLineIdx;
             let Dx = d.gx || d.x;
@@ -996,121 +1029,10 @@ Game.typewriter = {
                 normX = Math.max(0, Math.min(1, normX));
                 Dx = vLine.left + normX * (vLine.right - vLine.left);
             }
-
-            // STORE CALCULATED VALUES IN DATA
             d.rx = Dx;
-            d.ry = Dy;
         });
 
-        // -------------------------------------------------------------
-        // POST-PROCESSING:
-        // 1. Filter out short spikes (< 100ms) in Ry -> set to null
-        //    EXCEPTION: Do NOT filter if segment contains a Return Sweep.
-        // 2. Fill gaps with "Dominant Neighbor" Ry (Majority Rule)
-        // -------------------------------------------------------------
-        if (validData.length > 0) {
-            // Step 1: Filter short segments to null
-            let segmentStartIdx = 0;
-            for (let i = 1; i <= validData.length; i++) {
-                const ryChanged = (i < validData.length) && (validData[i].ry !== validData[i - 1].ry);
-                if (i === validData.length || ryChanged) {
-                    const duration = validData[i - 1].t - validData[segmentStartIdx].t;
-
-                    // Check if this segment contains a Return Sweep
-                    let hasSweep = false;
-                    for (let k = segmentStartIdx; k < i; k++) {
-                        if (validData[k].isReturnSweep) {
-                            hasSweep = true;
-                            break;
-                        }
-                    }
-
-                    // Only filter if duration is short AND it's NOT a sweep segment
-                    if (duration < 100 && !hasSweep) {
-                        for (let k = segmentStartIdx; k < i; k++) {
-                            validData[k].ry = null;
-                            // Rx is PRESERVED
-                        }
-                        // console.log(`[Replay] Filtered out spike of ${duration.toFixed(0)}ms at index ${segmentStartIdx}`);
-                    }
-                    segmentStartIdx = i;
-                }
-            }
-
-            // Step 2: Fill null gaps with Dominant Neighbor
-            // Iterate through data to find gaps
-            let i = 0;
-            while (i < validData.length) {
-                if (validData[i].ry === null) {
-                    // Found start of a gap
-                    const gapStart = i;
-                    let gapEnd = i;
-                    while (gapEnd < validData.length && validData[gapEnd].ry === null) {
-                        gapEnd++;
-                    }
-                    // Gap is [gapStart, gapEnd-1]
-
-                    // Analyze Prev Neighbor
-                    let prevRy = null;
-                    let prevDuration = 0;
-                    if (gapStart > 0) {
-                        prevRy = validData[gapStart - 1].ry;
-                        let p = gapStart - 1;
-                        const pStartT = validData[p].t;
-                        while (p >= 0 && validData[p].ry === prevRy) {
-                            p--;
-                        }
-                        // duration is roughly t_end - t_start of the block
-                        // Block is [p+1, gapStart-1]
-                        if (p + 1 < gapStart) {
-                            prevDuration = validData[gapStart - 1].t - validData[p + 1].t;
-                        }
-                    }
-
-                    // Analyze Next Neighbor
-                    let nextRy = null;
-                    let nextDuration = 0;
-                    if (gapEnd < validData.length) {
-                        nextRy = validData[gapEnd].ry;
-                        let n = gapEnd;
-                        // segment continues as long as Ry is same
-                        // (Note: there might be another gap later, but we just look at the immediate valid block)
-                        while (n < validData.length && validData[n].ry === nextRy) {
-                            n++;
-                        }
-                        // Block is [gapEnd, n-1]
-                        if (n - 1 >= gapEnd) {
-                            nextDuration = validData[n - 1].t - validData[gapEnd].t;
-                        }
-                    }
-
-                    // Decision
-                    let fillVal = null;
-                    if (prevRy !== null && nextRy !== null) {
-                        // Compare durations
-                        fillVal = (prevDuration >= nextDuration) ? prevRy : nextRy;
-                    } else if (prevRy !== null) {
-                        fillVal = prevRy;
-                    } else if (nextRy !== null) {
-                        fillVal = nextRy;
-                    }
-
-                    // Fill
-                    if (fillVal !== null) {
-                        for (let k = gapStart; k < gapEnd; k++) {
-                            validData[k].ry = fillVal;
-                        }
-                    }
-
-                    // Continue from end of gap
-                    i = gapEnd;
-                } else {
-                    i++;
-                }
-            }
-        }
-
-        console.log(`[Game] Replay Coords Calculated & Smoothed for ${validData.length} points.`);
+        console.log(`[Replay] V10 Calculation Complete. Processed ${validData.length} points.`);
     },
 
     startGazeReplay() {
