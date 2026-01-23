@@ -704,6 +704,30 @@
                 options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
             });
             algoCharts.push(chart6);
+
+            // --- Chart 7: Replay X/Y Combined with ReturnSweep ---
+            const ctx7 = createCanvas('chart7', "Chart 7: Replay X/Y & ReturnSweep");
+            const chart7 = new Chart(ctx7, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'ReplayX', data: data.map(d => d.rx), borderColor: '#00FFFF', borderWidth: 2, pointRadius: 0 },
+                        { label: 'ReplayY', data: data.map(d => d.ry), borderColor: '#9932CC', borderWidth: 2, pointRadius: 0 },
+                        {
+                            label: 'ReturnSweep',
+                            data: data.map(d => d.isReturnSweep ? d.rx || d.gx : null), // Fallback to SmoothX if ReplayX is null
+                            type: 'scatter',
+                            backgroundColor: 'magenta',
+                            pointStyle: 'rectRot',
+                            radius: 4
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } }, plugins: { legend: { labels: { usePointStyle: true } } } },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart7);
         }
 
         // --- 3. UI Events ---

@@ -926,18 +926,19 @@ Game.typewriter = {
 
         // Logic Loop
         let currentFloorLine = minLineIdx;
-        window._lastSweepState = false;
+        // Local state for sweep tracking (avoid window global)
+        let lastSweepState = false;
 
         validData.forEach((d) => {
             // Priority 1: Sweep sets Floor
             if (d.isReturnSweep && !d._sweepHandled) {
-                if (!window._lastSweepState) {
+                if (!lastSweepState) {
                     currentFloorLine++;
                     if (currentFloorLine > maxLineIdx) currentFloorLine = maxLineIdx;
                 }
-                window._lastSweepState = true;
+                lastSweepState = true;
             } else if (!d.isReturnSweep) {
-                window._lastSweepState = false;
+                lastSweepState = false;
             }
             d._sweepHandled = true;
 
@@ -1004,6 +1005,7 @@ Game.typewriter = {
         // -------------------------------------------------------------
         // POST-PROCESSING:
         // 1. Filter out short spikes (< 100ms) in Ry -> set to null
+        //    EXCEPTION: Do NOT filter if segment contains a Return Sweep.
         // 2. Fill gaps with "Dominant Neighbor" Ry (Majority Rule)
         // -------------------------------------------------------------
         if (validData.length > 0) {
@@ -1013,7 +1015,18 @@ Game.typewriter = {
                 const ryChanged = (i < validData.length) && (validData[i].ry !== validData[i - 1].ry);
                 if (i === validData.length || ryChanged) {
                     const duration = validData[i - 1].t - validData[segmentStartIdx].t;
-                    if (duration < 100) { // Reduced to 100ms
+
+                    // Check if this segment contains a Return Sweep
+                    let hasSweep = false;
+                    for (let k = segmentStartIdx; k < i; k++) {
+                        if (validData[k].isReturnSweep) {
+                            hasSweep = true;
+                            break;
+                        }
+                    }
+
+                    // Only filter if duration is short AND it's NOT a sweep segment
+                    if (duration < 100 && !hasSweep) {
                         for (let k = segmentStartIdx; k < i; k++) {
                             validData[k].ry = null;
                             // Rx is PRESERVED
