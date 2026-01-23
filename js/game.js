@@ -1001,6 +1001,29 @@ Game.typewriter = {
             d.ry = Dy;
         });
 
+        // -------------------------------------------------------------
+        // POST-PROCESSING: Filter out short spikes (< 80ms) in Ry
+        // -------------------------------------------------------------
+        if (validData.length > 0) {
+            let segmentStartIdx = 0;
+            for (let i = 1; i <= validData.length; i++) {
+                // End of segment condition: End of list OR Ry changed
+                const ryChanged = (i < validData.length) && (validData[i].ry !== validData[i - 1].ry);
+                if (i === validData.length || ryChanged) {
+                    const duration = validData[i - 1].t - validData[segmentStartIdx].t;
+                    if (duration < 80) {
+                        // Invalidate this segment
+                        for (let k = segmentStartIdx; k < i; k++) {
+                            validData[k].ry = null;
+                            validData[k].rx = null; // Hide X too if Y is invalid
+                        }
+                        console.log(`[Replay] Filtered out spike of ${duration.toFixed(0)}ms at index ${segmentStartIdx}`);
+                    }
+                    segmentStartIdx = i;
+                }
+            }
+        }
+
         console.log(`[Game] Replay Coords Calculated for ${validData.length} points.`);
     },
 
@@ -1020,7 +1043,8 @@ Game.typewriter = {
                 d.t <= tEnd &&
                 d.detectedLineIndex !== undefined &&
                 d.detectedLineIndex !== null &&
-                d.rx !== undefined // Ensure replay coordinates are pre-calculated
+                d.rx !== undefined &&
+                d.rx !== null // Ensure replay coordinates are valid (not filtered)
             );
             console.log(`[Replay] Valid Data Count with Rx/Ry: ${validData.length}`);
 
