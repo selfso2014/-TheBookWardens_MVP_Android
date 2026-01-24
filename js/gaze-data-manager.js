@@ -619,16 +619,9 @@ export class GazeDataManager {
                 continue;
             }
 
-            // --- Algorithm 1: LineNum Constraint ---
-            // "구간 B(Sweep 후)에서 실제 노출된 라인수(LineIndex+1) < n+1 인 경우 returnsweep은 취소된다."
-            // We check the 'LineIndex' recorded at the sweep event.
-            // Note: LineIndex in data is "Current Typing Line Index" (0-based).
-            // So Visible Lines = LineIndex + 1.
-
-            // Resolve LineIndex at this moment (Safety: Search nearby if null)
+            // --- Algorithm 1: LineNum Constraint with Strong Sweep Override ---
             let currentLineIndex = sweepData.lineIndex;
             if (currentLineIndex === null || currentLineIndex === undefined) {
-                // Fallback: Look backward for last valid LineIndex
                 for (let k = sweep.startIndex; k >= 0; k--) {
                     if (validDataSlice[k].lineIndex !== null && validDataSlice[k].lineIndex !== undefined) {
                         currentLineIndex = validDataSlice[k].lineIndex;
@@ -637,44 +630,50 @@ export class GazeDataManager {
                 }
             }
 
-            // Perform Check if we have valid LineIndex metadata
-            if (currentLineIndex !== null && currentLineIndex !== undefined) {
-                // Algorithm 1 Refined: Line Change Verification (Anti-Regression)
-                // A valid Return Sweep must result in a Line Index increment.
-                // We check a 200ms window after sweep end for system latency.
+            // Calculate Displacement (Just for logging/debug, NOT for filtering)
+            const startX = validDataSlice[sweep.startIndex].gx;
+            const endX = validDataSlice[sweep.endIndex].gx;
+            const displacement = startX - endX;
 
+            if (currentLineIndex !== null && currentLineIndex !== undefined) {
                 const startLineVal = Number(currentLineIndex);
                 let lineIncreased = false;
                 let lineDecreased = false;
-                const toleranceWindow = 400; // Expanded window to catch late line updates
+                // Look ahead 500ms for LineIndex update
+                const toleranceWindow = 500;
                 const searchUntil = sweep.end_ms + toleranceWindow;
 
-                // Check Post-Sweep Data
                 for (let k = sweep.endIndex; k < validDataSlice.length; k++) {
                     const d = validDataSlice[k];
                     if (d.t > searchUntil) break;
-
                     if (d.lineIndex !== null && d.lineIndex !== undefined) {
                         const val = Number(d.lineIndex);
                         if (val > startLineVal) {
-                            lineIncreased = true;
+                            lineIncreased = true; // Confirmed Next Line
                             break;
                         }
                         if (val < startLineVal) {
-                            lineDecreased = true; // Explicit Regression
+                            lineDecreased = true; // Confirmed Regression (Previous Line)
                         }
                     }
                 }
 
+                // V25 Logic: Removed Displacement Threshold per User Request.
+                // Rely on k=1.5 MAD + Metadata Logic.
+
                 if (lineDecreased) {
-                    console.log(`[Reject Sweep] Regression Detected: LineIndex decreased (${startLineVal} -> <${startLineVal}).`);
-                    continue; // Reject backward jumps
+                    // Explicit Regression in Metadata -> REJECT
+                    console.log(`[Reject Sweep] Metadata indicates Regression (${startLineVal} -> Decreased). Disp=${displacement.toFixed(0)}`);
+                    continue;
                 }
 
-                if (!lineIncreased) {
-                    // If LineIndex stayed the same, it means Game Logic didn't update LineIndex yet.
-                    // But if the Sweep Displacement is valid (>100px leftward), we should TRUST the eye movement.
-                    console.warn(`[Accept Sweep] LineIndex unchanged (${startLineVal}). Accepting based on displacement (Game Logic Lag).`);
+                if (lineIncreased) {
+                    // Explicit Increase -> ACCEPT
+                    console.log(`[Accept Sweep] Valid Line Increase (${startLineVal} -> Increased). Disp=${displacement.toFixed(0)}`);
+                } else {
+                    // LineIndex Unchanged (0 -> 0)
+                    // We accept it as Valid Sweep (Game Lag Case) since it was detected by MAD.
+                    console.warn(`[Accept Sweep] LineIndex Unchanged (${startLineVal}). Accepted as Valid Sweep (Non-Regression). Disp=${displacement.toFixed(0)}`);
                 }
             }
 
