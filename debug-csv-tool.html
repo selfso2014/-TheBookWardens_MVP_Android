@@ -127,7 +127,7 @@
             return median(arr.filter(Number.isFinite).map(v => Math.abs(v - med)));
         }
 
-        function detectVelXSpikes(samples, { k = 1.0, gapMs = 120, expandOneSample = true } = {}) {
+        function detectVelXSpikes(samples, { k = 3.5, gapMs = 120, expandOneSample = true } = {}) {
             const ts = samples.map(s => Number(s.ts_ms));
             const velX = samples.map(s => Number(s.velX));
             const absVel = velX.map(v => Math.abs(v));
@@ -443,8 +443,8 @@
             // Use all data
             const samples = geoData.map(d => ({ ts_ms: d.t, velX: d.vx }));
 
-            // *** K = 1.0 (Updated) ***
-            const { threshold, spikeIntervals } = detectVelXSpikes(samples, { k: 1.0, gapMs: 120, expandOneSample: true });
+            // *** K = 3.5 (Updated) ***
+            const { threshold, spikeIntervals } = detectVelXSpikes(samples, { k: 3.5, gapMs: 120, expandOneSample: true });
 
             const returnSweeps = spikeIntervals.filter(interval => {
                 let sum = 0;
@@ -519,7 +519,7 @@
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
 
-            const newName = originalFilename.replace(/\.(csv|txt)$/i, "") + "_processed_k1.0.csv";
+            const newName = originalFilename.replace(/\.(csv|txt)$/i, "") + "_processed_k3.5.csv";
 
             link.href = url;
             link.setAttribute("download", newName);
@@ -866,14 +866,14 @@
             });
             algoCharts.push(chart8);
 
-            // --- Chart 9: Positive VelY Spike Detection (k=1.0) ---
+            // --- Chart 9: Positive VelY Spike Detection (k=3.5) ---
             // Detect Positive VelY spikes (Downward movement = Line Breaks)
             const velySamples = data.map(d => ({
                 ts_ms: d.t,
                 velX: (typeof d.vy === 'number' && d.vy > 0) ? d.vy : 0 // FILTER: Positive Only
             }));
 
-            const velYResult = detectVelXSpikes(velySamples, { k: 1.0, gapMs: 120, expandOneSample: true });
+            const velYResult = detectVelXSpikes(velySamples, { k: 3.5, gapMs: 120, expandOneSample: true });
 
             // Map spikes back to data for visualization
             const velYSpikePoints = [];
@@ -883,7 +883,7 @@
                 }
             });
 
-            const ctx9 = createCanvas('chart9', "Chart 9: Positive Vertical Velocity (VelY > 0) Analysis (k=1.0)");
+            const ctx9 = createCanvas('chart9', "Chart 9: Positive Vertical Velocity (VelY > 0) Analysis (k=3.5)");
             const chart9 = new Chart(ctx9, {
                 type: 'line',
                 data: {
@@ -933,6 +933,138 @@
                 }
             });
             algoCharts.push(chart9);
+
+            // --- Chart 10: Recalculated Velocity from Raw X/Y ---
+            // Independent calculation using RawX/Y from CSV
+            const reCalcVelX = [];
+            const reCalcVelY = [];
+
+            for (let i = 0; i < data.length; i++) {
+                if (i === 0) {
+                    reCalcVelX.push(0);
+                    reCalcVelY.push(0);
+                } else {
+                    const dt = data[i].t - data[i - 1].t;
+                    if (dt > 0) {
+                        const vx = (data[i].x - data[i - 1].x) / dt;
+                        const vy = (data[i].y - data[i - 1].y) / dt;
+                        reCalcVelX.push(vx);
+                        reCalcVelY.push(vy);
+                    } else {
+                        reCalcVelX.push(0);
+                        reCalcVelY.push(0);
+                    }
+                }
+            }
+
+            const ctx10 = createCanvas('chart10', "Chart 10: Recalculated Velocity from Raw X/Y (Independent)");
+            const chart10 = new Chart(ctx10, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Recalculated VelX', data: reCalcVelX, borderColor: '#9370DB', borderWidth: 1, pointRadius: 0 }, // MediumPurple
+                        { label: 'Recalculated VelY', data: reCalcVelY, borderColor: '#CD853F', borderWidth: 1, pointRadius: 0 }  // Peru
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { ticks: { maxTicksLimit: 20 } } }
+                }
+            });
+            algoCharts.push(chart10);
+
+            // --- Chart 11: Independent Return Sweep Detection & Visualization (Like Chart 3) ---
+            // 1. Prepare samples using Recalculated VelX
+            // Use same logic as detectLinesMobile: Mask positive velocity to 0
+            const reCalcSamples = reCalcVelX.map((v, i) => ({
+                ts_ms: data[i].t,
+                velX: v < 0 ? v : 0
+            }));
+
+            // 2. Run Detection (k=3.5)
+            const reCalcResult = detectVelXSpikes(reCalcSamples, { k: 3.5, gapMs: 120, expandOneSample: true });
+
+            // 3. Identify Return Sweeps (Filter by Displacement > 100px)
+            // Need SmoothX (gx) for displacement check. If not available, use RawX.
+            // Since we promised independence, let's use smoothened RawX locally or just RawX. 
+            // Let's use RawX for purity, or re-smooth locally. 
+            // For simplicity and robustness, let's use the RawX from CSV.
+            const reCalcSweeps = reCalcResult.spikeIntervals.filter(interval => {
+                const sIdx = interval.startIndex;
+                const eIdx = interval.endIndex;
+                if (data[sIdx] && data[eIdx]) {
+                    const startX = data[sIdx].x !== null ? data[sIdx].x : 0;
+                    const endX = data[eIdx].x !== null ? data[eIdx].x : 0;
+                    const displacement = startX - endX;
+                    return displacement > 100;
+                }
+                return false;
+            });
+
+            // 4. Map to Visualization Data
+            // We need a dataset array for "Detected Return Sweeps"
+            // And we want to overlay this on top of RawX (or Recalculated SmoothX).
+            // Let's overlay on RawX to show "Raw Data + New Detection"
+
+            const detectedSweepPoints = [];
+            const sweepIntervalsForShading = [];
+
+            reCalcSweeps.forEach(sw => {
+                sweepIntervalsForShading.push({ start: data[sw.startIndex].t, end: data[sw.endIndex].t });
+                for (let k = sw.startIndex; k <= sw.endIndex; k++) {
+                    detectedSweepPoints.push({ x: data[k].t, y: data[k].x }); // Plot on X-graph
+                }
+            });
+
+            const ctx11 = createCanvas('chart11', "Chart 11: Independent Return Sweep Detection (RawX + Recalc VelX)");
+
+            // Local Shading Plugin for this chart
+            const localShadingPlugin = {
+                id: 'localReturnSweepShading',
+                beforeDatasetsDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+                    const x = scales.x;
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Green tint for NEW detection
+
+                    for (const it of sweepIntervalsForShading) {
+                        const x0 = x.getPixelForValue(it.start);
+                        const x1 = x.getPixelForValue(it.end);
+                        if (Number.isFinite(x0) && Number.isFinite(x1)) {
+                            ctx.fillRect(Math.min(x0, x1), chartArea.top, Math.abs(x1 - x0), chartArea.bottom - chartArea.top);
+                        }
+                    }
+                    ctx.restore();
+                }
+            };
+
+            const chart11 = new Chart(ctx11, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'RawX', data: data.map(d => d.x), borderColor: '#888', borderWidth: 1, pointRadius: 0 },
+                        {
+                            label: 'Detected RS Points',
+                            data: detectedSweepPoints,
+                            type: 'scatter',
+                            backgroundColor: 'lime', // Bright Green
+                            pointStyle: 'rectRot',
+                            radius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { ticks: { maxTicksLimit: 20 } } }
+                },
+                plugins: [localShadingPlugin]
+            });
+            algoCharts.push(chart11);
         }
 
         // --- 3. UI Events ---
