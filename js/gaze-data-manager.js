@@ -645,7 +645,8 @@ export class GazeDataManager {
 
                 const startLineVal = Number(currentLineIndex);
                 let lineIncreased = false;
-                const toleranceWindow = 200; // ms
+                let lineDecreased = false;
+                const toleranceWindow = 400; // Expanded window to catch late line updates
                 const searchUntil = sweep.end_ms + toleranceWindow;
 
                 // Check Post-Sweep Data
@@ -654,17 +655,26 @@ export class GazeDataManager {
                     if (d.t > searchUntil) break;
 
                     if (d.lineIndex !== null && d.lineIndex !== undefined) {
-                        // Must be strictly greater than start line
-                        if (Number(d.lineIndex) > startLineVal) {
+                        const val = Number(d.lineIndex);
+                        if (val > startLineVal) {
                             lineIncreased = true;
                             break;
+                        }
+                        if (val < startLineVal) {
+                            lineDecreased = true; // Explicit Regression
                         }
                     }
                 }
 
+                if (lineDecreased) {
+                    console.log(`[Reject Sweep] Regression Detected: LineIndex decreased (${startLineVal} -> <${startLineVal}).`);
+                    continue; // Reject backward jumps
+                }
+
                 if (!lineIncreased) {
-                    console.log(`[Reject Sweep] Regression/Premature: LineIndex did not increase (${startLineVal} -> ?) within 200ms of Sweep End.`);
-                    continue;
+                    // If LineIndex stayed the same, it means Game Logic didn't update LineIndex yet.
+                    // But if the Sweep Displacement is valid (>100px leftward), we should TRUST the eye movement.
+                    console.warn(`[Accept Sweep] LineIndex unchanged (${startLineVal}). Accepting based on displacement (Game Logic Lag).`);
                 }
             }
 

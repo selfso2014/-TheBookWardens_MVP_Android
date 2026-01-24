@@ -457,7 +457,9 @@ Game.typewriter = {
         }
 
         // 3. Visual Line Detection
-        const currentTop = this.cursorBlob.offsetTop;
+        // V21 Fix: Use getBoundingClientRect for absolute detection (offsetTop can be flaky inside inline-blocks)
+        const rect = this.cursorBlob.getBoundingClientRect();
+        const currentTop = rect.top + window.scrollY;
         // Debugging Line Detection
         if (this.charIndex % 30 === 0) {
             console.log(`[LineDetect] Top:${currentTop}, Last:${this.lastOffsetTop}, Line:${this.visualLineIndex}`);
