@@ -300,37 +300,32 @@ function detectLinesMobile(geoData, startTime = 0, endTime = Infinity) {
         // In this file, carry-forward is already done in loading phase, so lineIndex should be reliable.
 
         if (currentLineIndex !== null && currentLineIndex !== undefined) {
-            const visibleLinesNow = Number(currentLineIndex) + 1;
-            const targetLineNum = currentLineNum + 1;
+            // Algorithm 1 Refined: Line Change Verification (Anti-Regression)
+            // A valid Return Sweep must result in a Line Index increment.
+            // We check a 200ms window after sweep end for system latency.
 
-            if (targetLineNum > visibleLinesNow) {
-                // Algorithm 1 Refined: Post-Sweep Validation with Latency Tolerance
-                // Issue: Gaze arrives (Sweep End) slightly before System updates 'LineIndex' (Latency).
-                // Solution: Check a short window (200ms) AFTER Sweep End to see if LineIndex catches up.
+            const startLineVal = Number(currentLineIndex);
+            let lineIncreased = false;
+            const toleranceWindow = 200; // ms
+            const searchUntil = sweep.end_ms + toleranceWindow;
 
-                let validated = false;
-                const toleranceWindow = 200; // ms
-                const searchUntil = sweep.end_ms + toleranceWindow;
+            // Check Post-Sweep Data
+            for (let k = sweep.endIndex; k < validDataSlice.length; k++) {
+                const d = validDataSlice[k];
+                if (d.t > searchUntil) break;
 
-                // Start checking from Sweep End
-                for (let k = sweep.endIndex; k < validDataSlice.length; k++) {
-                    const d = validDataSlice[k];
-                    if (d.t > searchUntil) break;
-
-                    if (d.lineIndex !== null && d.lineIndex !== undefined) {
-                        const vNum = Number(d.lineIndex) + 1;
-                        if (vNum >= targetLineNum) {
-                            validated = true;
-                            break; // System caught up! Valid sweep.
-                        }
+                if (d.lineIndex !== null && d.lineIndex !== undefined) {
+                    // Must be strictly greater than start line
+                    if (Number(d.lineIndex) > startLineVal) {
+                        lineIncreased = true;
+                        break;
                     }
                 }
+            }
 
-                if (!validated) {
-                    // Even after waiting, the line index didn't change appropriately. Real Reject.
-                    console.log(`[Reject Sweep] Premature: Target ${targetLineNum} not reached within ${toleranceWindow}ms after Sweep End.`);
-                    continue;
-                }
+            if (!lineIncreased) {
+                console.log(`[Reject Sweep] Regression/Premature: LineIndex did not increase (${startLineVal} -> ?) within 200ms of Sweep End.`);
+                continue;
             }
         }
 
