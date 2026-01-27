@@ -279,32 +279,50 @@ Game.typewriter = {
     // Gaze Coverage Logic
     currentLineMinX: 99999,
     currentLineMaxX: -99999,
+    prevGazeX: null,
+    hasReturnSweep: false,
 
     updateGazeStats(x, y) {
         // Only track if typing is active
         if (!this.startTime || this.isPaused) return;
 
+        // 1. Min/Max Tracking
         if (x < this.currentLineMinX) this.currentLineMinX = x;
         if (x > this.currentLineMaxX) this.currentLineMaxX = x;
+
+        // 2. Return Sweep Detection
+        if (this.prevGazeX !== null) {
+            const dx = x - this.prevGazeX;
+            // Threshold: 20% negative jump
+            const w = window.innerWidth;
+            if (dx < -(w * 0.2)) {
+                this.hasReturnSweep = true;
+                console.log(`[Game] Return Sweep! dx:${Math.round(dx)}`);
+            }
+        }
+        this.prevGazeX = x;
     },
 
     checkLineConfidence(lineTop, lineIndex) {
-        // Calculate coverage width
         const coverage = this.currentLineMaxX - this.currentLineMinX;
 
         const contentEl = document.getElementById("book-content");
         const totalWidth = contentEl ? contentEl.clientWidth : window.innerWidth;
-        const threshold = totalWidth * 0.5; // 50% width threshold
+        const widthThreshold = totalWidth * 0.4;
 
-        console.log(`[Line ${lineIndex}] Coverage: ${Math.round(coverage)}px / ${threshold}px`);
+        const isCoverageGood = coverage >= widthThreshold;
+        const isReturnSweep = this.hasReturnSweep;
 
-        if (coverage >= threshold) {
+        console.log(`[Line ${lineIndex}] Cov:${Math.round(coverage)} OR Sweep:${isReturnSweep}`);
+
+        if (isReturnSweep || isCoverageGood) {
             this.spawnInkIcon(lineTop);
         }
 
-        // Reset for next line
+        // Reset
         this.currentLineMinX = 99999;
         this.currentLineMaxX = -99999;
+        this.hasReturnSweep = false;
     },
 
     spawnInkIcon(top) {
@@ -312,11 +330,19 @@ Game.typewriter = {
         if (!el) return;
 
         const ink = document.createElement("div");
+        console.log("[Game] Spawning Ink Icon! 💧");
         ink.textContent = "💧";
+        ink.className = "ink-drop";
         ink.style.position = "absolute";
         ink.style.right = "10px";
-        // Adjust top to align with text line (approx correction)
-        ink.style.top = `${top - el.getBoundingClientRect().top + el.scrollTop}px`;
+        ink.style.zIndex = "1000";
+        // Correct Coordinate Calculation
+        const rect = el.getBoundingClientRect();
+        const scrollTop = el.scrollTop;
+        const windowScroll = window.scrollY;
+
+        const preciseTop = top - (rect.top + windowScroll) + scrollTop;
+        ink.style.top = `${preciseTop - 10}px`;
         ink.style.fontSize = "1.2rem";
         ink.style.animation = "popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
         ink.style.filter = "drop-shadow(0 0 5px #00d4ff)";
