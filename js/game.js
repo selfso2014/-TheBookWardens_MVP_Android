@@ -1129,29 +1129,45 @@ Game.typewriter = {
 
             // Determine TargetRy
             let targetRy = null;
-            // Strategy: Use Majority LineIndex to map to visual line center
-            // (Chart 7 does this)
-            if (bestL !== -1) {
+
+            // [New Strategy: CharIndex Mapping] (Priority 1)
+            // Fixes "progressive drift" by targeting the exact character element in DOM.
+            const charIndices = [];
+            for (let k = safeStart; k <= safeEnd; k++) {
+                if (validData[k].charIndex !== undefined && validData[k].charIndex !== null) {
+                    charIndices.push(validData[k].charIndex);
+                }
+            }
+
+            if (charIndices.length > 0) {
+                charIndices.sort((a, b) => a - b);
+                const medianCharIdx = charIndices[Math.floor(charIndices.length / 2)];
+
+                if (this.currentP) {
+                    // Filter valid char spans (exclude cursor, ink drops)
+                    const spans = Array.from(this.currentP.querySelectorAll("span")).filter(s =>
+                        !s.classList.contains("cursor") && !s.classList.contains("ink-drop") && !s.classList.contains("chunk-separator")
+                    );
+
+                    if (spans[medianCharIdx]) {
+                        const targetSpan = spans[medianCharIdx];
+                        const sRect = targetSpan.getBoundingClientRect();
+                        const pStyle = window.getComputedStyle(this.currentP);
+                        const fSize = parseFloat(pStyle.fontSize) || 16;
+
+                        // Pixel-Perfect Positioning: Span Top + Scroll + Offset
+                        targetRy = sRect.top + window.scrollY + (fSize / 4);
+                    }
+                }
+            }
+
+            // [Strategy: Majority LineIndex] (Fallback)
+            if (targetRy === null && bestL !== -1) {
                 // Prioritize Visual Lines from DOM (Current State)
                 if (visualLines[bestL]) {
                     const vLine = visualLines[bestL];
                     const pStyle = window.getComputedStyle(this.currentP || contentEl);
                     const fSize = parseFloat(pStyle.fontSize) || 16;
-
-                    // Use Viewport Top from visualLines
-                    // Add window.scrollY just in case, though usually 0 for this game style.
-                    // But getVisualLines returns Viewport coords. If we calculate Replay for Fixed Overlay, we want Viewport Coords.
-                    // game.js recordLineY used window.scrollY. 
-                    // Let's assume Fixed Overlay needs Viewport Y.
-                    // Wait, ReplayX logic uses globalLeft = cRect.left + scrollX.
-                    // So we must correspond.
-                    // If visualLines returns Viewport Y, adding scrollY makes it Page Y.
-                    // ReplayX is Global (Page X).
-                    // startGazeReplay draws on FIXED overlay?
-                    // Fixed Overlay aligns with Viewport.
-                    // If we use Page X/Y, and page is scrolled, Fixed Overlay drawing is offset by scroll.
-                    // But assume Page Scroll is 0. 
-
                     targetRy = vLine.top + window.scrollY + (fSize / 4);
                 }
                 // Fallback to history if DOM lookup fails
