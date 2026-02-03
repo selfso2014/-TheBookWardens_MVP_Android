@@ -1141,56 +1141,94 @@ Game.typewriter = {
             d.isBroadSweep = (d.vx < -BROAD_VEL_THRESHOLD);
         });
 
-        // Recalculate Min/Max using ONLY Non-Sweep Data
-        validData.forEach(d => {
+        // Recalculate Min/Max using ONLY Safe (Trimeed) Data
+        // Strategy: Group by line, filter broad sweeps, then trim 10% off ends.
+
+        const lineIndicesMap = {};
+        validData.forEach((d, i) => {
             const idx = d.lineIndex;
-            if (!d.isBroadSweep) {
-                if (!lineGroups[idx]) lineGroups[idx] = { min: Infinity, max: -Infinity }; // Should exist
-                const val = d.gx || d.x;
-                if (val < lineGroups[idx].min) lineGroups[idx].min = val;
-                if (val > lineGroups[idx].max) lineGroups[idx].max = val;
-            }
+            if (!lineIndicesMap[idx]) lineIndicesMap[idx] = [];
+            lineIndicesMap[idx].push(i);
         });
 
-        // Normalize
-        validData.forEach(d => {
+        const safeIndicesSet = new Set();
+        const globalLineGroups = {}; // Stores Min/Max for Safe Zones
+
+        Object.keys(lineIndicesMap).forEach(key => {
+            const lIdx = parseInt(key);
+            const allIndices = lineIndicesMap[lIdx];
+
+            // Filter out Broad Sweeps to find "Reading Candidate"
+            const cleanIndices = allIndices.filter(i => !validData[i].isBroadSweep);
+
+            if (cleanIndices.length === 0) return;
+
+            // Determine Safe Range (Middle 80%)
+            const subLen = cleanIndices.length;
+            const trimAmt = Math.floor(subLen * 0.10);
+
+            // Define Start/End relative to the Clean Array
+            // If cleanIndices is [10, 11, 12 ... 100], trimAmt=9
+            // Start at cleanIndices[9], End at cleanIndices[81]
+
+            // Actually, let's just use the pointers
+            // The "Safe Zone" essentially drops the first 10% and last 10% of the *detected stable duration*
+            const safeSubset = cleanIndices.slice(trimAmt, Math.max(trimAmt + 1, subLen - trimAmt));
+
+            if (safeSubset.length === 0) return;
+
+            // Calculate Min/Max for this Safe Line
+            let min = Infinity;
+            let max = -Infinity;
+            safeSubset.forEach(i => {
+                const val = validData[i].gx || validData[i].x;
+                if (val < min) min = val;
+                if (val > max) max = val;
+                safeIndicesSet.add(i); // Mark as Safe to Render
+            });
+
+            globalLineGroups[lIdx] = { min, max };
+        });
+
+        // Normalize and Assign Rx/Ry
+        validData.forEach((d, i) => {
             const idx = d.lineIndex;
+            const bounds = globalLineGroups[idx];
 
-            // Ry Logic (Same as before)
-            const lineRec = lineYData.find(item => item.lineIndex === idx);
-            if (lineRec) {
-                const isLineSuccessful = lineMetadata[idx] && lineMetadata[idx].success;
-                if (isLineSuccessful) {
-                    d.ry = lineRec.y + (approxLineHeight / 2);
-                } else {
-                    d.ry = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
-                }
+            // Check if this point is in the "Safe Set" we calculated
+            if (safeIndicesSet.has(i) && bounds && bounds.min !== Infinity) {
+                // Ry Logic
+                const lineRec = lineYData.find(item => item.lineIndex === idx);
+                if (lineRec) {
+                    const isLineSuccessful = lineMetadata[idx] && lineMetadata[idx].success;
+                    if (isLineSuccessful) {
+                        d.ry = lineRec.y + (approxLineHeight / 2);
+                    } else {
+                        d.ry = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
+                    }
 
-                // Rx Logic: Normalized to STABLE range
-                const bounds = lineGroups[idx];
-                // Safety: if no stable points found, use global defaults?
-                if (bounds.min === Infinity) {
-                    // No stable data for this line? Use entire range
-                    // bounds.min = ... (current d.gx)
-                } else {
+                    // Rx Logic
                     let val = d.gx || d.x;
                     let norm = 0.5;
                     if (bounds.max > bounds.min + 1) {
                         norm = (val - bounds.min) / (bounds.max - bounds.min);
                     }
 
-                    // CLAMP: This removes the "Hook" visual by forcing sweep tail/head to edges
+                    // Clamp 0-1 (Trimming handles the jump, Clamp handles noise within zone)
                     norm = Math.max(0, Math.min(1, norm));
 
                     d.rx = globalLeft + norm * globalWidth;
+                } else {
+                    d.rx = null; d.ry = null;
                 }
             } else {
+                // Outside safe zone: Hide it
                 d.rx = null;
                 d.ry = null;
             }
         });
 
-        // Removed Step 4 (Legacy Lag Fix) as Clamping handles it.
+        // Removed Step 4 (Legacy Lag Fix) as Trimming handles it.
 
         console.log("[Replay] Coords Updated (Rx: GlobalNorm + Lag Fix, Ry: lineYData).");
     },

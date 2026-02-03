@@ -1336,9 +1336,17 @@
 
                 // Context Logic
                 simLines.forEach((line, idx) => {
+                    // [Refinement] 10% Trim Logic (Use middle 80% of D-Section)
+                    // The segment 'line' represents the "Clean" (Non-Sweep) period.
+                    // We further restrict this to the middle 80% to avoid edge instability.
+                    const segmentLen = line.endIdx - line.startIdx;
+                    const trimAmt = Math.floor(segmentLen * 0.10); // 10%
+                    const safeStartIdx = line.startIdx + trimAmt;
+                    const safeEndIdx = line.endIdx - trimAmt;
+
                     let minX = Infinity, maxX = -Infinity;
-                    // Find Min/Max within this CLEAN segment
-                    for (let i = line.startIdx; i <= line.endIdx; i++) {
+                    // Find Min/Max within this SAFER segment
+                    for (let i = safeStartIdx; i <= safeEndIdx; i++) {
                         const val = data[i].gx !== null ? data[i].gx : data[i].x;
                         if (val !== null && typeof val === 'number') {
                             if (val < minX) minX = val;
@@ -1346,7 +1354,8 @@
                         }
                     }
 
-                    // Determine TargetY (Majority Vote)
+                    // Determine TargetY (Majority Vote) - Scan full segment or safe segment? 
+                    // Safe segment is better representative.
                     const successTargetYCounts = {};
                     const allTargetYCounts = {};
                     let modeSuccessY = null;
@@ -1354,7 +1363,7 @@
                     let maxSuccessCount = 0;
                     let maxAllCount = 0;
 
-                    for (let i = line.startIdx; i <= line.endIdx; i++) {
+                    for (let i = safeStartIdx; i <= safeEndIdx; i++) {
                         const d = data[i];
                         const tY = d.targetY;
                         if (tY !== null && tY !== "" && tY !== undefined) {
@@ -1370,15 +1379,21 @@
 
                     let majorityTargetY = (maxSuccessCount > 0) ? modeSuccessY : ((maxAllCount > 0) ? modeAllY : (200 + idx * 40));
 
-                    // Fill Replay Data
+                    // Fill Replay Data (Only for Safe Region)
                     for (let i = line.startIdx; i <= line.endIdx; i++) {
-                        const val = data[i].gx !== null ? data[i].gx : data[i].x;
-                        if (val !== null && typeof val === 'number') {
-                            let norm = 0;
-                            if (maxX > minX) norm = (val - minX) / (maxX - minX);
-                            simReplayX[i] = norm * 350;
+                        if (i >= safeStartIdx && i <= safeEndIdx) {
+                            const val = data[i].gx !== null ? data[i].gx : data[i].x;
+                            if (val !== null && typeof val === 'number') {
+                                let norm = 0;
+                                if (maxX > minX) norm = (val - minX) / (maxX - minX);
+                                simReplayX[i] = norm * 350;
+                            }
+                            simReplayY[i] = majorityTargetY;
+                        } else {
+                            // Trimmed areas -> Null
+                            simReplayX[i] = null;
+                            simReplayY[i] = null;
                         }
-                        simReplayY[i] = majorityTargetY;
                     }
                 });
 
