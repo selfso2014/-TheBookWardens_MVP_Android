@@ -335,7 +335,28 @@ const Game = {
             alert("Direct Hit! The Shadow fades...");
             this.state.gems += 50;
             this.updateUI();
-            this.switchScreen("screen-win");
+
+            // Check if there are more paragraphs
+            if (this.typewriter.currentParaIndex < this.typewriter.paragraphs.length - 1) {
+                // Next Paragraph
+                this.typewriter.currentParaIndex++;
+                console.log(`[Game] Advancing to Paragraph ${this.typewriter.currentParaIndex + 1}...`);
+
+                // Hide Villain Modal / Screen (Assuming we are on screen-boss)
+                // Switch back to reading screen
+                this.switchScreen("screen-read");
+
+                // Trigger next paragraph after a short delay for screen transition
+                setTimeout(() => {
+                    this.typewriter.playNextParagraph();
+                }, 500);
+
+            } else {
+                // All Paragraphs Done -> FINAL BOSS / WIN
+                console.log("[Game] All paragraphs completed. Victory!");
+                this.switchScreen("screen-win");
+            }
+
         } else {
             alert("The Shadow deflects your attack! Try reading carefully.");
         }
@@ -345,10 +366,17 @@ const Game = {
 // --- Typewriter Mode Logic (New) ---
 Game.typewriter = {
     paragraphs: [
-        "Alice was beginning to / get very tired / of sitting by her sister / on the bank, / and of having nothing to do: / once or twice / she had peeped into the book / her sister was reading, / but it had no pictures / or conversations / in it."
+        // Para 1
+        "Alice was beginning to / get very tired / of sitting by her sister / on the bank, / and of having nothing to do: / once or twice / she had peeped into the book / her sister was reading, / but it had no pictures / or conversations / in it, / “and what is the use of a book,” / thought Alice / “without pictures / or conversations?\"",
+        // Para 2
+        "So she was considering / in her own mind / (as well as she could, / for the hot day made her feel / very sleepy and stupid), / whether the pleasure / of making a daisy-chain / would be worth the trouble / of getting up and picking the daisies, / when suddenly / a White Rabbit with pink eyes / ran close by her.",
+        // Para 3
+        "There was nothing so VERY remarkable in that; / nor did Alice think it so VERY much out of the way / to hear the Rabbit say to itself, / “Oh dear! Oh dear! I shall be late!” / (when she thought it over afterwards, / it occurred to her that she ought to have wondered at this, / but at the time it all seemed quite natural); / but when the Rabbit actually TOOK A WATCH / OUT OF ITS WAISTCOAT-POCKET, / and looked at it, / and then hurried on, / Alice started to her feet."
     ],
     quizzes: [
-        { q: "Why was Alice bored?", o: ["It was raining.", "The book had no pictures.", "She was hungry."], a: 1 }
+        { q: "Why was Alice bored?", o: ["It was raining.", "The book had no pictures.", "She was hungry."], a: 1 },
+        { q: "What animal ran by Alice?", o: ["A Black Cat", "A White Rabbit", "A Brown Dog"], a: 1 },
+        { q: "What did the Rabbit take out of its pocket?", o: ["A Watch", "A Carrot", "A Map"], a: 0 }
     ],
     currentParaIndex: 0,
     currentText: "",
