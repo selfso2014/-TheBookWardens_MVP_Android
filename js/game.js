@@ -606,9 +606,25 @@ Game.typewriter = {
             // We align with Gaze's coordinate system (ClientX/Y usually).
             if (window.gazeDataManager && this.cursorBlob) {
                 const rect = this.cursorBlob.getBoundingClientRect();
-                // Store the BOTTOM or CENTER of the cursor line as InkY?
-                // Text rendering usually aligns by baseline. Let's store Top + Height/2
-                const inkY = rect.top + (rect.height / 2);
+
+                // [User Request]: "정확하게 떨어지는 로직 (산수)"
+                // Logic: Inline Box Height = Content Area + Leading.
+                // Content Area = Font Size.
+                // Leading is split equally top/bottom (Half-Leading).
+                // Visual Center = Box Top + Half-Leading + (Font Size / 2).
+
+                const style = window.getComputedStyle(this.cursorBlob); // or currentP
+                // Note: cursorBlob is empty span, might not have metrics. Use parent P.
+                const parentStyle = window.getComputedStyle(this.currentP);
+
+                const fontSize = parseFloat(parentStyle.fontSize);
+                const lineHeight = rect.height; // Use actual rect height for line height
+
+                // Calculate Half-Leading
+                const halfLeading = (lineHeight - fontSize) / 2;
+
+                // Exact Center of the "Content Area" (Text Glyphs)
+                const inkY = rect.top + halfLeading + (fontSize / 2);
 
                 window.gazeDataManager.setContext({
                     inkY: inkY
@@ -1214,7 +1230,13 @@ Game.typewriter = {
                 if (lineRec) {
                     const isLineSuccessful = lineMetadata[idx] && lineMetadata[idx].success;
                     if (isLineSuccessful) {
-                        d.ry = lineRec.y + (approxLineHeight / 2);
+                        // [ReplayY Logic Refinement] Use Exact Center of Content Area
+                        // Formula: Top + Half-Leading + FontSize/2
+                        const pStyle = window.getComputedStyle(this.currentP || contentEl);
+                        const fontSize = parseFloat(pStyle.fontSize) || 16;
+                        const halfLeading = (approxLineHeight - fontSize) / 2;
+
+                        d.ry = lineRec.y + halfLeading + (fontSize / 2);
                     } else {
                         d.ry = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
                     }
