@@ -1133,8 +1133,8 @@ Game.typewriter = {
                     const fSize = parseFloat(pStyle.fontSize) || 16;
 
                     // Align ReplayY to the vertical center of the text line.
-                    // lineRec.y is the Top of the line. Adding fSize/2 moves it to the Middle.
-                    targetRy = lineRec.y + (fSize / 2);
+                    // Reduced offset from fSize/2 to fSize/4 to fix "slightly below" alignment.
+                    targetRy = lineRec.y + (fSize / 4);
                 }
             }
             if (targetRy === null) {
