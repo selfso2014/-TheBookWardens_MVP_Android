@@ -221,26 +221,41 @@ const Game = {
                 this.loadVocab(this.state.vocabIndex);
             } else {
                 // All Done
-                console.log("Word Forge Complete. Initializing Eye Tracking...");
-
-                if (this.trackingInitPromise) {
-                    const ok = await this.trackingInitPromise;
-                    if (!ok) return;
-                }
-
-                this.switchScreen("screen-calibration");
-                setTimeout(() => {
-                    if (typeof window.startCalibrationRoutine === "function") {
-                        window.startCalibrationRoutine();
-                    } else {
-                        this.switchScreen("screen-read");
-                    }
-                }, 500);
+                console.log("Word Forge Complete. Proceeding to WPM Selection...");
+                this.switchScreen("screen-wpm");
             }
         } else {
             alert("Try again!");
         }
     },
+
+    // --- 1.2 WPM Selection ---
+    selectWPM(wpm) {
+        console.log(`[Game] User selected WPM: ${wpm}`);
+        // Formula: Delay (ms) = 10000 / WPM
+        // 100 -> 100ms, 200 -> 50ms, 300 -> 33ms
+
+        const delay = Math.floor(10000 / wpm);
+        this.targetSpeed = delay; // Store for typewriter.start to pick up
+
+        // Initialize Eye Tracking & Calibration logic
+        (async () => {
+            if (this.trackingInitPromise) {
+                const ok = await this.trackingInitPromise;
+                if (!ok) return;
+            }
+
+            this.switchScreen("screen-calibration");
+            setTimeout(() => {
+                if (typeof window.startCalibrationRoutine === "function") {
+                    window.startCalibrationRoutine();
+                } else {
+                    this.switchScreen("screen-read");
+                }
+            }, 500);
+        })();
+    },
+
 
     // --- 1.5 Owl ---
     startOwlScene() {
@@ -442,7 +457,9 @@ Game.typewriter = {
     start() {
         // Reset
         this.currentParaIndex = 0;
-        this.baseSpeed = 20; // Reset speed
+        this.baseSpeed = Game.targetSpeed || 20; // Use user selected speed or default
+        console.log(`[Typewriter] Starting with Base Speed: ${this.baseSpeed}ms`);
+
         this.wordCount = 0;
         this.startTime = null;
         this.totalPausedTime = 0;

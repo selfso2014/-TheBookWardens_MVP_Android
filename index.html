@@ -248,6 +248,32 @@
     </div>
 
     <!-- SCREEN 1: WORD FORGE (Vocab) -->
+    <section id="screen-wpm" class="screen">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h2 style="color: var(--primary-accent); margin-bottom: 10px;">Reading Velocity</h2>
+        <p style="color: #bbb;">Select your comfortable reading speed.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 300px;">
+        <button class="btn-secondary" onclick="Game.selectWPM(100)"
+          style="padding: 15px; font-size: 1.1rem; border-color: #4caf50; color: #4caf50;">
+          <span style="display:block; font-size: 1.4rem; font-weight: bold;">Novice</span>
+          <span style="font-size: 0.9rem; opacity: 0.8;">100 WPM</span>
+        </button>
+        <button class="btn-secondary" onclick="Game.selectWPM(200)"
+          style="padding: 15px; font-size: 1.1rem; border-color: #2196f3; color: #2196f3;">
+          <span style="display:block; font-size: 1.4rem; font-weight: bold;">Apprentice</span>
+          <span style="font-size: 0.9rem; opacity: 0.8;">200 WPM</span>
+        </button>
+        <button class="btn-secondary" onclick="Game.selectWPM(300)"
+          style="padding: 15px; font-size: 1.1rem; border-color: #ff9800; color: #ff9800;">
+          <span style="display:block; font-size: 1.4rem; font-weight: bold;">Master</span>
+          <span style="font-size: 0.9rem; opacity: 0.8;">300 WPM</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- SCREEN 1: WORD FORGE (Vocab) -->
     <section id="screen-word" class="screen">
       <div style="text-align: center; margin-bottom: 10px; color: var(--primary-accent);">
         WORD FORGE (1/3)
