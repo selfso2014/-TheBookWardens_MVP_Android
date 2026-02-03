@@ -58,7 +58,7 @@ export class GazeDataManager {
             // Original raw fixation from SDK if present
             sdkFixationX: gazeInfo.fixationX,
             sdkFixationY: gazeInfo.fixationY,
-            // Context data (LineIndex, CharIndex)
+            // Context data (LineIndex, CharIndex, InkY)
             ...(this.context || {})
         };
 
@@ -262,7 +262,7 @@ export class GazeDataManager {
 
         // CSV Header
         // CSV Header
-        let csv = "RelativeTimestamp_ms,RawX,RawY,SmoothX,SmoothY,VelX,VelY,Type,ReturnSweep,LineIndex,CharIndex,AlgoLineIndex,Extrema,TargetY_Px,AvgCoolGazeY_Px,ReplayX,ReplayY,InkSuccess,InkCoverage_Px,isLagFix\n";
+        let csv = "RelativeTimestamp_ms,RawX,RawY,SmoothX,SmoothY,VelX,VelY,Type,ReturnSweep,LineIndex,CharIndex,InkY_Px,AlgoLineIndex,Extrema,TargetY_Px,AvgCoolGazeY_Px,ReplayX,ReplayY,InkSuccess,InkCoverage_Px,isLagFix\n";
 
         // Rows
         this.data.forEach(d => {
@@ -297,6 +297,7 @@ export class GazeDataManager {
                 (d.isReturnSweep ? "TRUE" : ""),
                 (d.lineIndex !== undefined && d.lineIndex !== null) ? d.lineIndex : "",
                 (d.charIndex !== undefined && d.charIndex !== null) ? d.charIndex : "",
+                (d.inkY !== undefined && d.inkY !== null) ? d.inkY.toFixed(0) : "", // New: InkY
                 (d.detectedLineIndex !== undefined) ? d.detectedLineIndex : "",
                 (d.extrema !== undefined) ? d.extrema : "",
                 targetY,

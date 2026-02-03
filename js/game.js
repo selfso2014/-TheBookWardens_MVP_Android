@@ -598,14 +598,26 @@ Game.typewriter = {
             // Track for current chunk
             this.currentChunkNodes.push(charSpan);
 
-            if (char === ' ') this.wordCount++;
-
             this.charIndex++;
+            if (char === ' ') this.wordCount++; // Moved this line to be conditional on space
 
-            // Punctuation delay
-            if (char === '.' || char === '!' || char === '?') {
-                nextDelay = 800;
+            // --- Real-time Ink Coordinate Logging for Replay ---
+            // Get Cursor's current vertical position relative to viewport or document
+            // We align with Gaze's coordinate system (ClientX/Y usually).
+            if (window.gazeDataManager && this.cursorBlob) {
+                const rect = this.cursorBlob.getBoundingClientRect();
+                // Store the BOTTOM or CENTER of the cursor line as InkY?
+                // Text rendering usually aligns by baseline. Let's store Top + Height/2
+                const inkY = rect.top + (rect.height / 2);
+
+                window.gazeDataManager.setContext({
+                    inkY: inkY
+                });
             }
+
+            // Punctuation pause
+            if (['.', '!', '?'].includes(char)) nextDelay += 300;
+            else if (char === ',') nextDelay += 150;
         }
 
         // --- 3. VISUAL LINE DETECTION & INK LOGIC ---
