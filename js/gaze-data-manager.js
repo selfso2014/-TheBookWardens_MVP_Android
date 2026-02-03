@@ -554,6 +554,7 @@ export class GazeDataManager {
         // 3. Detect Spikes using MAD (Sensitivity k=1.5)
         // With positive velocities removed, the baseline noise is low. Revert k to 3.0 to avoid noise.
         const { threshold, spikeIntervals } = detectVelXSpikes(samples, { k: 1.5, gapMs: 120, expandOneSample: true });
+        console.log(`[GazeDataManager] Running MAD with k=1.5 on ${samples.length} samples.`);
 
         // 4. Identify Potential Return Sweeps (First Pass: Displacement & Basic Validity)
         const candidates = spikeIntervals.filter(interval => {

@@ -644,14 +644,14 @@
             });
             algoCharts.push(chart8);
 
-            // --- Chart 9: Positive VelY Spike Detection (k=2.0) ---
+            // --- Chart 9: Positive VelY Spike Detection (k=1.5) ---
             // Detect Positive VelY spikes (Downward movement = Line Breaks)
             const velySamples = data.map(d => ({
                 ts_ms: d.t,
                 velX: (typeof d.vy === 'number' && d.vy > 0) ? d.vy : 0 // FILTER: Positive Only
             }));
 
-            const velYResult = detectVelXSpikes(velySamples, { k: 2.0, gapMs: 120, expandOneSample: true });
+            const velYResult = detectVelXSpikes(velySamples, { k: 1.5, gapMs: 120, expandOneSample: true });
 
             // Map spikes back to data for visualization
             const velYSpikePoints = [];
@@ -661,7 +661,7 @@
                 }
             });
 
-            const ctx9 = createCanvas('chart9', "Chart 9: Positive Vertical Velocity (VelY > 0) Analysis (k=2.0)");
+            const ctx9 = createCanvas('chart9', "Chart 9: Positive Vertical Velocity (VelY > 0) Analysis (Default k=1.5)");
             const chart9 = new Chart(ctx9, {
                 type: 'line',
                 data: {
@@ -1097,7 +1097,7 @@
                     }
                 });
 
-                const ctx7 = createCanvas('chart7', `Chart 7: Simulated Replay X/Y (Based on K=${kVal} Detection)`, true);
+                const ctx7 = createCanvas('chart7', `Chart 7: Simulated Replay X/Y (Segmentation k=0.5, ReturnSweep k=${kVal})`, true);
                 const chart7 = new Chart(ctx7, {
                     type: 'line',
                     data: {
