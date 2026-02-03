@@ -1048,223 +1048,145 @@ Game.typewriter = {
     // NEW FUNCTION: Calculate Rx and Ry based on Ink Success Status
     // Fix: Use lineYData recorded during gameplay instead of getVisualLines (which fails if text is faded)
     calculateReplayCoords(tStart, tEnd) {
-        console.log(`[Replay] Calculating Replay Coords (Ink-Based Logic) Range: ${tStart}~${tEnd}`);
+        console.log(`[Replay] Calculating Replay Coords (Chart 7 Logic: K=0.5 Segmentation) Range: ${tStart}~${tEnd}`);
 
         const contentEl = document.getElementById("book-content");
         if (!contentEl) return;
 
-        // Use Global Container Bounds for Rx mapping
+        // 1. Setup Globals
         const cRect = contentEl.getBoundingClientRect();
         const scrollX = window.scrollX;
-        const scrollY = window.scrollY;
-
-        // Padding handling (Approximate based on CSS: 20px usually)
-        // Ideally get computed style
         const style = window.getComputedStyle(contentEl);
         const padLeft = parseFloat(style.paddingLeft) || 0;
         const padRight = parseFloat(style.paddingRight) || 0;
-
         const globalLeft = cRect.left + scrollX + padLeft;
         const globalRight = cRect.right + scrollX - padRight;
         const globalWidth = globalRight - globalLeft;
 
-        // Use lineYData for Ry mapping
         const lineYData = this.lineYData || [];
-        if (lineYData.length === 0) {
-            console.warn("[Replay] No lineYData recorded.");
-            return;
-        }
+        if (lineYData.length === 0) { console.warn("[Replay] No lineYData recorded."); return; }
 
-        // Estimate approximate line height from first two lines or default
+        // Approx Line Height
         let approxLineHeight = 40;
-        if (lineYData.length >= 2) {
-            approxLineHeight = Math.abs(lineYData[1].y - lineYData[0].y);
-        } else {
-            // Try to measure a sample p line height
+        if (lineYData.length >= 2) approxLineHeight = Math.abs(lineYData[1].y - lineYData[0].y);
+        else {
             const p = contentEl.querySelector('p');
-            if (p) {
-                const lh = parseFloat(window.getComputedStyle(p).lineHeight);
-                if (!isNaN(lh)) approxLineHeight = lh;
-            }
+            if (p) { const lh = parseFloat(window.getComputedStyle(p).lineHeight); if (!isNaN(lh)) approxLineHeight = lh; }
         }
 
         const rawData = window.gazeDataManager.getAllData();
         const lineMetadata = window.gazeDataManager.lineMetadata || {};
-
-        const validData = rawData.filter(d =>
-            d.t >= tStart && d.t <= tEnd &&
-            d.lineIndex !== null && d.lineIndex !== undefined
-        );
-
+        const validData = rawData.filter(d => d.t >= tStart && d.t <= tEnd && d.lineIndex !== null && d.lineIndex !== undefined);
         if (validData.length === 0) return;
 
-        // 2. Pre-calculate Min/Max X for Rx normalization
-        const lineGroups = {};
-        validData.forEach(d => {
-            const idx = d.lineIndex;
-            if (!lineGroups[idx]) lineGroups[idx] = { min: Infinity, max: -Infinity };
-            const val = d.gx || d.x;
-            if (val < lineGroups[idx].min) lineGroups[idx].min = val;
-            if (val > lineGroups[idx].max) lineGroups[idx].max = val;
-        });
+        // 2. Chart 7 Segmentation Logic (K=0.5)
+        // Reset Coords
+        validData.forEach(d => { d.rx = null; d.ry = null; });
 
-        // 3. Assign Rx/Ry using Dual-Threshold Logic (Mirrors debug-csv-tool.html)
-        // We use K=0.5 (Broad Sweep) to segment the data into 'Clean Reading Lines'
-        // This replaces the raw Metadata LineIndex for Rx calculation to avoid 'hooks'
+        const K_VEL_THRESHOLD = 0.5;
+        const segments = [];
+        let segStart = 0;
 
-        // A. Prepare Samples for Spike Detection (Negative Velocity Only)
-        // Note: We need continuous data for proper velocity calculation. validData is filtered by time.
-        // Assuming validData is contiguous enough or we accept gaps. 
-        // Better to assume validData is a continuous block from tStart to tEnd.
+        for (let i = 0; i < validData.length; i++) {
+            const vx = (validData[i].vx !== undefined) ? validData[i].vx : 0;
+            if (vx < -K_VEL_THRESHOLD) {
+                // Sweep detected, close segment
+                if (i > segStart + 2) segments.push({ start: segStart, end: i - 1 });
+                segStart = i + 1;
+            }
+        }
+        if (segStart < validData.length - 1) segments.push({ start: segStart, end: validData.length - 1 });
 
-        const samples = validData.map(d => ({
-            ts_ms: d.t,
-            velX: (d.vx !== undefined && d.vx < 0) ? d.vx : 0
-        }));
+        // 3. Process Segments (Trim + Map)
+        segments.forEach(seg => {
+            const len = seg.end - seg.start;
+            if (len < 5) return;
+            const trimAmt = Math.floor(len * 0.10);
+            const safeStart = seg.start + trimAmt;
+            const safeEnd = seg.end - trimAmt;
+            if (safeEnd <= safeStart) return;
 
-        // Import detectVelXSpikes utility locally if module scope issue, 
-        // but here we are in Game object. We rely on window.gazeDataManager's internal method or we need to access logic.
-        // Since detectVelXSpikes is an export, we might not have direct access unless exposed.
-        // However, GazeDataManager is loaded. We can try to use a helper if available, OR we implement a simple localized versions.
-        // Actually, VelX detection is complex. Let's trust lineIndex for *general* grouping but use K=0.5 LOGIC locally if possible?
-        // The user request says "reflect the logic". 
-        // WITHOUT access to 'detectVelXSpikes' function (it is a module export, not on window), we cannot call it directly here easily.
-        // WE MUST CHECK IF 'detectVelXSpikes' IS ACCESSIBLE. 
-        // It is imported in 'gaze-data-manager.js' but not exposed to window.
+            // Find Min/Max X and Mode LineIndex in Safe Zone
+            let minX = Infinity, maxX = -Infinity;
+            const lCounts = {};
+            let maxC = 0, bestL = -1;
 
-        // ALTERNATIVE: Use the 'lineGroups' we essentially already built, BUT we need to trim the ends.
-        // The 'hook' is caused by the lineIndex changing LATER than the physical return sweep.
-        // We can detect the physical return sweep (High Neg Velocity) and FORCE a line break there.
+            for (let i = safeStart; i <= safeEnd; i++) {
+                const d = validData[i];
+                const val = d.gx || d.x;
+                if (val < minX) minX = val;
+                if (val > maxX) maxX = val;
 
-        // Let's implement a simplified "Velocity Spike" check here since we have vx.
-        // K=0.5 roughly means threshold around -0.1 to -0.2 depending on noise.
-        // Let's rely on the "lineGroups" logic but TRIM tails where Velocity is < Threshold.
+                const l = Number(d.lineIndex);
+                lCounts[l] = (lCounts[l] || 0) + 1;
+                if (lCounts[l] > maxC) { maxC = lCounts[l]; bestL = l; }
+            }
 
-        // STRATEGY: 
-        // Iterate through each 'lineGroup' (based on Metadata LineIndex).
-        // Find the "Physical Return Sweep" that STARTS this line (at the beginning of data).
-        // Find the "Physical Return Sweep" that ENDS this line (at the end of data).
-        // MASK OUT the data points during these sweeps.
-
-        // Actually, the previous 'Lag Fix' (Step 4) was doing exactly this but simply forcing Left.
-        // The User wants "Narrowed ReplayX Range".
-
-        // REVISED IMPLEMENTATION (Simulation of Dual Threshold without direct function access):
-        // 1. Identify "High Velocity Negatives" (Spikes) in the validData.
-        // 2. Mark these as "Unstable / Transition".
-        // 3. For ReplayX Normalization: ONLY use "Stable" points to calculate Min/Max.
-        // 4. For ReplayX Rendering: Map points relative to that Stable Min/Max. Points outside (in the sweep) will be < 0 or > 1.
-        //    We then Clamp them or Hide them? User said "Narrow the range".
-        //    If we clamp 0~1, the sweep becomes a straight vertical drop (good).
-
-        // Dynamic Threshold Estimate (Simple MAD-like)
-        const vels = validData.map(d => Math.abs(d.vx || 0));
-        const med = vels.sort((a, b) => a - b)[Math.floor(vels.length / 2)];
-        const thresh = med + 3.0 * (med || 0.05); // Rough guess if MAD not avail. 
-        // Actually hardcode a broad threshold? 0.5 vel is decent for eyes.
-        const BROAD_VEL_THRESHOLD = 0.5;
-
-        // Mark "Broad Sweep" Points
-        validData.forEach(d => {
-            d.isBroadSweep = (d.vx < -BROAD_VEL_THRESHOLD);
-        });
-
-        // Recalculate Min/Max using ONLY Safe (Trimeed) Data
-        // Strategy: Group by line, filter broad sweeps, then trim 10% off ends.
-
-        const lineIndicesMap = {};
-        validData.forEach((d, i) => {
-            const idx = d.lineIndex;
-            if (!lineIndicesMap[idx]) lineIndicesMap[idx] = [];
-            lineIndicesMap[idx].push(i);
-        });
-
-        const safeIndicesSet = new Set();
-        const globalLineGroups = {}; // Stores Min/Max for Safe Zones
-
-        Object.keys(lineIndicesMap).forEach(key => {
-            const lIdx = parseInt(key);
-            const allIndices = lineIndicesMap[lIdx];
-
-            // Filter out Broad Sweeps to find "Reading Candidate"
-            const cleanIndices = allIndices.filter(i => !validData[i].isBroadSweep);
-
-            if (cleanIndices.length === 0) return;
-
-            // Determine Safe Range (Middle 80%)
-            const subLen = cleanIndices.length;
-            const trimAmt = Math.floor(subLen * 0.10);
-
-            // Define Start/End relative to the Clean Array
-            // If cleanIndices is [10, 11, 12 ... 100], trimAmt=9
-            // Start at cleanIndices[9], End at cleanIndices[81]
-
-            // Actually, let's just use the pointers
-            // The "Safe Zone" essentially drops the first 10% and last 10% of the *detected stable duration*
-            const safeSubset = cleanIndices.slice(trimAmt, Math.max(trimAmt + 1, subLen - trimAmt));
-
-            if (safeSubset.length === 0) return;
-
-            // Calculate Min/Max for this Safe Line
-            let min = Infinity;
-            let max = -Infinity;
-            safeSubset.forEach(i => {
-                const val = validData[i].gx || validData[i].x;
-                if (val < min) min = val;
-                if (val > max) max = val;
-                safeIndicesSet.add(i); // Mark as Safe to Render
-            });
-
-            globalLineGroups[lIdx] = { min, max };
-        });
-
-        // Normalize and Assign Rx/Ry
-        validData.forEach((d, i) => {
-            const idx = d.lineIndex;
-            const bounds = globalLineGroups[idx];
-
-            // Check if this point is in the "Safe Set" we calculated
-            if (safeIndicesSet.has(i) && bounds && bounds.min !== Infinity) {
-                // Ry Logic
-                const lineRec = lineYData.find(item => item.lineIndex === idx);
+            // Determine TargetRy
+            let targetRy = null;
+            // Strategy: Use Majority LineIndex to map to visual line center
+            // (Chart 7 does this)
+            if (bestL !== -1) {
+                const lineRec = lineYData.find(Rec => Rec.lineIndex === bestL);
                 if (lineRec) {
-                    const isLineSuccessful = lineMetadata[idx] && lineMetadata[idx].success;
-                    if (isLineSuccessful) {
-                        // [ReplayY Logic Refinement] Use Exact Center of Content Area
-                        // Formula: Top + Half-Leading + FontSize/2
-                        const pStyle = window.getComputedStyle(this.currentP || contentEl);
-                        const fontSize = parseFloat(pStyle.fontSize) || 16;
-                        const halfLeading = (approxLineHeight - fontSize) / 2;
+                    const isSuccess = lineMetadata[bestL] && lineMetadata[bestL].success;
+                    const pStyle = window.getComputedStyle(this.currentP || contentEl);
+                    const fSize = parseFloat(pStyle.fontSize) || 16;
+                    const hLead = (approxLineHeight - fSize) / 2;
 
-                        d.ry = lineRec.y + halfLeading + (fontSize / 2);
-                    } else {
-                        d.ry = (d.gy !== undefined && d.gy !== null) ? d.gy : d.y;
-                    }
-
-                    // Rx Logic
-                    let val = d.gx || d.x;
-                    let norm = 0.5;
-                    if (bounds.max > bounds.min + 1) {
-                        norm = (val - bounds.min) / (bounds.max - bounds.min);
-                    }
-
-                    // Clamp 0-1 (Trimming handles the jump, Clamp handles noise within zone)
-                    norm = Math.max(0, Math.min(1, norm));
-
-                    d.rx = globalLeft + norm * globalWidth;
-                } else {
-                    d.rx = null; d.ry = null;
+                    targetRy = lineRec.y + hLead + (fSize / 2);
                 }
-            } else {
-                // Outside safe zone: Hide it
-                d.rx = null;
-                d.ry = null;
+            }
+            if (targetRy === null) {
+                // Fallback: Average Gy
+                let sGy = 0, cGy = 0;
+                for (let k = safeStart; k <= safeEnd; k++) { sGy += (validData[k].gy || validData[k].y); cGy++; }
+                targetRy = cGy ? sGy / cGy : 0;
+            }
+
+            // Assign Rx/Ry
+            const range = maxX - minX;
+            for (let k = safeStart; k <= safeEnd; k++) {
+                const d = validData[k];
+                let norm = 0;
+                if (range > 1) norm = ((d.gx || d.x) - minX) / range;
+                norm = Math.max(0, Math.min(1, norm));
+                d.rx = globalLeft + norm * globalWidth;
+                d.ry = targetRy;
             }
         });
 
-        // Removed Step 4 (Legacy Lag Fix) as Trimming handles it.
+        // 4. Fill Gaps (Interpolation)
+        const fill = (prop) => {
+            let lastIdx = -1;
+            // Find first
+            for (let i = 0; i < validData.length; i++) {
+                if (validData[i][prop] !== null && validData[i][prop] !== undefined) { lastIdx = i; break; }
+            }
+            if (lastIdx === -1) return;
 
-        console.log("[Replay] Coords Updated (Rx: GlobalNorm + Lag Fix, Ry: lineYData).");
+            // Fill Head
+            for (let i = 0; i < lastIdx; i++) validData[i][prop] = validData[lastIdx][prop];
+
+            // Fill Body
+            for (let i = lastIdx + 1; i < validData.length; i++) {
+                if (validData[i][prop] !== null && validData[i][prop] !== undefined) {
+                    const sVal = validData[lastIdx][prop];
+                    const eVal = validData[i][prop];
+                    const steps = i - lastIdx;
+                    for (let j = 1; j < steps; j++) {
+                        validData[lastIdx + j][prop] = sVal + (eVal - sVal) * (j / steps);
+                    }
+                    lastIdx = i;
+                }
+            }
+            // Fill Tail
+            for (let i = lastIdx + 1; i < validData.length; i++) validData[i][prop] = validData[lastIdx][prop];
+        };
+        fill('rx');
+        fill('ry');
+
+        console.log("[Replay] Coords Updated with Chart 7 Logic (K=0.5 Segmentation + Interpolation).");
     },
 
     startGazeReplay() {

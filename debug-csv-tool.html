@@ -370,14 +370,108 @@
             // ... (rest of preprocess logic)
         }
 
-        // ... (rest of helper functions)
+        // --- 3. Helper Functions & Plugins ---
+
+        const shadingPlugin = {
+            id: 'shading',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea, scales } = chart;
+                if (!chartArea) return;
+                const x = scales.x;
+
+                // data is available via chart.config.data
+                // We need to access return sweep info.
+                // It's attached to the dataset or we can infer it.
+                // Actually, let's access the raw data if bound, or pass it via options?
+                // Simplest: The chart context usually has access to the data array if mapped.
+                // But here we rely on the global 'data' scope or we passed it?
+                // Wait, 'shadingPlugin' is used in specific charts (2, 3, 7). 
+                // We need to know 'isReturnSweep' time ranges.
+                // We can iterate the dataset index 0 (assumed to be primary) and check time holes? No.
+
+                // FIX: Let's pass the shading ranges via chart options or assume a global 'window.shadingRanges'?
+                // Or better, generate the shading intervals inside renderCharts and attach to the plugin instance?
+                // Given the architecture, let's just implement a simple version or skip if complex.
+                // The previous error was just 'createCanvas is not defined'.
+                // Let's implement basics.
+            }
+        };
+
+        function createCanvas(id, title) {
+            const container = document.getElementById('charts-container');
+            let wrapper = document.getElementById(`wrapper-${id}`);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.id = `wrapper-${id}`;
+                wrapper.className = 'chart-wrapper';
+
+                const header = document.createElement('h3');
+                header.innerText = title;
+                wrapper.appendChild(header);
+
+                const cvs = document.createElement('canvas');
+                cvs.id = id;
+                wrapper.appendChild(cvs);
+                container.appendChild(wrapper);
+            } else {
+                // Update title if changed
+                wrapper.querySelector('h3').innerText = title;
+            }
+            return document.getElementById(id).getContext('2d');
+        }
 
         // --- 4. Chart Rendering ---
 
         let algoCharts = [];
 
         function renderCharts(data) {
-            // ... (existing rendering logic)
+            // Clear container
+            const container = document.getElementById('charts-container');
+            // We don't clear innerHTML because we want to reuse wrappers if possible to avoid flicker,
+            // or we just clear all.
+            container.innerHTML = '';
+            algoCharts.forEach(c => c.destroy());
+            algoCharts = [];
+
+            const labels = data.map(d => d.t); // Define labels here
+
+            // Helper for shading Return Sweeps (Generic)
+            const returnSweepIntervals = [];
+            let rStart = null;
+            data.forEach(d => {
+                if (d.isReturnSweep) {
+                    if (rStart === null) rStart = d.t;
+                } else {
+                    if (rStart !== null) {
+                        returnSweepIntervals.push({ start: rStart, end: d.t }); // End at current
+                        rStart = null;
+                    }
+                }
+            });
+            // If data ends with sweep
+            if (rStart !== null) returnSweepIntervals.push({ start: rStart, end: data[data.length - 1].t });
+
+            // Re-define plugin with closure over intervals
+            const shadingPlugin = {
+                id: 'shading',
+                beforeDatasetsDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+                    const x = scales.x;
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 0, 255, 0.1)'; // Light Magenta
+
+                    for (const it of returnSweepIntervals) {
+                        const x0 = x.getPixelForValue(it.start);
+                        const x1 = x.getPixelForValue(it.end);
+                        if (Number.isFinite(x0) && Number.isFinite(x1)) {
+                            // Draw rect covering full height
+                            ctx.fillRect(Math.min(x0, x1), chartArea.top, Math.abs(x1 - x0), chartArea.bottom - chartArea.top);
+                        }
+                    }
+                    ctx.restore();
+                }
+            };
 
             // --- Chart 2: SmoothY, TargetY, AvgCoolGazeY, ReplayY, InkY ---
             const ctx2 = createCanvas('chart2', "Chart 2: Vertical Y Analysis");
@@ -1014,6 +1108,7 @@
 
                 const simReplayX = new Array(data.length).fill(null);
                 const simReplayY = new Array(data.length).fill(null);
+                const simReturnSweepPoints = [];
                 // simReturnSweepPoints will be populated from the *User Detected* sweeps for correlation visualization
                 // But visualized at the 'jump' point.
 
@@ -1128,6 +1223,68 @@
                 // Inject UI controls after chart is created
                 setTimeout(injectChart11Controls, 100);
             }
+
+            // --- Chart 12: Actual Replay X/Y over Time (CSV Data) ---
+            // Visualizes Rx and Ry as time-series data
+
+            const ctx12 = createCanvas('chart12', "Chart 12: Actual Replay X/Y over Time (CSV Data)");
+            const chart12 = new Chart(ctx12, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual ReplayX (Rx)',
+                            data: data.map(d => d.rx), // Rx from CSV
+                            borderColor: '#00cc00', // Green
+                            backgroundColor: 'rgba(0, 204, 0, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 2, // Small points to show density
+                            pointHoverRadius: 5,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Actual ReplayY (Ry)',
+                            data: data.map(d => d.ry), // Ry from CSV
+                            borderColor: '#9932CC', // Purple
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: { maxTicksLimit: 20 },
+                            title: { display: true, text: 'Time (ms)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Pixel Value' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart12);
 
             // Initial Render
             renderChart11(dynamicK);
