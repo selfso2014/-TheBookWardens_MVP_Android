@@ -123,13 +123,26 @@ class TextRenderer {
         let currentLineY = -9999;
         let lineBuffer = [];
 
+        // Helper: Create a Range to get TIGHT bounds of the text node (ignoring line-height)
+        const range = document.createRange();
+
         this.words.forEach(word => {
+            // A. Get Bounding Box (Visual Block including line-height/padding)
             const r = word.element.getBoundingClientRect();
 
-            // Store absolute rect (relative to viewport)
-            // If the container scrolls, this needs care. 
-            // We assume the container is FIXED position or user doesn't scroll during reading.
-            // If scrolling happens, we need to store relative to container + scrollTop.
+            // B. Get TIGHT Glyph Bounds (Actual Ink) using Range
+            // Assuming word.element contains a single text node or simple text
+            range.selectNodeContents(word.element);
+            const tightRect = range.getBoundingClientRect();
+
+            // Calculate Visual Center based on TIGHT bounds (Robust fallback if tightRect is empty is r)
+            // If tightRect has height (visible text), use it. Otherwise use element rect.
+            const useTight = tightRect.height > 0;
+
+            // Visual Center Y: Center of the actual glyphs
+            const visualCenterY = useTight
+                ? tightRect.top + (tightRect.height / 2)
+                : r.top + (r.height / 2);
 
             word.rect = {
                 left: r.left,
@@ -139,7 +152,8 @@ class TextRenderer {
                 width: r.width,
                 height: r.height,
                 centerX: r.left + r.width / 2,
-                centerY: r.top + r.height / 2
+                centerY: r.top + r.height / 2, // Default Box Center
+                visualCenterY: visualCenterY   // NEW: Precise Glyph Center
             };
 
             // --- 2. Line Detection ---
@@ -164,7 +178,7 @@ class TextRenderer {
         }
 
         this.isLayoutLocked = true;
-        console.log(`[TextRenderer] Layout Locked: ${this.words.length} words, ${this.lines.length} lines.`);
+        console.log(`[TextRenderer] Layout Locked (Range-Based): ${this.words.length} words, ${this.lines.length} lines.`);
     }
 
     _finalizeLine(words) {
@@ -177,14 +191,21 @@ class TextRenderer {
         const maxBottom = Math.max(...words.map(w => w.rect.bottom));
 
         // Assign Line Index to Words for precise lookup
-        const lineIndex = this.lines.length;
-        words.forEach(w => w.lineIndex = lineIndex);
+        // Also calculate Average Visual Center for the Line
+        let sumVisualY = 0;
+        words.forEach(w => {
+            w.lineIndex = lineIndex;
+            sumVisualY += w.rect.visualCenterY;
+        });
+
+        const avgVisualY = sumVisualY / words.length;
 
         return {
             index: lineIndex,
             startIndex: words[0].index,
             endIndex: words[words.length - 1].index,
             wordIndices: words.map(w => w.index),
+            visualY: avgVisualY, // NEW: The mathematically derived visual center
             rect: {
                 left: first.left,
                 right: last.right,
@@ -237,13 +258,11 @@ class TextRenderer {
         let visualY;
 
         if (wordObj.lineIndex !== undefined && this.lines[wordObj.lineIndex]) {
-            const lineRect = this.lines[wordObj.lineIndex].rect;
-            // Exact Vertical Center of the Line Box
-            visualY = lineRect.top + (lineRect.height / 2);
+            // Use the Robust Average Visual Center of the Line
+            visualY = this.lines[wordObj.lineIndex].visualY;
         } else {
-            // Fallback (Safe Mode)
-            const r = wordObj.rect;
-            visualY = r.top + (r.height * 0.5);
+            // Fallback: Individual Word Visual Center
+            visualY = wordObj.rect.visualCenterY;
         }
 
         const r = wordObj.rect; // Use cached rect
