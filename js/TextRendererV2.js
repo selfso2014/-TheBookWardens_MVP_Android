@@ -271,30 +271,22 @@ class TextRenderer {
     }
 
     updateCursor(wordObj) {
-        if (!this.cursor || !wordObj || !wordObj.rect) return;
+        if (!this.cursor || !wordObj || !wordObj.element) return;
 
         try {
-            // Correct Vertical Alignment: Center of the LINE BOX
-            // STRATEGY: Global Line Box Reference + 35~38% Offset
-            let visualY;
-            const OFFSET_FACTOR = 0.30; // Tuned for user feedback (High)
+            // LIVE TRACKING STRATEGY
+            // Do not use cached 'this.lines' or 'wordObj.rect' for cursor positioning.
+            // The text container might have animated/shifted (e.g. translateY) after lockLayout.
+            // We must measure the element's CURRENT position on screen.
+            const currentRect = wordObj.element.getBoundingClientRect();
 
-            if (wordObj.lineIndex !== undefined && this.lines && this.lines[wordObj.lineIndex]) {
-                const line = this.lines[wordObj.lineIndex];
-                visualY = line.rect.top + (line.rect.height * OFFSET_FACTOR);
-            } else {
-                // Fallback: Individual Word Box
-                visualY = wordObj.rect.top + (wordObj.rect.height * OFFSET_FACTOR);
-            }
-
-            // Safety: Ensure finite numbers
-            if (!Number.isFinite(visualY)) visualY = wordObj.rect.top;
-
-            const r = wordObj.rect;
+            // Offset logic: Top of the tight box + 25% of height
+            // Since we forced line-height:1.2, this is very accurate.
+            const visualY = currentRect.top + (currentRect.height * 0.25);
 
             // Apply Styles
-            this.cursor.style.position = "fixed"; // Re-enforce
-            this.cursor.style.left = (r.right + 2) + "px";
+            this.cursor.style.position = "fixed";
+            this.cursor.style.left = (currentRect.right + 2) + "px";
             this.cursor.style.top = visualY + "px";
             this.cursor.style.opacity = "1";
 
