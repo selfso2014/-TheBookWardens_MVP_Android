@@ -192,27 +192,36 @@ class TextRenderer {
     }
 
     /**
-     * Visually reveals words up to the given chunk index.
-     * Does NOT change layout. Only changes opacity/color.
+     * Visually reveals words in the chunk sequentially (Typing Effect).
+     * @param {number} chunkIndex 
+     * @param {number} interval - ms between words (default 50ms)
+     * @returns {Promise} - Resolves when animation finishes
      */
-    revealChunk(chunkIndex) {
+    revealChunk(chunkIndex, interval = 50) {
         if (!this.isLayoutLocked) {
-            console.warn("Layout not locked! Call lockLayout() first.");
             this.lockLayout();
         }
 
-        if (chunkIndex < 0 || chunkIndex >= this.chunks.length) return;
+        if (chunkIndex < 0 || chunkIndex >= this.chunks.length) return Promise.resolve();
 
         const indices = this.chunks[chunkIndex];
-        indices.forEach(idx => {
-            const w = this.words[idx];
-            w.element.style.opacity = "1";
-            w.element.classList.add("revealed");
-        });
 
-        // Move cursor to end of this chunk
-        const lastWord = this.words[indices[indices.length - 1]];
-        this.updateCursor(lastWord);
+        return new Promise((resolve) => {
+            indices.forEach((wordIdx, i) => {
+                const w = this.words[wordIdx];
+                // Staggered Timeout
+                setTimeout(() => {
+                    w.element.style.opacity = "1";
+                    w.element.classList.add("revealed");
+
+                    // Move cursor along with words
+                    this.updateCursor(w);
+                }, i * interval);
+            });
+
+            // Resolve after total duration
+            setTimeout(resolve, indices.length * interval);
+        });
     }
 
     updateCursor(wordObj) {

@@ -140,8 +140,8 @@ body {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  padding-bottom: 20px;
-  /* Reduced from 80px to allow text further down */
+  padding-bottom: 80px;
+  /* Increased to avoid WPM overlap with safe margin */
 }
 
 .screen-owl {
