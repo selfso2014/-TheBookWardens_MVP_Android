@@ -238,10 +238,10 @@ class TextRenderer {
     /**
      * Visually reveals words in the chunk sequentially (Typing Effect).
      * @param {number} chunkIndex 
-     * @param {number} interval - ms between words (default 100ms, slower for better flow)
+     * @param {number} interval - ms between words (default 150ms, relaxed pace)
      * @returns {Promise} - Resolves when animation finishes
      */
-    revealChunk(chunkIndex, interval = 100) {
+    revealChunk(chunkIndex, interval = 150) {
         if (!this.isLayoutLocked) {
             this.lockLayout();
         }
