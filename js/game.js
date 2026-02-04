@@ -526,7 +526,7 @@ Game.typewriter = {
             if (container) {
                 // Apply layout styles JS-side just in case CSS missed something
                 container.style.position = "relative";
-                container.style.overflow = "hidden"; // Enforce no-scroll
+                container.style.overflow = "visible"; // Allow overflow for debugging visibility
 
                 this.renderer = new TextRenderer("book-content", {
                     fontSize: window.innerWidth <= 768 ? "1.0rem" : "1.3rem",
