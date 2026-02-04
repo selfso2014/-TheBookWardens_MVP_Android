@@ -238,10 +238,10 @@ class TextRenderer {
     /**
      * Visually reveals words in the chunk sequentially (Typing Effect).
      * @param {number} chunkIndex 
-     * @param {number} interval - ms between words (default 50ms)
+     * @param {number} interval - ms between words (default 100ms, slower for better flow)
      * @returns {Promise} - Resolves when animation finishes
      */
-    revealChunk(chunkIndex, interval = 50) {
+    revealChunk(chunkIndex, interval = 100) {
         if (!this.isLayoutLocked) {
             this.lockLayout();
         }
@@ -280,9 +280,9 @@ class TextRenderer {
             // We must measure the element's CURRENT position on screen.
             const currentRect = wordObj.element.getBoundingClientRect();
 
-            // Offset logic: Top of the tight box + 45% of height
-            // Since we forced line-height:1.2, this is very accurate.
-            const visualY = currentRect.top + (currentRect.height * 0.45);
+            // Offset logic: Top of the tight box + 52% of height
+            // User requested "slightly lower than center"
+            const visualY = currentRect.top + (currentRect.height * 0.52);
 
             // Apply Styles
             this.cursor.style.position = "fixed";
