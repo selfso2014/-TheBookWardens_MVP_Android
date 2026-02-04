@@ -280,9 +280,9 @@ class TextRenderer {
             // We must measure the element's CURRENT position on screen.
             const currentRect = wordObj.element.getBoundingClientRect();
 
-            // Offset logic: Top of the tight box + 25% of height
+            // Offset logic: Top of the tight box + 45% of height
             // Since we forced line-height:1.2, this is very accurate.
-            const visualY = currentRect.top + (currentRect.height * 0.25);
+            const visualY = currentRect.top + (currentRect.height * 0.45);
 
             // Apply Styles
             this.cursor.style.position = "fixed";
