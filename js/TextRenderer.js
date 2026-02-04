@@ -138,10 +138,10 @@ class TextRenderer {
             const r = word.element.getBoundingClientRect();
 
             // C. TYPOGRAPHIC CENTER STRATEGY
-            // Geometric Center (0.5) is visually too low because of Descender space (g, p, y...).
-            // User Feedback: 0.42 was still too low.
-            // Aggressive Correction: Shift to 0.35 (Upper-Middle, near x-height top).
-            const visualCenterY = r.top + (r.height * 0.35);
+            // Geometric Center (0.5) is visually too low.
+            // User Feedback: 0.35 was STILL too low.
+            // Very Aggressive Correction: Shift to 0.25 (Top Quartile).
+            const visualCenterY = r.top + (r.height * 0.25);
 
             word.rect = {
                 left: r.left,
