@@ -114,7 +114,11 @@ class TextRenderer {
             this.chunks.push(chunkWordIndices);
         });
 
-        // 3. Add a "cursor" element at the end
+        // 3. Add a "cursor" element
+        // Remove existing cursor if any (to prevent duplicates on re-prepare)
+        const oldCursor = document.querySelector('.tr-cursor');
+        if (oldCursor) oldCursor.remove();
+
         this.cursor = document.createElement("span");
         this.cursor.className = "tr-cursor";
 
@@ -126,7 +130,8 @@ class TextRenderer {
         this.cursor.style.zIndex = "9999"; // Ensure it floats above text
         this.cursor.style.pointerEvents = "none"; // Click-through
 
-        this.container.appendChild(this.cursor);
+        // APPEND TO BODY to escape any CSS Stacking Context / Transform issues in container
+        document.body.appendChild(this.cursor);
     }
 
     /**
