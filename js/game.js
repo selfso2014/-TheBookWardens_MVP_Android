@@ -582,10 +582,20 @@ Game.typewriter = {
             if (debugEl) debugEl.textContent = `Lines Cached: ${this.renderer.lines.length}`;
 
             // 3. Start Reading Flow
-            // Modification: 3-second delay with cursor at top-left
-            this.renderer.resetToStart();
-            console.log("[Typewriter] Cursor ready. Waiting 3s...");
+            // UX IMPROVEMENT: Hide cursor initially. 
+            // The screen 'fadeIn' animation shifts the text container. 
+            // If we show the cursor immediately, it looks like it's floating/misaligned.
+            if (this.renderer.cursor) this.renderer.cursor.style.opacity = "0";
 
+            // Wait for screen animation (approx 500ms) to finish before showing cursor.
+            setTimeout(() => {
+                if (this.renderer) {
+                    this.renderer.resetToStart(); // Aligns correctly and sets opacity: 1
+                    console.log("[Typewriter] Cursor appeared aligned.");
+                }
+            }, 600);
+
+            // Start Text after full 3s delay
             setTimeout(() => {
                 this.startTime = Date.now();
                 this.tick();
