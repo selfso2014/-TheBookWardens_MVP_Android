@@ -529,7 +529,7 @@ Game.typewriter = {
                 container.style.overflow = "hidden"; // Enforce no-scroll
 
                 this.renderer = new TextRenderer("book-content", {
-                    fontSize: window.innerWidth <= 768 ? "1.2rem" : "1.5rem",
+                    fontSize: window.innerWidth <= 768 ? "1.0rem" : "1.3rem",
                     lineHeight: "2.8",
                     wordSpacing: "0.4em",
                     padding: "20px"
