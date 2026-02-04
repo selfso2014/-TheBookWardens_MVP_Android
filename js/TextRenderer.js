@@ -74,7 +74,7 @@ class TextRenderer {
             const rawWords = cleanChunk.split(/\s+/);
 
             rawWords.forEach((w) => {
-                // Create Span with Probe for Mathematical Centering
+                // Create Span
                 const span = document.createElement("span");
                 span.className = "tr-word"; // Base class
                 // FORCE STYLES for Debugging/Visibility
@@ -82,23 +82,19 @@ class TextRenderer {
                 span.style.opacity = "0"; // Start hidden
                 span.style.marginRight = this.options.wordSpacing;
                 span.style.display = "inline-block";
+
+                // CRITICAL FIX: Force line-height to be tight on the word element itself.
+                // This maximizes the bounding box accuracy to the actual glyphs.
+                // The parent container still handles the massive 2.5 line-height spacing.
+                span.style.lineHeight = "1.2";
+
+                // vertical-align: middle ensures this tight box sits in the middle of the tall line
+                span.style.verticalAlign = "middle";
+
                 span.dataset.index = globalWordIndex;
 
                 // 1. Text Content
                 span.textContent = w;
-
-                // 2. Probe Element (The "Anchor")
-                // vertical-align: middle aligns this element's midpoint with:
-                // "baseline of parent + half the x-height of parent"
-                // This is the TRUE VISUAL CENTER for reading.
-                const probe = document.createElement("span");
-                probe.className = "tr-probe";
-                probe.style.display = "inline-block";
-                probe.style.width = "0px";
-                probe.style.height = "0px"; // Zero size point
-                probe.style.verticalAlign = "middle";
-                probe.style.visibility = "hidden";
-                span.appendChild(probe);
 
                 this.container.appendChild(span);
 
@@ -108,7 +104,6 @@ class TextRenderer {
                     text: w,
                     chunkId: chunkIndex,
                     element: span,
-                    probe: probe, // Store ref to probe
                     rect: null
                 });
 
@@ -142,17 +137,10 @@ class TextRenderer {
         this.words.forEach(word => {
             const r = word.element.getBoundingClientRect();
 
-            // C. PROBE STRATEGY (The Mathematical Center)
-            // The probe is strictly aligned to the font's x-height center by the browser engine.
-            const probeRect = word.probe.getBoundingClientRect();
-
-            // If probe fails (hidden/collapsed), fallback to BBox center
-            let visualCenterY = probeRect.top;
-
-            // Safety: If probe is 0 (e.g. display:none parent), fallback
-            if (visualCenterY === 0 || isNaN(visualCenterY)) {
-                visualCenterY = r.top + (r.height * 0.45); // Approximate fallback
-            }
+            // C. TIGHT BOX STRATEGY (The True Mathematical Center)
+            // Since we forced line-height: 1.2 on the element, 'r' is now the tight bounding box of the glyphs.
+            // Its geometric center IS the visual center. No probes or magic numbers needed.
+            const visualCenterY = r.top + (r.height / 2);
 
             word.rect = {
                 left: r.left,
@@ -163,13 +151,15 @@ class TextRenderer {
                 height: r.height,
                 centerX: r.left + r.width / 2,
                 centerY: r.top + r.height / 2,
-                visualCenterY: visualCenterY   // NEW: Browser-Native Mathematical Center
+                visualCenterY: visualCenterY   // Perfect Center
             };
 
             // --- 2. Line Detection ---
             // Simple logic: if this word's top is significantly lower than previous, new line.
-            // Using a threshold of approx half line-height.
-            if (Math.abs(word.rect.top - currentLineY) > (word.rect.height * 0.5)) {
+            // But since elements are now vertically aligned middle, their top might vary slightly.
+            // Use a threshold relative to the *Container's* effective line height (approx 60px)
+            // Or just check if 'top' jumped more than the element's height.
+            if (Math.abs(word.rect.top - currentLineY) > (word.rect.height * 1.5)) {
                 // Commit previous line
                 if (lineBuffer.length > 0) {
                     this.lines.push(this._finalizeLine(lineBuffer));
