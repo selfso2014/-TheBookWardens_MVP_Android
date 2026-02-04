@@ -20,6 +20,8 @@ const Game = {
     init() {
         console.log("Game Init");
         this.bindEvents();
+
+        // Note: UI is now initialized via HTML defaults (Splash is active)
         this.updateUI();
 
         // 3. Auto-start if redirected from In-App Browser
@@ -359,6 +361,25 @@ const Game = {
 
         } else {
             alert("The Shadow deflects your attack! Try reading carefully.");
+        }
+    },
+
+    // --- 4. Splash Screen Logic ---
+    dismissSplash() {
+        console.log("Splash Displayed. User interaction detected.");
+        // Audio interaction could go here
+
+        // Transition to Lobby
+        const splash = document.getElementById("screen-splash");
+        if (splash) {
+            splash.style.opacity = "0";
+            setTimeout(() => {
+                this.switchScreen("screen-home");
+                // Reset opacity for potential reuse or simply hide
+                splash.style.display = "none";
+            }, 500); // Match CSS transition if any, or just fast
+        } else {
+            this.switchScreen("screen-home");
         }
     }
 };
