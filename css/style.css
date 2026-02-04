@@ -640,6 +640,9 @@ body {
 span.tr-word.chunk-fade-out {
   opacity: 0 !important;
   visibility: hidden;
-  /* transform removed to fade in place */
+  /* FORCE RESET TRANSFORM: The default .tr-word has translateY(10px).
+     When we remove 'revealed' (translateY(0)), it reverts to 10px (down).
+     We must force it to stay at 0 to fade in place. */
+  transform: translateY(0) !important;
   transition: opacity 1.0s ease-out, visibility 1.0s linear;
 }
