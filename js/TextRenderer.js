@@ -259,16 +259,21 @@ class TextRenderer {
     updateCursor(wordObj) {
         if (!this.cursor || !wordObj) return;
 
-        // Correct Vertical Alignment: Center of the LINE
-        // Instead of word-relative heuristics, we use the Line's cached bounding box.
+        // Correct Vertical Alignment: Center of the LINE BOX
+        // STRATEGY RESET: Use the Line Box (Blue Box) Geometry directly.
+        // Ignore individual word vertical alignment variations.
         let visualY;
 
         if (wordObj.lineIndex !== undefined && this.lines[wordObj.lineIndex]) {
-            // Use the Robust Average Visual Center of the Line
-            visualY = this.lines[wordObj.lineIndex].visualY;
+            const line = this.lines[wordObj.lineIndex];
+            // Start at the TOP of the Blue Box
+            // Add 38% of the box height (approx visual center for Crimson Text in generous leading)
+            // 50% is geometric center, but visual center is higher.
+            visualY = line.rect.top + (line.rect.height * 0.38);
         } else {
-            // Fallback: Individual Word Visual Center
-            visualY = wordObj.rect.visualCenterY;
+            // Fallback: Individual Word Box
+            // If line is unknown, use word top + 38% of presumed height (or height * 1.5 logic)
+            visualY = wordObj.rect.top + (wordObj.rect.height * 0.38);
         }
 
         const r = wordObj.rect; // Use cached rect
