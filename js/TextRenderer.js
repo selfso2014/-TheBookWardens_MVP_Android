@@ -78,9 +78,11 @@ class TextRenderer {
                 const span = document.createElement("span");
                 span.textContent = w;
                 span.className = "tr-word"; // Base class
-                // span.style.opacity = "0";   // Handled by CSS class .tr-word
+                // FORCE STYLES for Debugging/Visibility
+                span.style.color = "#ffffff";
+                span.style.opacity = "0"; // Start hidden (revealed by JS)
                 span.style.marginRight = this.options.wordSpacing;
-                span.style.display = "inline-block"; // Important for reliable rects
+                span.style.display = "inline-block";
                 span.dataset.index = globalWordIndex;
 
                 this.container.appendChild(span);
@@ -230,7 +232,9 @@ class TextRenderer {
                 const w = this.words[wordIdx];
                 // Staggered Timeout
                 setTimeout(() => {
+                    // Force Opacity 1
                     w.element.style.opacity = "1";
+                    w.element.style.visibility = "visible"; // Extra safety
                     w.element.classList.add("revealed");
 
                     // Move cursor along with words
