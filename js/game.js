@@ -289,8 +289,9 @@ const Game = {
         this.state.isTracking = true;
         this.state.isOwlTracker = true;
         this.switchScreen("screen-owl");
-        if (typeof window.showGazeDot === "function") {
-            window.showGazeDot(999999);
+        // User Request: Make gaze dot transparent (invisible) but keep tracking active
+        if (typeof window.setGazeDotState === "function") {
+            window.setGazeDotState(false);
         }
     },
 
