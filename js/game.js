@@ -616,13 +616,11 @@ Game.typewriter = {
         // Reveal next chunk
         if (this.chunkIndex < this.renderer.chunks.length) {
 
-            // TEXT TRAIN EFFECT:
-            // Fade out the chunk that is 3 steps behind the current one.
-            // Keeps a "train" of 3 visible chunks.
-            const fadeTargetIndex = this.chunkIndex - 3;
-            if (fadeTargetIndex >= 0) {
-                this.renderer.fadeOutChunk(fadeTargetIndex);
-            }
+            // TEXT TRAIN EFFECT (Continuous Flow):
+            // Instead of fading out an old chunk manually here, we SCHEDULE the death of the NEW chunk.
+            // "I am born now, and I shall die in 4 seconds."
+            // This ensures a smooth, independent pipeline regardless of whether the cursor pauses.
+            this.renderer.scheduleFadeOut(this.chunkIndex, 3000); // 3 seconds lifetime
 
             // Wait for Animation to Finish (Promise-based)
             this.renderer.revealChunk(this.chunkIndex).then(() => {
@@ -640,35 +638,22 @@ Game.typewriter = {
             });
 
         } else {
-            console.log("Paragraph Fully Revealed. Clearing tail...");
+            console.log("Paragraph Fully Revealed.");
 
-            // CLEANUP TAIL: Fade out any remaining visible chunks
-            // We need to fade out from (chunkIndex - 3) up to (chunkIndex - 1)
-            // But actually, since the loop stopped, we just need to clear everything remaining.
-            // Let's sweep from max(0, chunkIndex - 3) to total chunks.
+            // CLEANUP handled automatically by scheduleFadeOut!
+            // Just wait for the visual trail to finish before moving on.
+            // Max lifetime is 3000ms.
 
-            let cleanupDelay = 0;
-            const startCleanupIdx = Math.max(0, this.chunkIndex - 3);
-
-            for (let i = startCleanupIdx; i < this.renderer.chunks.length; i++) {
-                setTimeout(() => {
-                    this.renderer.fadeOutChunk(i);
-                }, cleanupDelay);
-                cleanupDelay += 600; // Delay between chunk fades during cleanup
-            }
-
-            // Optional: Move to next paragraph after cleanup is visually done
-            // The cleanup takes roughly (3 * 600) = 1800ms
             if (this.currentParaIndex < this.paragraphs.length - 1) {
                 setTimeout(() => {
                     this.currentParaIndex++;
                     this.playNextParagraph();
-                }, cleanupDelay + 1000);
+                }, 3500); // Wait bit more than 3s to be safe
             } else {
                 // Boss Battle Trigger (Game Over for text)
                 setTimeout(() => {
                     this.startBossBattle();
-                }, cleanupDelay + 1000);
+                }, 3500);
             }
         }
     },

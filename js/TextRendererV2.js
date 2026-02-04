@@ -374,6 +374,18 @@ class TextRenderer {
     }
 
     /**
+     * Schedules a chunk to fade out after a certain delay.
+     * Creates a continuous flow independent of the reading cursor pauses.
+     * @param {number} chunkIndex 
+     * @param {number} delayMs 
+     */
+    scheduleFadeOut(chunkIndex, delayMs) {
+        setTimeout(() => {
+            this.fadeOutChunk(chunkIndex);
+        }, delayMs);
+    }
+
+    /**
      * Performs a high-performance hit test against the cached layout.
      * @param {number} gx - Gaze X
      * @param {number} gy - Gaze Y
