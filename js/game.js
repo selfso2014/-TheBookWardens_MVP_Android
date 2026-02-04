@@ -154,7 +154,15 @@ const Game = {
         if (target) target.classList.add("active");
 
         if (screenId === "screen-read") {
-            this.startReadingSession();
+            // Wait for display:flex to apply layout, then start engine
+            // Using double RAF to ensure paint
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (this.typewriter && typeof this.typewriter.start === 'function') {
+                        this.typewriter.start();
+                    }
+                });
+            });
         }
     },
 
