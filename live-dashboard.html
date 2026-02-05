@@ -313,11 +313,11 @@
                             label: 'Trigger Event',
                             data: data.map(d => d.didFire ? d.x : null),
                             type: 'scatter',
-                            pointStyle: 'star',
-                            radius: 12, // Bigger star
-                            backgroundColor: 'gold',
-                            borderColor: 'black',
-                            borderWidth: 1,
+                            pointStyle: 'circle', // Changed to circle
+                            radius: 3,            // Small dot
+                            backgroundColor: 'red', // Red for visibility
+                            borderColor: 'red',
+                            borderWidth: 0,
                             yAxisID: 'yPos'
                         }
                     ]
