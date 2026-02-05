@@ -354,13 +354,14 @@ class TextRenderer {
     triggerReturnEffect() {
         if (!this.cursor) return false;
 
+        // --- Faster Animation (200ms) ---
+        // Cooldown is handled by game.js (1.5s logic)
+        // Here we just prevent visual glitching if called extremely fast (< 200ms)
         const now = Date.now();
-        const COOLDOWN = 1500;
+        if (this.lastRenderTime && (now - this.lastRenderTime < 200)) return false;
+        this.lastRenderTime = now;
 
-        if (this.lastReturnTime && (now - this.lastReturnTime < COOLDOWN)) return false;
-
-        this.lastReturnTime = now;
-        console.log("[TextRenderer] 🔥 Return Triggered!");
+        console.log("[TextRenderer] 🔥 Return Visual Triggered!");
 
         // 1. Calculate Position based on CURRENT CURSOR Y
         const rect = this.cursor.getBoundingClientRect();
@@ -382,23 +383,22 @@ class TextRenderer {
 
         const impact = this.impactElement;
 
-        // Reset Style
+        // Reset Style (Instant)
         impact.style.transition = "none";
         impact.style.width = "10px";
         impact.style.height = "10px";
         impact.style.opacity = "1";
         impact.style.left = "20px"; // Fixed Left Margin
         impact.style.top = targetY + "px";
-
-        // VISUAL TRICK: Start "Mid-Explosion" (Retroactive Feedback)
-        // Compensates for detection latency by skipping the initial expansion frames.
-        impact.style.transform = "translate(-50%, -50%) scale(2.0)";
+        impact.style.transform = "translate(-50%, -50%) scale(2.0)"; // Start mid-explosion
 
         // Force Reflow
         void impact.offsetWidth;
 
-        // Animate: Continue expansion quickly
-        impact.style.transition = "transform 0.25s ease-out, opacity 0.25s ease-in";
+        // Animate: Fast Fade Out (0.2s)
+        // The visual effect lasts 200ms based on user request.
+        impact.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-in";
+
         requestAnimationFrame(() => {
             impact.style.transform = "translate(-50%, -50%) scale(6)";
             impact.style.opacity = "0";
