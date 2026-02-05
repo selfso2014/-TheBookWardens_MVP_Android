@@ -711,46 +711,8 @@ Game.typewriter = {
         // 1. Hit Test against Fixed Layout
         const hit = this.renderer.hitTest(x, y);
 
-        // --- GAZE-DRIVEN RETURN SPARK LOGIC (ALWAYS ON) ---
-        if (window.gazeDataManager) {
-            // Check for real-time Returnsweep (K=1.5 logic)
-            const isRS = window.gazeDataManager.detectRealtimeReturnSweep(600); // Look back 600ms
-
-            // Visual Debug: Armed State (Always watching)
-            // document.body.style.border = "4px solid rgba(0, 0, 255, 0.1)"; 
-
-            if (isRS) {
-                // Check Cooldown to ensure SINGLE discrete event per sweep
-                const now = Date.now();
-                if (!this.lastReturnFireTime || (now - this.lastReturnFireTime > 1500)) {
-                    console.log("[Game] RETURN SWEEP DETECTED! FIRE (Discrete)!");
-
-                    // 1. Log SINGLE DEBUG EVENT (Only ONCE per sweep)
-                    window.gazeDataManager.logDebugEvent('didFire', true);
-
-                    // 2. Trigger Effect
-                    this.renderer.triggerReturnEffect();
-
-                    this.lastReturnFireTime = now;
-                }
-                // Visual Feedback
-                /*
-                const flash = document.createElement("div");
-                flash.style.position = "fixed";
-                flash.style.top = "0"; flash.style.left = "0"; flash.style.width = "100%"; flash.style.height = "100%";
-                flash.style.border = "10px solid red";
-                flash.style.pointerEvents = "none";
-                flash.style.zIndex = "9999";
-                document.body.appendChild(flash);
-                setTimeout(() => flash.remove(), 200);
-                */
-            }
-        }
-
-        // --- SIMPLIFIED CONTEXT SYNC (Content-Driven) ---
+        // 2. Define Content Context (Source of Truth)
         // User Definition: "Line Index is simply the line number that has appeared on screen."
-        // It is NOT gaze-dependent. It assumes linear reading of the revealed text.
-
         const contentLineIndex = this.renderer.currentVisibleLineIndex || 0;
         let contentTargetY = null;
 
@@ -759,27 +721,53 @@ Game.typewriter = {
             contentTargetY = this.renderer.lines[contentLineIndex].visualY;
         }
 
-        // SYNC TO GAZE DATA MANAGER
-        // We log the CONTENT state, not the gaze state.
+        // 3. Return Sweep Logic
+        if (window.gazeDataManager) {
+            const isRS = window.gazeDataManager.detectRealtimeReturnSweep(600); // Look back 600ms
+
+            if (isRS) {
+                // Rule 1: No Return Sweep on First Line (Index 0)
+                // We only trigger when moving TO the 2nd line (Index 1) or later.
+                if (contentLineIndex > 0) {
+
+                    // Check Cooldown using timestamp
+                    const now = Date.now();
+                    const isCooldownReady = !this.lastReturnFireTime || (now - this.lastReturnFireTime > 1500);
+
+                    // Rule 2: Limit to ONCE per line index
+                    const isNewRefresh = this.lastTriggeredLineIndex !== contentLineIndex;
+
+                    if (isCooldownReady && isNewRefresh) {
+                        console.log(`[Game] RETURN SWEEP FIRE! (Line ${contentLineIndex})`);
+
+                        // Log SINGLE DEBUG EVENT
+                        window.gazeDataManager.logDebugEvent('didFire', true);
+
+                        // Trigger Effect
+                        this.renderer.triggerReturnEffect();
+
+                        this.lastReturnFireTime = now;
+                        this.lastTriggeredLineIndex = contentLineIndex; // Lock this line
+                    }
+                }
+            }
+        }
+
+        // 4. Sync Context to Data Manager
         if (window.gazeDataManager) {
             const ctx = {
                 lineIndex: contentLineIndex,
                 targetY: contentTargetY,
                 paraIndex: this.currentParaIndex,
-                // We don't track wordIndex here because it would require hit testing.
-                // But if we want "current revealed word", we could track that too.
-                // For now, Line Index is the priority.
                 wordIndex: null
             };
             window.gazeDataManager.setContext(ctx);
         }
 
-        // VISUAL INTERACTIONS (Hit Testing for Highlights Only)
-        // This does NOT affect the recorded Line Index anymore.
+        // 5. Visual Interactions (Hit Testing for Highlights Only)
         if (hit && hit.type === 'word') {
             const word = hit.word;
-            // Only highlight if the word is actually revealed?
-            // Or allow highlighting words that are visible.
+            // Only highlight if the word is actually revealed
             if (word.element && !word.element.classList.contains("read") && word.element.classList.contains("revealed")) {
                 word.element.classList.add("read");
                 word.element.style.color = "#fff";
