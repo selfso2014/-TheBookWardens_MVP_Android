@@ -354,11 +354,11 @@ class TextRenderer {
     triggerReturnEffect() {
         if (!this.cursor) return false;
 
-        // --- Faster Animation (100ms) ---
+        // --- Faster Animation (50ms) ---
         // Cooldown is handled by game.js (1.5s logic)
-        // Here we just prevent visual glitching if called extremely fast (< 100ms)
+        // Here we just prevent visual glitching if called extremely fast (< 50ms)
         const now = Date.now();
-        if (this.lastRenderTime && (now - this.lastRenderTime < 100)) return false;
+        if (this.lastRenderTime && (now - this.lastRenderTime < 50)) return false;
         this.lastRenderTime = now;
 
         console.log("[TextRenderer] 🔥 Return Visual Triggered!");
@@ -390,17 +390,17 @@ class TextRenderer {
         impact.style.opacity = "1";
         impact.style.left = "20px"; // Fixed Left Margin
         impact.style.top = targetY + "px";
-        impact.style.transform = "translate(-50%, -50%) scale(4.0)"; // Start BIG (40px)
+        impact.style.transform = "translate(-50%, -50%) scale(5.0)"; // Start HUGE (50px)
 
         // Force Reflow
         void impact.offsetWidth;
 
-        // Animate: Extremely Fast Fade Out (0.1s)
+        // Animate: Ultra Fast Flash (0.05s)
         // The visual effect lasts 100ms based on user request.
-        impact.style.transition = "transform 0.1s ease-out, opacity 0.1s ease-in";
+        impact.style.transition = "transform 0.05s ease-out, opacity 0.05s ease-in";
 
         requestAnimationFrame(() => {
-            impact.style.transform = "translate(-50%, -50%) scale(6.0)"; // End at 60px
+            impact.style.transform = "translate(-50%, -50%) scale(8.0)"; // End at 80px
             impact.style.opacity = "0";
         });
 
