@@ -51,30 +51,8 @@ const Game = {
             }
         }
 
-        // DEBUG: Add Manual Export Button for Mobile (Moved to Init)
-        const btnExport = document.createElement("button");
-        btnExport.innerText = "💾 SAVE LOG";
-        btnExport.style.position = "fixed";
-        btnExport.style.left = "10px";
-        btnExport.style.bottom = "10px";
-        btnExport.style.zIndex = "20000"; // Lower z-index to avoid blocking other interactions if possible
-        btnExport.style.padding = "10px";
-        btnExport.style.background = "rgba(0,0,0,0.7)";
-        btnExport.style.color = "lime";
-        btnExport.style.fontSize = "12px";
-        btnExport.style.border = "1px solid lime";
-        btnExport.onclick = () => {
-            if (window.gazeDataManager) {
-                alert("Exporting CSV...");
-                window.gazeDataManager.exportCSV();
-            } else {
-                alert("No Data Manager!");
-            }
-        };
-        // Add only if not exists
-        if (!document.querySelector("button[innerText='💾 SAVE LOG']")) {
-            document.body.appendChild(btnExport);
-        }
+        // DEBUG: Manual Export Button (Removed per user request)
+
     },
 
     bindEvents() {
