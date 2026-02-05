@@ -866,6 +866,45 @@ export class GazeDataManager {
         }
 
         // 2. Scan recent buffer
+        // --- 🧠 ADAPTIVE LOGIC: Relative Velocity Ratio ---
+        // Instead of a heuristic constant (e.g. -1.5), we compare current velocity
+        // against the user's "Average Reading Speed" (positive velocity).
+        // Rationale: Return sweeps are biologically much faster than reading saccades.
+
+        let sumReadVel = 0;
+        let countReadVel = 0;
+
+        // Analyze recent reading behavior (looking for positive movement)
+        for (let i = this.data.length - 1; i >= 0; i--) {
+            const d = this.data[i];
+            if (d.t < cutoff) break;
+            if (d.vx !== undefined && d.vx > 0) { // Moving Right (Reading)
+                sumReadVel += d.vx;
+                countReadVel++;
+            }
+        }
+
+        // Default fallback if no reading data yet (e.g. 0.3 px/ms is typical)
+        const avgReadVel = countReadVel > 0 ? (sumReadVel / countReadVel) : 0.3;
+
+        // Dynamic Threshold: 5x faster than reading speed, in opposite direction
+        // Clamp: At least -1.0 to avoid noise triggering when idle
+        const RATIO_MULTIPLIER = 5.0;
+        const adaptiveThreshold = Math.min(-1.0, -(avgReadVel * RATIO_MULTIPLIER));
+
+        // Trigger Check
+        if (latestInfo.vx !== null && latestInfo.vx < adaptiveThreshold) {
+            // Consistency Check: Ensure it's not a single-frame glitch
+            const prev = this.data[this.data.length - 2];
+            if (prev && (prev.vx || 0) < 0) {
+                latestInfo.debugThreshold = adaptiveThreshold;
+                latestInfo.didFire = true;
+                console.log(`[RS] Adaptive Trigger! VX:${latestInfo.vx.toFixed(2)} < Thresh:${adaptiveThreshold.toFixed(2)} (ReadVel:${avgReadVel.toFixed(2)})`);
+                return true;
+            }
+        }
+
+        // MAD Fallback (for slower/complex sweeps)
         let foundSpike = false;
         let minVel = 0;
 
