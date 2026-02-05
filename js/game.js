@@ -62,6 +62,28 @@ const Game = {
                     return;
                 }
 
+                // DEBUG: Add Manual Export Button for Mobile
+                const btnExport = document.createElement("button");
+                btnExport.innerText = "💾 SAVE LOG";
+                btnExport.style.position = "fixed";
+                btnExport.style.left = "10px";
+                btnExport.style.bottom = "10px";
+                btnExport.style.zIndex = "99999";
+                btnExport.style.padding = "10px";
+                btnExport.style.background = "rgba(0,0,0,0.7)";
+                btnExport.style.color = "lime";
+                btnExport.style.fontSize = "12px";
+                btnExport.style.border = "1px solid lime";
+                btnExport.onclick = () => {
+                    if (window.gazeDataManager) {
+                        alert("Exporting CSV...");
+                        window.gazeDataManager.exportCSV();
+                    } else {
+                        alert("No Data Manager!");
+                    }
+                };
+                document.body.appendChild(btnExport);
+
                 // 2. Normal Flow
                 startBtn.style.display = "none";
                 const loader = document.getElementById("loader-container");
@@ -688,18 +710,35 @@ Game.typewriter = {
 
         // --- GAZE-DRIVEN RETURN SPARK LOGIC ---
         if (this.renderer.expectingReturnSweep) {
+            // Visual Debug: Armed State (Green Border)
+            // document.body.style.border = "4px solid rgba(0, 255, 0, 0.3)";
+
             const now = Date.now();
             // Timeout check (1.5s)
             if (now - (this.renderer.rsStartTime || 0) > 1500) {
                 console.log("[Game] Return Sweep window expired.");
                 this.renderer.expectingReturnSweep = false;
+                // document.body.style.border = "none";
             } else if (window.gazeDataManager) {
+                // UPDATE DEBUG STATE FOR CSV
+                window.gazeDataManager.logDebugEvent('isArmed', true);
+
                 // Check for real-time Returnsweep (K=1.5 logic)
                 const isRS = window.gazeDataManager.detectRealtimeReturnSweep(600); // Look back 600ms
                 if (isRS) {
+                    console.log("[Game] RETURN SWEEP DETECTED! FIRE!");
+                    // Visual Debug: Fire State (Red Border Flash)
+                    // document.body.style.border = "4px solid red";
+                    // setTimeout(() => document.body.style.border = "none", 200);
+
+                    // UPDATE DEBUG STATE FOR CSV
+                    window.gazeDataManager.logDebugEvent('didFire', true);
+
                     this.renderer.triggerReturnEffect();
                 }
             }
+        } else {
+            // document.body.style.border = "none";
         }
 
         if (hit) {

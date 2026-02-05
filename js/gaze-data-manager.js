@@ -808,26 +808,54 @@ export class GazeDataManager {
         let foundSpike = false;
         let minVel = 0;
 
-        // Dynamic Threshold estimation:
-        // Ideally we use a cached MAD from previous sessions. 
-        // For now, let's use a robust default threshold that represents a saccade (-0.8 px/ms is fast)
-        // Or strictly relative: -1.0 px/ms.
-        // User requested K=1.5 logic. MAD of reading noise is usually ~0.1-0.2 px/ms.
-        // So 1.5 * MAD is exceptionally low? Actually Return Sweeps are OUTLIERS. 
-        // We want Threshold = Median + K * MAD.
-        // For detection, we just look for "Very Fast Left Move".
-        const THRESHOLD = -0.5; // px/ms (Adjust logic if needed)
+        // MAD Algorithm Implementation (K=1.5)
+        // 1. Collect Neg Velocity Samples from buffer
+        const samples = [];
+        for (let i = this.data.length - 1; i >= 0; i--) {
+            const d = this.data[i];
+            if (d.t < cutoff) break;
+            // Use only negative velocities for Return Sweep Analysis (like detectLinesMobile)
+            if (d.vx !== undefined && d.vx < 0) {
+                samples.push(d.vx);
+            }
+        }
 
+        if (samples.length < 5) return false;
+
+        // 2. Calculate Median
+        samples.sort((a, b) => a - b);
+        const mid = Math.floor(samples.length / 2);
+        const median = samples.length % 2 !== 0 ? samples[mid] : (samples[mid - 1] + samples[mid]) / 2;
+
+        // 3. Calculate MAD (Median Absolute Deviation)
+        const deviations = samples.map(v => Math.abs(v - median));
+        deviations.sort((a, b) => a - b);
+        const madMid = Math.floor(deviations.length / 2);
+        const mad = deviations.length % 2 !== 0 ? deviations[madMid] : (deviations[madMid - 1] + deviations[madMid]) / 2;
+
+        // 4. Determine Dynamic Threshold (K=1.5)
+        // Return Sweep is an outlier to the LEFT (Negative)
+        const k = 1.5;
+        // Ideally: Threshold = Median - k * MAD? 
+        // Since we are looking for extreme negatives, and Median of neg vels is likely near 0 or small neg.
+        const dynamicThreshold = median - (k * mad);
+
+        // Safety Fallback: Ensure threshold is at least somewhat negative to avoid noise triggering
+        // e.g. if median is -0.01 and MAD is 0.01, threshold is -0.025 which is too sensitive.
+        // Let's rely on the K=1.5 primarily but maybe check if it's statistically significant?
+        // Actually, if K=1.5 works in your experiments, let's trust it.
+
+        // Scan Again for Spike
         for (let i = this.data.length - 1; i >= 0; i--) {
             const d = this.data[i];
             if (d.t < cutoff) break;
 
-            if (d.vx && d.vx < THRESHOLD) {
+            if (d.vx && d.vx < dynamicThreshold) { // More negative than threshold
                 foundSpike = true;
                 minVel = d.vx;
 
-                // Debug / Record
-                d.realtimeRS = true; // Mark in data
+                d.realtimeRS = true;
+                console.log(`[RS-DETECT] MAD HIT! VX=${d.vx.toFixed(2)} < Thresh=${dynamicThreshold.toFixed(2)} (Med=${median.toFixed(2)}, MAD=${mad.toFixed(2)})`);
                 break;
             }
         }
