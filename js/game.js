@@ -720,14 +720,19 @@ Game.typewriter = {
             // document.body.style.border = "4px solid rgba(0, 0, 255, 0.1)"; 
 
             if (isRS) {
-                console.log("[Game] RETURN SWEEP DETECTED! FIRE!");
+                // Check Cooldown to ensure SINGLE discrete event per sweep
+                const now = Date.now();
+                if (!this.lastReturnFireTime || (now - this.lastReturnFireTime > 1500)) {
+                    console.log("[Game] RETURN SWEEP DETECTED! FIRE (Discrete)!");
 
-                // UPDATE DEBUG STATE FOR CSV
-                window.gazeDataManager.logDebugEvent('didFire', true);
+                    // 1. Log SINGLE DEBUG EVENT (Only ONCE per sweep)
+                    window.gazeDataManager.logDebugEvent('didFire', true);
 
-                // Trigger Effect (Renderer handles Cooldown)
-                this.renderer.triggerReturnEffect();
+                    // 2. Trigger Effect
+                    this.renderer.triggerReturnEffect();
 
+                    this.lastReturnFireTime = now;
+                }
                 // Visual Feedback
                 /*
                 const flash = document.createElement("div");
