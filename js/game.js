@@ -172,6 +172,9 @@ const Game = {
         if (target) target.classList.add("active");
 
         if (screenId === "screen-read") {
+            // Reset Context Latching for new session to avoid carrying over old data
+            this.lastValidContext = null;
+
             // Wait for display:flex to apply layout, then start engine
             // Using double RAF to ensure paint
             requestAnimationFrame(() => {
@@ -762,17 +765,43 @@ Game.typewriter = {
             }
         }
 
-        // SYNC TO GAZE DATA MANAGER (Always update context if possible)
-        if (window.gazeDataManager) {
-            const ctx = {
-                lineIndex: activeLine ? activeLine.index : null,
-                targetY: activeLine ? activeLine.visualY : null,
-                paraIndex: this.currentParaIndex
+        // CONTEXT HOLDING (Strong Latch Logic)
+        if (activeLine) {
+            this.lastValidContext = {
+                lineIndex: activeLine.index,
+                targetY: activeLine.visualY,
+                paraIndex: this.currentParaIndex,
+                wordIndex: activeWord ? activeWord.index : null
             };
+        }
+        // REMOVED: The logic that resets context on paragraph mismatch.
+        // REASON: It caused data gaps (LineIndex dropped to 0) in the graph.
+        // We now persist the last known line INDEFINITELY until a new valid line is found
+        // or the page explicitly resets it (handled in reset logic).
 
-            if (activeWord) {
-                ctx.wordIndex = activeWord.index;
-                ctx.charIndex = 0; // Approximate
+        // SYNC TO GAZE DATA MANAGER
+        if (window.gazeDataManager) {
+            let ctx = {};
+
+            if (activeLine) {
+                ctx = {
+                    lineIndex: activeLine.index,
+                    targetY: activeLine.visualY,
+                    paraIndex: this.currentParaIndex,
+                    wordIndex: activeWord ? activeWord.index : null,
+                    charIndex: 0
+                };
+            } else if (this.lastValidContext) {
+                // Strong Persistence: Use last known good data
+                ctx = { ...this.lastValidContext };
+            } else {
+                // Only if we have NEVER found a line since reset
+                ctx = {
+                    lineIndex: null,
+                    targetY: null,
+                    paraIndex: this.currentParaIndex,
+                    wordIndex: null
+                };
             }
 
             window.gazeDataManager.setContext(ctx);
