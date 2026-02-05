@@ -181,6 +181,7 @@ class TextRenderer {
         }
 
         this.isLayoutLocked = true;
+        this.currentVisibleLineIndex = 0; // Reset on layout lock
         console.log(`[TextRenderer] Layout Locked: ${this.words.length} words, ${this.lines.length} lines.`);
     }
 
@@ -218,6 +219,7 @@ class TextRenderer {
         if (this.words.length > 0) {
             this.updateCursor(this.words[0], 'start');
         }
+        this.currentVisibleLineIndex = 0;
     }
 
     revealChunk(chunkIndex, interval = 150) {
@@ -249,7 +251,15 @@ class TextRenderer {
                     w.element.style.opacity = "1";
                     w.element.style.visibility = "visible";
                     w.element.classList.add("revealed");
-                    this.updateCursor(w, 'end');
+
+                    // UPDATE CURRENT LINE INDEX (Ground Truth)
+                    if (typeof w.lineIndex === 'number') {
+                        this.currentVisibleLineIndex = Math.max(this.currentVisibleLineIndex || 0, w.lineIndex);
+                    }
+
+                    if (!isLineStart || i === 0) {
+                        this.updateCursor(w, 'end');
+                    }
                 }, delay);
             });
 

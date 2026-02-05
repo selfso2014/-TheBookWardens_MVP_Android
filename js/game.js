@@ -742,112 +742,40 @@ Game.typewriter = {
             }
         }
 
-        // --- PREPARE DATA ---
-        if (typeof this.lineIndexOffset === 'undefined') this.lineIndexOffset = 0;
-        if (typeof this.prevRawLineIndex === 'undefined') this.prevRawLineIndex = -1;
+        // --- SIMPLIFIED CONTEXT SYNC (Content-Driven) ---
+        // User Definition: "Line Index is simply the line number that has appeared on screen."
+        // It is NOT gaze-dependent. It assumes linear reading of the revealed text.
 
-        let activeLine = null;
-        let activeWord = null;
+        const contentLineIndex = this.renderer.currentVisibleLineIndex || 0;
+        let contentTargetY = null;
 
-        // 1. Get Geometrically Closest Line (Infinite Snap)
-        if (hit && hit.line) {
-            activeLine = hit.line;
-            if (hit.type === 'word') activeWord = hit.word;
-        } else {
-            if (this.renderer.lines.length > 0) {
-                let minDist = Infinity;
-                let closest = null;
-                this.renderer.lines.forEach(l => {
-                    const dist = Math.abs(l.visualY - y);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        closest = l;
-                    }
-                });
-                if (closest) activeLine = closest;
-            }
+        // Find the Y coordinate of the current content line
+        if (this.renderer.lines && this.renderer.lines[contentLineIndex]) {
+            contentTargetY = this.renderer.lines[contentLineIndex].visualY;
         }
 
-        const rawLineIndex = activeLine ? activeLine.index : (this.prevRawLineIndex > -1 ? this.prevRawLineIndex : 0);
-
-        // 2. AUTO-CORRECTION: Return Sweep Detection
-        // If we detect a return sweep, but the Line Index didn't increase, FORCE it.
-        // This solves the "Stuck at Line 0" issue due to vertical calibration offset.
+        // SYNC TO GAZE DATA MANAGER
+        // We log the CONTENT state, not the gaze state.
         if (window.gazeDataManager) {
-            const isRS = window.gazeDataManager.detectRealtimeReturnSweep(800);
-            if (isRS) {
-                // Check cooldown to prevent double-counting the same sweep
-                const now = Date.now();
-                if (!this.lastSweepTime || (now - this.lastSweepTime > 1000)) {
-                    // If physically stuck on same line (or went back), but detected a sweep...
-                    if (rawLineIndex <= this.prevRawLineIndex) {
-                        // Heuristic: Likely a new line, but Y is offset.
-                        // But we must be careful not to trigger on regressions.
-                        // Return Sweep usually implies forward progress.
-                        console.log(`[Game] 🛠️ Auto-Correcting Line Index: Detected Sweep but RawLine stuck at ${rawLineIndex}. Offset++`);
-                        this.lineIndexOffset++;
-                        this.lastSweepTime = now;
-                    }
-                }
-            }
-        }
-
-        // 3. Reset Offset if we actually moved down physically
-        // If the raw gaze finally catches up to the offset, we can reduce the offset.
-        // (Optional refinement, but for now let's just add).
-
-        // Calculate Final Index
-        let finalLineIndex = rawLineIndex + this.lineIndexOffset;
-
-        // Safety Clamp
-        if (this.renderer.lines.length > 0) {
-            finalLineIndex = Math.min(finalLineIndex, this.renderer.lines.length - 1);
-        }
-
-        // Store for next frame
-        this.prevRawLineIndex = rawLineIndex;
-
-        // 4. Update Context (Latching)
-        if (activeLine || finalLineIndex >= 0) {
-            // Find the "Logical Line" object if offset changed
-            // If offset makes us point to a line different from activeLine, we should try to find that line object for TargetY
-            let logicalLine = activeLine;
-            if (this.lineIndexOffset !== 0 && this.renderer.lines[finalLineIndex]) {
-                logicalLine = this.renderer.lines[finalLineIndex];
-            }
-
-            this.lastValidContext = {
-                lineIndex: finalLineIndex,
-                targetY: logicalLine ? logicalLine.visualY : (activeLine ? activeLine.visualY : null),
+            const ctx = {
+                lineIndex: contentLineIndex,
+                targetY: contentTargetY,
                 paraIndex: this.currentParaIndex,
-                wordIndex: activeWord ? activeWord.index : null
+                // We don't track wordIndex here because it would require hit testing.
+                // But if we want "current revealed word", we could track that too.
+                // For now, Line Index is the priority.
+                wordIndex: null
             };
-        }
-
-        // 5. Send to Data Manager
-        if (window.gazeDataManager) {
-            let ctx = {};
-            if (this.lastValidContext) {
-                ctx = { ...this.lastValidContext };
-                // Override word/char if we have a direct hit? 
-                // If we offset, the word hit might be mismatching. 
-                // Let's keep it simple: Trust lastValidContext (which uses logical line).
-                if (activeWord && this.lineIndexOffset === 0) {
-                    ctx.wordIndex = activeWord.index;
-                }
-            } else {
-                ctx = {
-                    lineIndex: null, targetY: null, paraIndex: this.currentParaIndex, wordIndex: null
-                };
-            }
             window.gazeDataManager.setContext(ctx);
         }
 
-        // VISUAL INTERACTIONS (Only on strict hit, ignore offset for highlighting to prevent ghost highlights)
+        // VISUAL INTERACTIONS (Hit Testing for Highlights Only)
+        // This does NOT affect the recorded Line Index anymore.
         if (hit && hit.type === 'word') {
-            // ... existing visual logic ...
             const word = hit.word;
-            if (word.element && !word.element.classList.contains("read")) {
+            // Only highlight if the word is actually revealed?
+            // Or allow highlighting words that are visible.
+            if (word.element && !word.element.classList.contains("read") && word.element.classList.contains("revealed")) {
                 word.element.classList.add("read");
                 word.element.style.color = "#fff";
                 word.element.style.textShadow = "0 0 8px var(--primary-accent)";
