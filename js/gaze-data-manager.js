@@ -894,12 +894,20 @@ export class GazeDataManager {
         const madMid = Math.floor(deviations.length / 2);
         const mad = deviations.length % 2 !== 0 ? deviations[madMid] : (deviations[madMid - 1] + deviations[madMid]) / 2;
 
-        // 4. Determine Dynamic Threshold (K=1.5)
-        // Return Sweep is an outlier to the LEFT (Negative)
-        const k = 1.5;
-        // Ideally: Threshold = Median - k * MAD? 
-        // Since we are looking for extreme negatives, and Median of neg vels is likely near 0 or small neg.
-        const dynamicThreshold = median - (k * mad);
+        // 4. Determine Dynamic Threshold (K=0.8 for Mobile Sensitivity)
+        const k = 0.8;
+        const dynamicThresholdRaw = median - (k * mad);
+
+        // Safety Clamps:
+        let dynamicThreshold = dynamicThresholdRaw;
+        const ABS_MIN_SPEED = -0.05; // Noise filter (at least this fast)
+        const ABS_MAX_SPEED = -2.0;  // Sensitivity floor (don't require faster than this)
+
+        // If calculated is closer to 0 than MIN, force to MIN (don't be too sensitive to noise)
+        if (dynamicThreshold > ABS_MIN_SPEED) dynamicThreshold = ABS_MIN_SPEED;
+
+        // If calculated is further from 0 than MAX, force to MAX (don't be impossible to hit)
+        if (dynamicThreshold < ABS_MAX_SPEED) dynamicThreshold = ABS_MAX_SPEED;
 
         // Safety Fallback: Ensure threshold is at least somewhat negative to avoid noise triggering
         // e.g. if median is -0.01 and MAD is 0.01, threshold is -0.025 which is too sensitive.
