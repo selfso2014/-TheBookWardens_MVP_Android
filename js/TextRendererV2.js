@@ -390,7 +390,7 @@ class TextRenderer {
         impact.style.opacity = "1";
         impact.style.left = "20px"; // Fixed Left Margin
         impact.style.top = targetY + "px";
-        impact.style.transform = "translate(-50%, -50%) scale(5.0)"; // Start HUGE (50px)
+        impact.style.transform = "translate(-50%, -50%) scale(2.0)"; // Start Medium (20px)
 
         // Force Reflow
         void impact.offsetWidth;
@@ -400,7 +400,7 @@ class TextRenderer {
         impact.style.transition = "transform 0.05s ease-out, opacity 0.05s ease-in";
 
         requestAnimationFrame(() => {
-            impact.style.transform = "translate(-50%, -50%) scale(8.0)"; // End at 80px
+            impact.style.transform = "translate(-50%, -50%) scale(4.0)"; // End at 40px
             impact.style.opacity = "0";
         });
 
