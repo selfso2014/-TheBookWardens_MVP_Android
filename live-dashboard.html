@@ -277,6 +277,21 @@
 
         // --- Chart Rendering ---
         function renderCharts(data) {
+            // 1. Calculate Delta Negative VX (Acceleration in negative zone)
+            for (let i = 1; i < data.length; i++) {
+                const curr = data[i];
+                const prev = data[i - 1];
+                // Calculate only if BOTH are negative (continuous negative zone)
+                if (curr.vx !== undefined && prev.vx !== undefined && curr.vx < 0 && prev.vx < 0) {
+                    // Start of sweep (moving left) -> vx becomes MORE negative -> Delta = (-) - (-)
+                    // E.g. -1 -> -5 => Delta = -4 (Accel)
+                    // E.g. -5 -> -1 => Delta = +4 (Decel)
+                    curr.deltaNegVX = curr.vx - prev.vx;
+                } else {
+                    curr.deltaNegVX = null;
+                }
+            }
+
             // Register Plugin globally but DISABLE it by default
             if (window.ChartDataLabels) {
                 Chart.register(ChartDataLabels);
@@ -318,6 +333,19 @@
                         { label: 'Raw Y', data: data.map(d => d.y), borderColor: '#6f42c1', borderWidth: 1, pointRadius: 0, borderDash: [2, 2], yAxisID: 'yPos', hidden: true, datalabels: { display: false } },
                         { label: 'Velocity X', data: data.map(d => d.vx), borderColor: 'rgba(54, 162, 235, 0.5)', backgroundColor: 'rgba(54, 162, 235, 0.1)', borderWidth: 1, pointRadius: 0, fill: true, yAxisID: 'yVel', datalabels: { display: false } },
 
+                        // NEW: Delta Negative Velocity (Acceleration)
+                        {
+                            label: 'Delta Neg VX (Accel)',
+                            data: data.map(d => d.deltaNegVX),
+                            type: 'line',
+                            borderColor: '#8e44ad', // Purple
+                            backgroundColor: 'rgba(142, 68, 173, 0.2)',
+                            borderWidth: 1.5,
+                            pointRadius: 1,
+                            fill: false,
+                            yAxisID: 'yVel',
+                            datalabels: { display: false }
+                        },
                         // NEW: Negative Velocity Highlights (Scatter)
                         {
                             label: 'Neg Vel X (<0)',
