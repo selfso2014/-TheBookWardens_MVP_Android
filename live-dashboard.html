@@ -416,7 +416,11 @@
                                     return false;
                                 },
                                 formatter: function (value, context) {
-                                    return Math.round(data[context.dataIndex].t);
+                                    const idx = context.dataIndex;
+                                    const item = data[idx];
+                                    const time = Math.round(data[idx].t);
+                                    const line = (item.lineIndex !== undefined && item.lineIndex !== null) ? item.lineIndex : '?';
+                                    return `${time}\nL:${line}`;
                                 },
                                 align: 'top', anchor: 'center', color: 'red', font: { weight: 'bold', size: 10 }, offset: 4
                             }
