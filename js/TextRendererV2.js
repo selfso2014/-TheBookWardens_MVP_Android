@@ -267,10 +267,8 @@ class TextRenderer {
                         this.currentVisibleLineIndex = Math.max(this.currentVisibleLineIndex || 0, w.lineIndex);
                     }
 
-                    // Move Cursor to End of Word (unless it's a line start handled above)
-                    if (!isLineStart) {
-                        this.updateCursor(w, 'end');
-                    }
+                    // Move Cursor to End of Word
+                    this.updateCursor(w, 'end');
                 }, revealTime);
 
                 // Increment base time for next word (if not paused)
