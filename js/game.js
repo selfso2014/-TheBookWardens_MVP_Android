@@ -448,35 +448,21 @@ const Game = {
 
     // --- 3. Boss Battle ---
     checkBoss(optionIndex) {
+        // Delegate to typewriter logical check if exists, otherwise assume index 1 is correct (legacy)
+        if (this.typewriter && typeof this.typewriter.checkBossAnswer === 'function') {
+            this.typewriter.checkBossAnswer(optionIndex);
+            return;
+        }
+
+        // ... Legacy Fallback (should not be reached if typewriter is active) ...
         const isCorrect = (optionIndex === 1);
         if (isCorrect) {
             alert("Direct Hit! The Shadow fades...");
             this.state.gems += 50;
             this.updateUI();
-
-            // Check if there are more paragraphs
-            if (this.typewriter.currentParaIndex < this.typewriter.paragraphs.length - 1) {
-                // Next Paragraph
-                this.typewriter.currentParaIndex++;
-                console.log(`[Game] Advancing to Paragraph ${this.typewriter.currentParaIndex + 1}...`);
-
-                // Hide Villain Modal / Screen (Assuming we are on screen-boss)
-                // Switch back to reading screen
-                this.switchScreen("screen-read");
-
-                // Trigger next paragraph after a short delay for screen transition
-                setTimeout(() => {
-                    this.typewriter.playNextParagraph();
-                }, 500);
-
-            } else {
-                // All Paragraphs Done -> FINAL BOSS / WIN
-                console.log("[Game] All paragraphs completed. Victory!");
-                this.switchScreen("screen-win");
-            }
-
+            this.switchScreen("screen-win"); // Legacy default
         } else {
-            alert("The Shadow deflects your attack! Try reading carefully.");
+            alert("The Shadow deflects your attack!");
         }
     },
 
@@ -702,16 +688,47 @@ Game.typewriter = {
             }, 3000);
 
             if (this.currentParaIndex < this.paragraphs.length - 1) {
+                // [CHANGED] Don't go to next paragraph immediately.
+                // Trigger VILLAIN INTERVENTION for the current paragraph.
                 setTimeout(() => {
-                    this.currentParaIndex++;
-                    this.playNextParagraph();
-                }, 4000); // Increased delay to allow export
+                    this.triggerMidBossBattle();
+                }, 1000); // 1s delay for dramatic effect
             } else {
-                // Boss Battle Trigger (Game Over for text)
+                // Final Boss Battle Trigger (Game Over for text)
                 setTimeout(() => {
                     this.startBossBattle();
-                }, 4000);
+                }, 1000);
             }
+        }
+    },
+
+    // --- NEW: Mid-Boss Battle (After each paragraph) ---
+    triggerMidBossBattle() {
+        console.log(`[Typewriter] Triggering Villain for Para ${this.currentParaIndex}`);
+        if (this.uploadMonitor) clearInterval(this.uploadMonitor);
+
+        // Use the same screen as final boss, but load specific quiz
+        this.loadBossQuiz(this.currentParaIndex);
+        Game.confrontVillain();
+    },
+
+    loadBossQuiz(index) {
+        if (!this.quizzes || !this.quizzes[index]) return;
+
+        const quiz = this.quizzes[index];
+        const questionEl = document.getElementById("boss-question");
+        const optionsEl = document.getElementById("boss-options");
+
+        if (questionEl) questionEl.textContent = `"${quiz.q}"`;
+        if (optionsEl) {
+            optionsEl.innerHTML = "";
+            quiz.o.forEach((optText, i) => {
+                const btn = document.createElement("button");
+                btn.className = "quiz-btn";
+                btn.textContent = optText;
+                btn.onclick = () => Game.checkBoss(i); // Calls Game.checkBoss -> Game.typewriter.checkBossAnswer
+                optionsEl.appendChild(btn);
+            });
         }
     },
 
@@ -871,6 +888,46 @@ Game.typewriter = {
     // Stub
     checkGazeDistance(x, y) {
         this.updateGazeStats(x, y);
+    },
+
+    checkBossAnswer(optionIndex) {
+        const currentIndex = this.currentParaIndex;
+        const quiz = this.quizzes[currentIndex];
+
+        // Correct Answer Check
+        if (optionIndex === quiz.a) {
+            // SUCCESS
+            alert("Shadow Defeated! The Rift clears...");
+            Game.state.gems += 50;
+            Game.updateUI();
+
+            // Check if this was the Last Paragraph
+            if (this.currentParaIndex >= this.paragraphs.length - 1) {
+                // FINAL VICTORY
+                console.log("[Game] All stages cleared. Final Victory!");
+                Game.switchScreen("screen-win");
+            } else {
+                // GO TO NEXT PARAGRAPH
+                this.currentParaIndex++;
+                console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
+
+                Game.switchScreen("screen-read");
+                setTimeout(() => {
+                    this.playNextParagraph();
+                }, 1000);
+            }
+        } else {
+            // FAILURE
+            // Provide feedback but maybe let them retry or deduct health?
+            // For now, just alert.
+            const btn = document.querySelectorAll(".quiz-btn")[optionIndex];
+            if (btn) {
+                btn.style.background = "#c62828";
+                btn.innerText += " (Wrong)";
+                btn.disabled = true;
+            }
+            // alert("The Shadow deflects your attack! Read carefully!");
+        }
     }
 };
 
