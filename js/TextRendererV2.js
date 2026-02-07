@@ -300,6 +300,13 @@ class TextRenderer {
     }
 
     updateCursor(wordObj, align = 'end') {
+        const readScreen = document.getElementById('screen-read');
+        // Safely check if active. If NOT active, force hide and return.
+        if (readScreen && !readScreen.classList.contains('active')) {
+            if (this.cursor) this.cursor.style.display = 'none';
+            return;
+        }
+
         if (!this.cursor || !wordObj || !wordObj.element) return;
         try {
             const currentRect = wordObj.element.getBoundingClientRect();

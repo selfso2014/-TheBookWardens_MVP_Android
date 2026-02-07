@@ -171,9 +171,13 @@ const Game = {
         const target = document.getElementById(screenId);
         if (target) target.classList.add("active");
 
-        // [FIX] Hide Cursor when not reading
-        if (screenId !== "screen-read") {
-            if (this.typewriter && this.typewriter.renderer && this.typewriter.renderer.cursor) {
+        // [FIX] Ensure Cursor Visibility Logic
+        if (this.typewriter && this.typewriter.renderer && this.typewriter.renderer.cursor) {
+            if (screenId === "screen-read") {
+                this.typewriter.renderer.cursor.style.display = "block"; // Show cursor
+                this.typewriter.renderer.cursor.style.opacity = "1";
+            } else {
+                this.typewriter.renderer.cursor.style.display = "none"; // Hide completely
                 this.typewriter.renderer.cursor.style.opacity = "0";
             }
         }
