@@ -520,6 +520,17 @@ Game.typewriter = {
         { q: "What did the Rabbit take out of its pocket?", o: ["A Watch", "A Carrot", "A Map"], a: 0 }
     ],
 
+    // --- FINAL BOSS DATA ---
+    finalQuiz: {
+        q: "Based on the text, what made the Rabbit's behavior truly remarkable to Alice?",
+        o: [
+            "It was wearing a waistcoat and had a watch.",
+            "It was speaking in French.",
+            "It was eating a jam tart while running."
+        ],
+        a: 0
+    },
+
     // State
     currentParaIndex: 0,
     chunkIndex: 0,
@@ -938,9 +949,11 @@ Game.typewriter = {
 
             // Check if this was the Last Paragraph
             if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                // FINAL VICTORY
-                console.log("[Game] All stages cleared. Final Victory!");
-                Game.switchScreen("screen-win");
+                // [CHANGED] Instead of Victory, go to FINAL BOSS
+                console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
+                setTimeout(() => {
+                    this.triggerFinalBossBattle();
+                }, 1000);
             } else {
                 // GO TO NEXT PARAGRAPH
                 this.currentParaIndex++;
@@ -961,7 +974,47 @@ Game.typewriter = {
                 btn.innerText += " (Wrong)";
                 btn.disabled = true;
             }
-            // alert("The Shadow deflects your attack! Read carefully!");
+        }
+    },
+
+    triggerFinalBossBattle() {
+        Game.switchScreen("screen-final-boss");
+
+        // Load Final Quiz
+        const qData = this.finalQuiz;
+        const qEl = document.getElementById("final-boss-question");
+        const oEl = document.getElementById("final-boss-options");
+
+        if (qEl) qEl.textContent = `"${qData.q}"`;
+        if (oEl) {
+            oEl.innerHTML = "";
+            qData.o.forEach((optText, i) => {
+                const btn = document.createElement("button");
+                btn.className = "quiz-btn";
+                // Make final boss buttons look harder/different
+                btn.style.borderColor = "#ff4444";
+                btn.textContent = optText;
+                btn.onclick = () => this.checkFinalBossAnswer(i);
+                oEl.appendChild(btn);
+            });
+        }
+    },
+
+    checkFinalBossAnswer(index) {
+        if (index === this.finalQuiz.a) {
+            // TRUE VICTORY
+            alert("ARCH-VILLAIN DEFEATED! The Rift is sealed forever.");
+            Game.state.gems += 500; // Big Reward
+            Game.updateUI();
+
+            Game.switchScreen("screen-win");
+        } else {
+            const btn = document.querySelectorAll("#final-boss-options .quiz-btn")[index];
+            if (btn) {
+                btn.style.background = "#500";
+                btn.innerText += " (The Villain laughs...)";
+                btn.disabled = true;
+            }
         }
     }
 };
