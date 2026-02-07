@@ -252,7 +252,17 @@ class TextRenderer {
                     const cursorMoveTime = Math.max(0, revealTime - 200); // 200ms lead
                     setTimeout(() => {
                         this.updateCursor(w, 'start');
-                        // console.log(`[TextRenderer] Cursor to Line Start (Word ${w.index})`);
+
+                        // SYNC: Tell GazeDataManager about new line context!
+                        if (typeof w.lineIndex === 'number' && this.lines[w.lineIndex]) {
+                            this.currentVisibleLineIndex = w.lineIndex;
+                            if (window.Game && window.Game.gazeManager) {
+                                window.Game.gazeManager.setContext({
+                                    lineIndex: w.lineIndex,
+                                    lineY: this.lines[w.lineIndex].visualY
+                                });
+                            }
+                        }
                     }, cursorMoveTime);
                 }
 
@@ -264,7 +274,16 @@ class TextRenderer {
 
                     // Update Line Index Context
                     if (typeof w.lineIndex === 'number') {
-                        this.currentVisibleLineIndex = Math.max(this.currentVisibleLineIndex || 0, w.lineIndex);
+                        const newLineIdx = Math.max(this.currentVisibleLineIndex || 0, w.lineIndex);
+                        if (newLineIdx !== this.currentVisibleLineIndex) {
+                            this.currentVisibleLineIndex = newLineIdx;
+                            if (window.Game && window.Game.gazeManager && this.lines[newLineIdx]) {
+                                window.Game.gazeManager.setContext({
+                                    lineIndex: newLineIdx,
+                                    lineY: this.lines[newLineIdx].visualY
+                                });
+                            }
+                        }
                     }
 
                     // Move Cursor to End of Word
