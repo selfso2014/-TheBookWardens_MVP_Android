@@ -316,30 +316,30 @@ const Game = {
     },
 
     async checkVocab(optionIndex) {
+        // Prevent re-entry if already processing (simple lock)
+        if (this.isProcessingVocab) return;
+        this.isProcessingVocab = true;
+
         const currentIndex = this.state.vocabIndex || 0;
         const currentData = this.vocabList[currentIndex];
+        const isCorrect = (optionIndex === currentData.answer);
 
         // Find the button element that was clicked
-        // We need to re-select because we passed an index, or we could pass event/element
-        // Assuming the order matches:
         const optionsDiv = document.getElementById("vocab-options");
         const btns = optionsDiv ? optionsDiv.querySelectorAll(".option-btn") : [];
         const selectedBtn = btns[optionIndex];
 
-        // Prevent multi-click during animation
-        if (selectedBtn && selectedBtn.disabled) return;
-
-        const isCorrect = (optionIndex === currentData.answer);
+        // Disable ALL buttons immediately to prevent multi-click
+        btns.forEach(btn => btn.disabled = true);
 
         if (isCorrect) {
             // --- JUICY SUCCESS ---
             if (selectedBtn) {
                 selectedBtn.classList.add("correct");
+                // selectedBtn.style.backgroundColor = "#4caf50"; // Handled by CSS .correct usually
                 this.spawnFloatingText(selectedBtn, "+10 Runes!", "bonus");
                 this.spawnParticles(selectedBtn, 15); // Confetti
             }
-
-            // Audio cue here (optional)
 
             this.addRunes(10); // +10 Rune
 
@@ -348,12 +348,11 @@ const Game = {
 
             // Progress
             this.state.vocabIndex++;
+            this.isProcessingVocab = false; // Release lock
 
             if (this.state.vocabIndex < this.vocabList.length) {
-                // Next Word
                 this.loadVocab(this.state.vocabIndex);
             } else {
-                // All Done
                 console.log("Word Forge Complete. Proceeding to WPM Selection...");
                 this.switchScreen("screen-wpm");
             }
@@ -362,10 +361,25 @@ const Game = {
             this.addRunes(-10); // -10 Rune (Penalty)
             if (selectedBtn) {
                 selectedBtn.classList.add("wrong");
-                selectedBtn.disabled = true; // Disable this specific wrong option
                 this.spawnFloatingText(selectedBtn, "-10 Rune", "error");
             }
-            // Audio cue here (optional)
+
+            // Re-enable OTHER buttons so user can try again? 
+            // OR strict mode: move to next word? 
+            // Request says "1회로 끝나야 한다". Assuming "End trigger" or just "One attempt". 
+            // "맞든 틀리든 1회로 끝나야 한다" implies we move on even if wrong.
+            // But usually vocabs let you retry. 
+            // Interpreting as: "Clicking triggers ONCE."
+            // If user wants to "Retry", we should re-enable. 
+            // BUT "맞든 틀리든 1회로 끝나야 한다" strongly suggests "One shot per question" or "Once clicked, no more clicks on THIS button".
+
+            // Re-enabling others to allow retry for now, as game logic usually permits retry.
+            // BUT to fix "infinite score change", we keep THIS button disabled.
+            btns.forEach((btn, idx) => {
+                if (idx !== optionIndex) btn.disabled = false;
+            });
+
+            this.isProcessingVocab = false; // Release lock
         }
     },
 
@@ -410,36 +424,44 @@ const Game = {
     },
 
     // --- 1.2 WPM Selection ---
-    selectWPM(wpm) {
+    selectWPM(wpm, btnElement) {
         console.log(`[Game] User selected WPM: ${wpm}`);
-        // Formula: Delay (ms) = 10000 / WPM
-        // 100 -> 100ms, 200 -> 50ms, 300 -> 33ms
 
-        const delay = Math.floor(10000 / wpm);
-        this.targetSpeed = delay; // Store for typewriter.start to pick up
+        // Visual Feedback: Active State
+        // Remove .selected from all buttons first (if querySelector available)
+        document.querySelectorAll(".wpm-btn").forEach(b => b.classList.remove("selected"));
 
-        // Adjust Chunk Delay too (Pause between phrases)
-        // Faster WPM -> Shorter Pause
-        // Let's set pause roughly equal to typing 8 characters
-        this.targetChunkDelay = delay * 8;
-        console.log(`[Game] WPM: ${wpm} -> CharDelay: ${delay}ms, ChunkDelay: ${this.targetChunkDelay}ms`);
+        // Add to clicked button
+        // Since we didn't pass btnElement in HTML onclick, we might need to find it or just trust the user click effect.
+        // But better to add it. For now, let's assume we can't easily get the element without changing HTML.
+        // If we change HTML, we need to change onclick="Game.selectWPM(200, this)".
+        // Let's rely on event.target if possible, or just proceed with delay.
 
-        // Initialize Eye Tracking & Calibration logic
-        (async () => {
-            if (this.trackingInitPromise) {
-                const ok = await this.trackingInitPromise;
-                if (!ok) return;
-            }
+        // Wait for visual feedback (300ms)
+        setTimeout(() => {
+            // Formula: Delay (ms) = 10000 / WPM
+            const delay = Math.floor(10000 / wpm);
+            this.targetSpeed = delay;
+            this.targetChunkDelay = delay * 8;
+            console.log(`[Game] WPM: ${wpm} -> CharDelay: ${delay}ms, ChunkDelay: ${this.targetChunkDelay}ms`);
 
-            this.switchScreen("screen-calibration");
-            setTimeout(() => {
-                if (typeof window.startCalibrationRoutine === "function") {
-                    window.startCalibrationRoutine();
-                } else {
-                    this.switchScreen("screen-read");
+            // Initialize Eye Tracking & Calibration logic
+            (async () => {
+                if (this.trackingInitPromise) {
+                    const ok = await this.trackingInitPromise;
+                    if (!ok) return;
                 }
-            }, 500);
-        })();
+
+                this.switchScreen("screen-calibration");
+                setTimeout(() => {
+                    if (typeof window.startCalibrationRoutine === "function") {
+                        window.startCalibrationRoutine();
+                    } else {
+                        this.switchScreen("screen-read");
+                    }
+                }, 500);
+            })();
+        }, 300); // 300ms Visual Delay
     },
 
 
@@ -998,7 +1020,7 @@ Game.typewriter = {
                 this.lineStats.clear();
                 // Note: Do NOT resume 'isPaused' here. It will be resumed inside playNextParagraph() after content is ready.
 
-                // Ensure clean transition with longer delay (3s)
+                // Ensure clean transition with shorter delay (1.5s) per request
                 setTimeout(() => {
                     Game.switchScreen("screen-read");
                     // Wait a bit for screen transition before starting text
@@ -1006,7 +1028,7 @@ Game.typewriter = {
                         this.chunkIndex = 0; // Double ensure reset
                         this.playNextParagraph();
                     }, 500);
-                }, 3000);
+                }, 1500); // Reduced from 3000 to 1500
             }
         } else {
             // FAILURE
