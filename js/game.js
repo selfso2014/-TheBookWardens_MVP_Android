@@ -4,6 +4,9 @@
 const Game = {
     state: {
         gems: 0,
+        runes: 0, // NEW: Runes Score
+        ink: 0,   // NEW: Ink Score (Pang Event)
+        wpmDisplay: 0, // NEW: Smoothed WPM for UI
         currentWordIndex: 0,
         vocabIndex: 0, // Track Word Forge progress
         readProgress: 0, // 0..100
@@ -15,6 +18,22 @@ const Game = {
             totalRifts: 0,
             fixedRifts: 0
         }
+    },
+
+    // --- NEW: Score Management Methods ---
+    addInk(amount) {
+        this.state.ink = Math.max(0, (this.state.ink || 0) + amount);
+        this.updateUI();
+    },
+
+    addRunes(amount) {
+        this.state.runes = Math.max(0, (this.state.runes || 0) + amount);
+        this.updateUI();
+    },
+
+    addGems(amount) {
+        this.state.gems = Math.max(0, (this.state.gems || 0) + amount);
+        this.updateUI();
     },
 
     init() {
@@ -192,28 +211,47 @@ const Game = {
     },
 
     updateUI() {
-        // 1. Gem (Existing)
+        // 1. Gem
         const gemEl = document.getElementById("gem-count");
         if (gemEl) gemEl.textContent = this.state.gems || 0;
 
-        // 2. Ink (Existing)
+        // 2. Ink
         const inkEl = document.getElementById("ink-count");
         if (inkEl) inkEl.textContent = this.state.ink || 0;
 
-        // 3. Rune (New) - Logic: Runes = Ink / 10 (Demo)
+        // 3. Rune
         const runeEl = document.getElementById("rune-count");
         if (runeEl) {
-            const runes = Math.floor((this.state.ink || 0) / 10);
-            runeEl.textContent = runes;
+            runeEl.textContent = this.state.runes || 0;
         }
 
-        // 4. WPM (New) - From GazeDataManager
+        // 4. WPM (Smoothed Low-Pass Filter)
         const wpmEl = document.getElementById("wpm-display");
         if (wpmEl) {
-            const wpm = (window.gazeDataManager && window.gazeDataManager.wpm)
-                ? Math.round(window.gazeDataManager.wpm)
-                : 0;
-            wpmEl.textContent = wpm;
+            // Get Target WPM from GazeDataManager (or fallback)
+            let targetWPM = 0;
+            if (window.gazeDataManager && window.gazeDataManager.wpm > 0) {
+                targetWPM = window.gazeDataManager.wpm;
+            } else if (this.typewriter && this.typewriter.startTime && this.typewriter.chunkIndex > 0) {
+                // Simple Fallback calculation
+                const elapsedMin = (Date.now() - this.typewriter.startTime) / 60000;
+                if (elapsedMin > 0) targetWPM = (this.typewriter.chunkIndex * 3) / elapsedMin;
+            }
+
+            // Apply Low-Pass Filter (Simple Smoothing)
+            // current = prev + alpha * (target - prev)
+            // alpha = 0.05 (Very slow) to 0.2 (Fast). Let's use 0.1 for gentle smoothing.
+            const alpha = 0.1;
+            const currentWPM = this.state.wpmDisplay || 0;
+
+            // If difference is huge (e.g. init), jump directly
+            if (Math.abs(targetWPM - currentWPM) > 50 && currentWPM === 0) {
+                this.state.wpmDisplay = targetWPM;
+            } else {
+                this.state.wpmDisplay = currentWPM + alpha * (targetWPM - currentWPM);
+            }
+
+            wpmEl.textContent = Math.round(this.state.wpmDisplay);
         }
     },
 
@@ -294,14 +332,13 @@ const Game = {
             // --- JUICY SUCCESS ---
             if (selectedBtn) {
                 selectedBtn.classList.add("correct");
-                this.spawnFloatingText(selectedBtn, "+10 Gems!", "correct");
+                this.spawnFloatingText(selectedBtn, "+10 Runes!", "bonus");
                 this.spawnParticles(selectedBtn, 15); // Confetti
             }
 
             // Audio cue here (optional)
 
-            this.state.gems += 10;
-            this.updateUI();
+            this.addRunes(10); // +10 Rune
 
             // Wait for animation
             await new Promise(r => setTimeout(r, 1200));
@@ -319,10 +356,11 @@ const Game = {
             }
         } else {
             // --- JUICY FAIL ---
+            this.addRunes(-10); // -10 Rune (Penalty)
             if (selectedBtn) {
                 selectedBtn.classList.add("wrong");
                 selectedBtn.disabled = true; // Disable this specific wrong option
-                this.spawnFloatingText(selectedBtn, "The Rift resists...", "error");
+                this.spawnFloatingText(selectedBtn, "-10 Rune", "error");
             }
             // Audio cue here (optional)
         }
@@ -969,11 +1007,12 @@ Game.typewriter = {
         const quiz = this.quizzes[currentIndex];
 
         // Correct Answer Check
+        // Correct Answer Check
         if (optionIndex === quiz.a) {
             // SUCCESS
             alert("Shadow Defeated! The Rift clears...");
-            Game.state.gems += 50;
-            Game.updateUI();
+            Game.addGems(10); // +10 Gem (Mid-Boss)
+            Game.spawnFloatingText(document.querySelector(".boss-dialog-box"), "+10 Gems!", "bonus"); // Feedback
 
             // Check if this was the Last Paragraph
             if (this.currentParaIndex >= this.paragraphs.length - 1) {
@@ -994,9 +1033,10 @@ Game.typewriter = {
             }
         } else {
             // FAILURE
-            // Provide feedback but maybe let them retry or deduct health?
-            // For now, just alert.
-            const btn = document.querySelectorAll(".quiz-btn")[optionIndex];
+            Game.addGems(-10); // -10 Gem (Penalty)
+            Game.spawnFloatingText(document.querySelector(".boss-dialog-box"), "-10 Gems", "error");
+
+            const btn = document.querySelectorAll("#boss-quiz-options button")[optionIndex];
             if (btn) {
                 btn.style.background = "#c62828";
                 btn.innerText += " (Wrong)";
@@ -1032,11 +1072,11 @@ Game.typewriter = {
         if (index === this.finalQuiz.a) {
             // TRUE VICTORY
             alert("ARCH-VILLAIN DEFEATED! The Rift is sealed forever.");
-            Game.state.gems += 500; // Big Reward
-            Game.updateUI();
+            Game.addGems(30); // +30 Gem (Final Boss)
 
             Game.switchScreen("screen-win");
         } else {
+            Game.addGems(-30); // -30 Gem (Penalty)
             const btn = document.querySelectorAll("#final-boss-options .quiz-btn")[index];
             if (btn) {
                 btn.style.background = "#500";

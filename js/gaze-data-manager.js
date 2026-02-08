@@ -626,9 +626,15 @@ export class GazeDataManager {
 
         console.log(`[RS] 💥 TRIGGER! (${type}) VX:${vx.toFixed(2)} at ${d0.t}ms`);
 
+        // 1. Visual Effect (Existing)
         if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
             typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
             window.Game.typewriter.renderer.triggerReturnEffect(d0.lineIndex);
+        }
+
+        // 2. Game Reward (New: Ink +10)
+        if (window.Game && typeof window.Game.addInk === 'function') {
+            window.Game.addInk(10);
         }
     }
 }
