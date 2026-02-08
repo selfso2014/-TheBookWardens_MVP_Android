@@ -117,29 +117,31 @@ body {
   /* Ensure header stays on top */
 }
 
-/* New Resource Item Style */
+/* New Resource Item Style (Compact) */
 .resource-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   background: rgba(255, 255, 255, 0.05);
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 4px 10px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: bold;
+  font-size: 0.9rem;
   color: #fff;
   font-family: 'Outfit', sans-serif;
   transition: transform 0.2s, background 0.2s;
+  white-space: nowrap;
 }
 
 .resource-item:hover {
   background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 .res-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
 }

@@ -364,15 +364,19 @@ function clamp(n, min, max) {
 }
 
 function toCanvasLocalPoint(x, y) {
-  const { w, h, left, top } = getCanvasCssSize();
-  // Assume SDK returns viewport coordinates; convert to canvas-local.
-  // If coordinates are already canvas-local and the canvas is fullscreen, left/top are 0 so it remains correct.
-  const lx = x - left;
-  const ly = y - top;
+  // SIMPLIFIED LOGIC for Fullscreen Canvas
+  // The SDK returns viewport-relative coordinates (screen pixels).
+  // The canvas is fixed at (0,0) and size is 100vw/100vh.
+  // Therefore, (x, y) from SDK matches (x, y) on canvas CSS pixels.
+  // We do NOT subtract 'left' or 'top' because getBoundingClientRect() might break with mobile UI bars.
 
-  // Keep visible even if slightly outside
-  const cx = clamp(lx, 0, w);
-  const cy = clamp(ly, 0, h);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  // Simple clamping
+  const cx = clamp(x, 0, w);
+  const cy = clamp(y, 0, h);
+
   if (cx == null || cy == null) return null;
   return { x: cx, y: cy };
 }
