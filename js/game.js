@@ -27,10 +27,12 @@ const Game = {
     },
 
     // --- Rift Intro Sequence ---
+    // --- Rift Intro Sequence (Updated for Cinematic Feel) ---
     startRiftIntro() {
         console.log("Starting Rift Intro Sequence...");
         this.switchScreen("screen-rift-intro");
 
+        const introScreen = document.getElementById("screen-rift-intro");
         const villainContainer = document.getElementById("rift-villain-container");
         const textContainer = document.getElementById("rift-text-container");
         const meteorLayer = document.getElementById("meteor-layer");
@@ -38,51 +40,78 @@ const Game = {
 
         // Reset State
         textContainer.classList.remove("rift-damaged");
-        document.getElementById("screen-rift-intro").classList.remove("screen-shake");
+        introScreen.classList.remove("screen-shake");
+        introScreen.classList.remove("rift-flash");
+        villainContainer.classList.remove("rift-villain-charge");
         meteorLayer.innerHTML = "";
 
-        // Restore original text in case of restart
+        // Restore original text
         if (riftText) {
             riftText.innerText = "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, 'and what is the use of a book,' thought Alice 'without pictures or conversation?'";
         }
 
-        // 1. Villain Appears (CSS Animation handles hover)
-        // 2. Wait 1s, then Meteors!
+        // --- PHASE 1: Peace (0s - 2s) ---
+        // Just showing the text and villain calmly.
+
+        // --- PHASE 2: Charge (2s - 3s) ---
         setTimeout(() => {
-            // Spawn Meteors loop
-            for (let i = 0; i < 20; i++) {
+            villainContainer.classList.add("rift-villain-charge");
+            // Audio Cue: Charging Sound
+        }, 2000);
+
+        // --- PHASE 3: Meteor Shower (3s - 6s) ---
+        setTimeout(() => {
+            // Rapid spawn of meteors
+            const meteorCount = 30;
+            const duration = 3000; // 3 seconds of rain
+
+            for (let i = 0; i < meteorCount; i++) {
                 setTimeout(() => {
                     this.spawnMeteor(meteorLayer);
-                }, i * 100); // 20 meteors over 2s
+
+                    // Random small screen shakes on impact
+                    if (Math.random() > 0.7) {
+                        introScreen.classList.remove("rift-flash");
+                        void introScreen.offsetWidth; // trigger reflow
+                        introScreen.classList.add("rift-flash");
+                    }
+
+                }, Math.random() * duration); // Spread randomly over 3s
             }
 
-            // Screen Shake starts a bit later
+            // Start Sustained Shake mid-way
             setTimeout(() => {
-                const screen = document.getElementById("screen-rift-intro");
-                if (screen) screen.classList.add("screen-shake");
-            }, 1000);
+                introScreen.classList.add("screen-shake");
+            }, 500);
 
-            // 3. Impact & Damage Text (at 2.5s)
-            setTimeout(() => {
-                textContainer.classList.add("rift-damaged");
-                // Corrupt Text Content completely
-                if (riftText) {
-                    const originalText = riftText.innerText;
-                    riftText.innerText = this.corruptText(originalText);
-                }
+        }, 3000);
 
-                // Audio Cue: Glitch Sound (if available)
-            }, 2500);
+        // --- PHASE 4: Destruction (6s - 8s) ---
+        setTimeout(() => {
+            textContainer.classList.add("rift-damaged");
+            // Heavy Flash
+            introScreen.classList.remove("rift-flash");
+            void introScreen.offsetWidth;
+            introScreen.classList.add("rift-flash");
 
-            // 4. Transition to Word Forge (at 5.0s)
-            setTimeout(() => {
-                console.log("Rift Intro Done. Moving to Word Forge.");
-                this.state.vocabIndex = 0;
-                this.loadVocab(0);
-                this.switchScreen("screen-word");
-            }, 5000); // 5s total duration
+            // Corrupt Text Content
+            if (riftText) {
+                const originalText = riftText.innerText;
+                riftText.innerText = this.corruptText(originalText);
+            }
+            // Stop Shake slowly? or keep it till end? Let's keep it for tension.
+        }, 6000);
 
-        }, 500); // Initial 0.5s wait
+        // --- PHASE 5: Transition (8.5s) ---
+        setTimeout(() => {
+            console.log("Rift Intro Done. Moving to Word Forge.");
+            // Stop effects before leaving
+            introScreen.classList.remove("screen-shake");
+
+            this.state.vocabIndex = 0;
+            this.loadVocab(0);
+            this.switchScreen("screen-word");
+        }, 8500);
     },
 
     spawnMeteor(layer) {
@@ -90,22 +119,30 @@ const Game = {
         const m = document.createElement("div");
         m.className = "meteor";
 
-        // Random start X (from right side mainly)
-        // Let's spawn them from top-right corner area
-        const startX = window.innerWidth * 0.5 + Math.random() * window.innerWidth * 0.5;
-        const startY = -Math.random() * 200;
+        // Spawn Area: Top-Right to Top-Center
+        // X: 50% to 150% of screen width (off-screen right)
+        // Y: -20% to 50% of screen height (top)
+        const startX = window.innerWidth * 0.5 + Math.random() * window.innerWidth;
+        const startY = -Math.random() * window.innerHeight * 0.5;
 
         m.style.left = startX + "px";
         m.style.top = startY + "px";
 
-        // Random size/speed
-        m.style.animationDuration = (0.5 + Math.random() * 0.5) + "s"; // 0.5~1.0s
-        m.style.width = (100 + Math.random() * 200) + "px";
+        // Random size: 200px - 500px
+        const size = 200 + Math.random() * 300;
+        m.style.width = size + "px";
+
+        // Random speed: 0.8s - 1.5s
+        const speed = 0.8 + Math.random() * 0.7;
+        m.style.animationDuration = speed + "s";
+
+        // Random delay to make it feel natural
+        m.style.animationDelay = (Math.random() * 0.2) + "s";
 
         layer.appendChild(m);
 
-        // Cleanup
-        setTimeout(() => m.remove(), 1000);
+        // Cleanup based on max duration
+        setTimeout(() => m.remove(), 2000);
     },
 
     corruptText(text) {
