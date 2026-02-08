@@ -62,7 +62,7 @@ const Game = {
         // --- PHASE 3: Meteor Shower (3s - 6s) ---
         setTimeout(() => {
             // Rapid spawn of meteors
-            const meteorCount = 30;
+            const meteorCount = 50; // Increased density!
             const duration = 3000; // 3 seconds of rain
 
             for (let i = 0; i < meteorCount; i++) {
@@ -121,9 +121,9 @@ const Game = {
 
         // Spawn Area: Top-Left to Top-Center for Diagonal Fall (Top-Left -> Bottom-Right)
         // X: -20% to 80% (Left side mostly)
-        // Y: -50px to -200px (Above top)
+        // Y: 0px to 400px (Start lower to hit text directly)
         const startX = (Math.random() * window.innerWidth * 1.0) - (window.innerWidth * 0.2);
-        const startY = -Math.random() * 200;
+        const startY = Math.random() * 400;
 
         m.style.left = startX + "px";
         m.style.top = startY + "px";
