@@ -1026,8 +1026,14 @@ Game.typewriter = {
         const hit = this.renderer.hitTest(x, y);
 
         // 2. Define Content Context (Source of Truth)
-        // User Definition: "Line Index is simply the line number that has appeared on screen."
-        const contentLineIndex = this.renderer.currentVisibleLineIndex || 0;
+        // [FIXED] Priority: Gaze Hit Line > Current Visible Line
+        let contentLineIndex = this.renderer.currentVisibleLineIndex || 0;
+
+        // If we hit a specific line with gaze, USE IT.
+        if (hit && hit.line && typeof hit.line.index === 'number') {
+            contentLineIndex = hit.line.index;
+        }
+
         let contentTargetY = null;
 
         // Find the Y coordinate of the current content line
