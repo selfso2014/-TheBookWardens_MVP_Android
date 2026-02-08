@@ -961,11 +961,8 @@ Game.typewriter = {
 
         document.body.appendChild(ink);
 
-        // Update Game State
-        if (Game.state) {
-            Game.state.ink = (Game.state.ink || 0) + 1;
-            Game.updateUI();
-        }
+        // Note: Score is now handled by GazeDataManager's _fireEffect calling Game.addInk()
+        // We only show the visual effect here.
     },
 
     updateWPM() {
@@ -1010,9 +1007,13 @@ Game.typewriter = {
         // Correct Answer Check
         if (optionIndex === quiz.a) {
             // SUCCESS
-            alert("Shadow Defeated! The Rift clears...");
+            // alert("Shadow Defeated! The Rift clears..."); // Deleted: Interrupts flow
             Game.addGems(10); // +10 Gem (Mid-Boss)
-            Game.spawnFloatingText(document.querySelector(".boss-dialog-box"), "+10 Gems!", "bonus"); // Feedback
+            Game.spawnFloatingText(document.querySelector(".boss-dialog-box"), "+10 Gems! CLEAR!", "bonus"); // Feedback
+
+            // Hide Boss UI immediately
+            const villainScreen = document.getElementById("villain-screen");
+            if (villainScreen) villainScreen.classList.remove("active");
 
             // Check if this was the Last Paragraph
             if (this.currentParaIndex >= this.paragraphs.length - 1) {
@@ -1020,15 +1021,19 @@ Game.typewriter = {
                 console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
                 setTimeout(() => {
                     this.triggerFinalBossBattle();
-                }, 1000);
+                }, 1500);
             } else {
                 // GO TO NEXT PARAGRAPH
                 this.currentParaIndex++;
                 console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
 
-                Game.switchScreen("screen-read");
+                // Ensure clean transition
                 setTimeout(() => {
-                    this.playNextParagraph();
+                    Game.switchScreen("screen-read");
+                    // Wait a bit for screen transition before starting text
+                    setTimeout(() => {
+                        this.playNextParagraph();
+                    }, 500);
                 }, 1000);
             }
         } else {
