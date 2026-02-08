@@ -180,16 +180,16 @@
 
     /* WPM Button Styles */
     .wpm-btn:active {
-      transform: scale(0.95);
-      background: #555;
+      transform: scale(0.95) !important;
+      background: #555 !important;
     }
 
     .wpm-btn.selected {
-      border: 2px solid #00ff00;
-      box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
-      transform: scale(0.95);
-      background: #444;
-      color: #fff;
+      border: 2px solid #00ff00 !important;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.6) !important;
+      transform: scale(0.95) !important;
+      background: #444 !important;
+      color: #fff !important;
     }
   </style>
 </head>
@@ -316,7 +316,7 @@
 
       <div style="display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 320px;">
         <!-- Novice: Cyan (Mystical/Beginner) -->
-        <button class="btn-secondary" onclick="Game.selectWPM(100)"
+        <button class="btn-secondary wpm-btn" onclick="Game.selectWPM(100, this)"
           style="padding: 20px; text-align: left; background: linear-gradient(90deg, rgba(0, 229, 255, 0.05), transparent); border: 1px solid rgba(0, 229, 255, 0.3); color: #00e5ff; transition: all 0.3s; box-shadow: 0 0 10px rgba(0, 229, 255, 0.05);">
           <span style="display:flex; justify-content: space-between; align-items: center;">
             <span
@@ -327,7 +327,7 @@
         </button>
 
         <!-- Apprentice: Amethyst (Magic/Intermediate) -->
-        <button class="btn-secondary" onclick="Game.selectWPM(200)"
+        <button class="btn-secondary wpm-btn" onclick="Game.selectWPM(200, this)"
           style="padding: 20px; text-align: left; background: linear-gradient(90deg, rgba(213, 0, 249, 0.05), transparent); border: 1px solid rgba(213, 0, 249, 0.3); color: #e040fb; transition: all 0.3s; box-shadow: 0 0 10px rgba(213, 0, 249, 0.05);">
           <span style="display:flex; justify-content: space-between; align-items: center;">
             <span
@@ -338,7 +338,7 @@
         </button>
 
         <!-- Master: Gold (Legendary/Fast) -->
-        <button class="btn-secondary" onclick="Game.selectWPM(300)"
+        <button class="btn-secondary wpm-btn" onclick="Game.selectWPM(300, this)"
           style="padding: 20px; text-align: left; background: linear-gradient(90deg, rgba(255, 215, 0, 0.05), transparent); border: 1px solid rgba(255, 215, 0, 0.3); color: #ffd700; transition: all 0.3s; box-shadow: 0 0 10px rgba(255, 215, 0, 0.05);">
           <span style="display:flex; justify-content: space-between; align-items: center;">
             <span
