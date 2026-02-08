@@ -29,11 +29,23 @@ class TextRenderer {
         this.lines = [];       // Array of Line Objects: { y, top, bottom, wordIndices[] }
         this.isLayoutLocked = false;
 
+        // [New] Animation Safety
+        this.activeAnimations = []; // Store timeout IDs to cancel them on reset/page turn
+
         // Visual Elements
         this.cursor = null;
         this.impactElement = null;
 
         this.initStyles();
+    }
+
+    // [New] Safety Method: Kill all pending text reveals
+    cancelAllAnimations() {
+        if (this.activeAnimations.length > 0) {
+            console.log(`[TextRenderer] Cancelling ${this.activeAnimations.length} pending animations.`);
+            this.activeAnimations.forEach(id => clearTimeout(id));
+            this.activeAnimations = [];
+        }
     }
 
     initStyles() {
@@ -48,6 +60,9 @@ class TextRenderer {
 
     prepare(rawText) {
         if (!this.container) return;
+
+        // 0. Safety First: Stop any previous rendering
+        this.cancelAllAnimations();
 
         // 1. Reset
         this.container.innerHTML = "";
@@ -197,6 +212,9 @@ class TextRenderer {
     showPage(pageIndex) {
         if (pageIndex < 0 || pageIndex >= this.pages.length) return false;
 
+        // [SAFETY] Stop any ongoing typing effects from previous page!
+        this.cancelAllAnimations();
+
         this.currentPageIndex = pageIndex;
 
         // Hide ALL words first
@@ -342,14 +360,11 @@ class TextRenderer {
                 const revealTime = cumulativeDelay;
 
                 // 1. Move Cursor Early (Visual Cue)
-                // If it's a line start, move the cursor BEFORE the text appears.
-                // This guides the eye to the new line.
                 if (isLineStart) {
-                    const cursorMoveTime = Math.max(0, revealTime - 200); // 200ms lead
-                    setTimeout(() => {
+                    const cursorMoveTime = Math.max(0, revealTime - 200);
+                    const tid1 = setTimeout(() => {
                         this.updateCursor(w, 'start');
-
-                        // SYNC: Tell GazeDataManager about new line context!
+                        // SYNC: Tell GazeDataManager...
                         if (typeof w.lineIndex === 'number' && this.lines[w.lineIndex]) {
                             this.currentVisibleLineIndex = w.lineIndex;
                             if (window.Game && window.Game.gazeManager) {
@@ -360,19 +375,17 @@ class TextRenderer {
                             }
                         }
                     }, cursorMoveTime);
+                    this.activeAnimations.push(tid1);
                 }
 
                 // 2. Reveal Word
-                setTimeout(() => {
+                const tid2 = setTimeout(() => {
                     w.element.style.opacity = "1";
                     w.element.style.visibility = "visible";
                     w.element.classList.add("revealed");
 
                     // Update Line Index Context
                     if (typeof w.lineIndex === 'number') {
-                        // [SIMPLIFIED] Direct Assignment. No Math.max.
-                        // If the word has a valid line index, that IS our current line index.
-                        // This handles page resets (0) and normal progression (1, 2...) naturally.
                         if (w.lineIndex !== this.currentVisibleLineIndex) {
                             this.currentVisibleLineIndex = w.lineIndex;
                             if (window.Game && window.Game.gazeManager && this.lines[w.lineIndex]) {
@@ -387,13 +400,18 @@ class TextRenderer {
                     // Move Cursor to End of Word
                     this.updateCursor(w, 'end');
                 }, revealTime);
+                this.activeAnimations.push(tid2);
 
-                // Increment base time for next word (if not paused)
+                // Increment base time
                 cumulativeDelay += interval;
             });
 
+            // Cleanup Logic? (Optional, but good for memory)
+            // For now, simple centralized clearance on reset is enough.
+
             // Resolve Promise after the last word is shown
-            setTimeout(resolve, cumulativeDelay + 100);
+            const finalTid = setTimeout(resolve, cumulativeDelay + 100);
+            this.activeAnimations.push(finalTid);
         });
     }
 
