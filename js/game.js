@@ -823,6 +823,7 @@ Game.typewriter = {
         if (optionsEl) {
             optionsEl.innerHTML = "";
             quiz.o.forEach((optText, i) => {
+                const btn = document.createElement("button"); // FIXED: Re-added missing variable declaration
                 btn.className = "quiz-btn";
                 btn.textContent = optText;
                 btn.onclick = () => this.checkBossAnswer(i); // Direct call to avoid Game.checkBoss issues
