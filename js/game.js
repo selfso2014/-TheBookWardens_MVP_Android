@@ -675,6 +675,9 @@ Game.typewriter = {
             const debugEl = document.getElementById('line-detect-result');
             if (debugEl) debugEl.textContent = `Lines Cached: ${this.renderer.lines.length}`;
 
+            // Resume Game Loop safely after layout is ready
+            this.isPaused = false;
+
             // 3. Start Reading Flow
             // UX IMPROVEMENT: Hide cursor initially. 
             // The screen 'fadeIn' animation shifts the text container. 
@@ -986,7 +989,7 @@ Game.typewriter = {
                 // Reset State for Next Paragraph
                 this.chunkIndex = 0;
                 this.lineStats.clear();
-                this.isPaused = false; // Resume if paused
+                // Note: Do NOT resume 'isPaused' here. It will be resumed inside playNextParagraph() after content is ready.
 
                 // Ensure clean transition
                 setTimeout(() => {
