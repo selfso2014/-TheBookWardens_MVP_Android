@@ -86,21 +86,25 @@
     min-width: 300px;
     max-width: 80%;
     padding: 15px 30px;
-    background: rgba(0, 0, 0, 0.85);
-    border: 2px solid #ffd700;
+    background: rgba(0, 0, 0, 0.9);
+    /* Dark opaque */
+    border: 2px solid #fff;
+    /* White border */
     border-radius: 30px;
     /* Pill shape */
     text-align: center;
-    font-family: 'Cinzel', serif;
+    font-family: 'Roboto', sans-serif;
+    /* Clean font */
     font-size: 1.5rem;
-    color: #ffd700;
+    color: #fff;
+    /* White text */
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
     opacity: 0;
     transition: opacity 0.5s, transform 0.5s;
     z-index: 99999;
     /* Highest priority */
     pointer-events: none;
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 }
 
 #rift-story-overlay.show {
@@ -125,19 +129,20 @@
 /* Villain Speech Bubble */
 #rift-villain-speech {
     position: absolute;
-    top: 50%;
-    right: -140px;
-    /* Offset to the right of Villain */
-    transform: translateY(-50%);
+    top: 100%;
+    /* Below the villain */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
     background: #fff;
-    color: #000;
-    padding: 10px 15px;
+    color: #8b0000;
+    /* Dark Red Speech */
+    padding: 10px 20px;
     border-radius: 20px;
-    font-family: 'Comic Sans MS', cursive;
-    /* Cartoonish feel */
-    font-weight: bold;
-    font-size: 1.2rem;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    border: 3px solid #000;
+    font-family: 'Impact', sans-serif;
+    /* Strong readable font */
+    font-size: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -146,15 +151,15 @@
 }
 
 #rift-villain-speech::after {
-    /* Speech Bubble Tail */
+    /* Speech Bubble Tail (Pointing UP) */
     content: '';
     position: absolute;
-    left: -10px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-width: 10px 10px 10px 0;
+    left: 50%;
+    top: -10px;
+    transform: translateX(-50%);
+    border-width: 0 10px 10px 10px;
     border-style: solid;
-    border-color: transparent #fff transparent transparent;
+    border-color: transparent transparent #fff transparent;
 }
 
 #rift-villain-speech.show {
@@ -164,11 +169,11 @@
 
 @keyframes popIn {
     from {
-        transform: translateY(-50%) scale(0);
+        transform: translateX(-50%) translateY(10px) scale(0);
     }
 
     to {
-        transform: translateY(-50%) scale(1);
+        transform: translateX(-50%) translateY(10px) scale(1);
     }
 }
 
@@ -183,13 +188,15 @@
     width: 90%;
     max-width: 1000px;
     padding: 30px;
-    color: #eee;
+    color: #f0e68c;
+    /* Khaki (Old Paper) color */
     font-family: 'Crimson Text', serif;
     font-size: 1.2rem;
     /* Slightly larger text */
     line-height: 1.6;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid #444;
+    background: rgba(0, 0, 0, 0.7);
+    /* Darker bg */
+    border: 1px solid #555;
     border-radius: 8px;
     z-index: 4;
     position: relative;
