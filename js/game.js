@@ -468,6 +468,7 @@ const Game = {
     },
 
     confrontVillain() {
+        if (this.typewriter) this.typewriter.isPaused = true; // Stop typewriter logic
         this.state.isTracking = false;
         this.switchScreen("screen-boss");
     },
@@ -915,6 +916,10 @@ Game.typewriter = {
         const disp = document.getElementById("wpm-display");
         if (!disp) return;
 
+        // Check if currently reading (screen-read is active)
+        const isReading = document.getElementById("screen-read")?.classList.contains("active");
+        if (!isReading || this.isPaused) return;
+
         // Priority 1: GazeDataManager (Accurate)
         if (window.gazeDataManager && window.gazeDataManager.wpm > 0) {
             disp.textContent = Math.round(window.gazeDataManager.wpm);
@@ -977,6 +982,11 @@ Game.typewriter = {
                 // GO TO NEXT PARAGRAPH
                 this.currentParaIndex++;
                 console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
+
+                // Reset State for Next Paragraph
+                this.chunkIndex = 0;
+                this.lineStats.clear();
+                this.isPaused = false; // Resume if paused
 
                 // Ensure clean transition
                 setTimeout(() => {
