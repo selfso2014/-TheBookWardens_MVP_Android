@@ -58,14 +58,14 @@ const Game = {
         textContainer.style.opacity = 1;
         textContainer.style.transform = "translateY(0)";
 
-        this.showStoryText("Once upon a time...");
+        this.showStoryText("Every story holds a world within.");
         await wait(4000);
 
         // --- SCENE 2: WARNING (5s - 10s) ---
         introScreen.classList.remove("scene-peace");
         introScreen.classList.add("scene-warning");
 
-        this.showStoryText("But shadows are always watching...");
+        this.showStoryText("But chaos seeks to consume it.");
         // Villain fades in
         villainContainer.style.opacity = 0.6;
         await wait(4000);
@@ -89,7 +89,7 @@ const Game = {
         introScreen.classList.remove("scene-invasion");
         introScreen.classList.add("scene-destruction");
 
-        this.showStoryText("The story is collapsing... WARDEN, HELP!");
+        this.showStoryText("The words are fading... WARDEN, RESTORE THE STORY!");
         textContainer.classList.add("rift-damaged");
 
         // Heavy meteors

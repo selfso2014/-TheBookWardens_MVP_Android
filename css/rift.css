@@ -88,23 +88,23 @@
     padding: 15px 30px;
     background: rgba(0, 0, 0, 0.9);
     /* Dark opaque */
-    border: 2px solid #fff;
-    /* White border */
+    border: 2px solid #ffd700;
+    /* Gold border */
     border-radius: 30px;
     /* Pill shape */
     text-align: center;
     font-family: 'Roboto', sans-serif;
     /* Clean font */
     font-size: 1.5rem;
-    color: #fff;
-    /* White text */
+    color: #ffd700;
+    /* Gold text for Warden's message */
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
     opacity: 0;
     transition: opacity 0.5s, transform 0.5s;
     z-index: 99999;
     /* Highest priority */
     pointer-events: none;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
 }
 
 #rift-story-overlay.show {
@@ -188,8 +188,8 @@
     width: 90%;
     max-width: 1000px;
     padding: 30px;
-    color: #f0e68c;
-    /* Khaki (Old Paper) color */
+    color: #eee;
+    /* Pure white for original text */
     font-family: 'Crimson Text', serif;
     font-size: 1.2rem;
     /* Slightly larger text */
