@@ -582,8 +582,13 @@ class TextRenderer {
             return;
         }
 
-        // [NEW] Restore Text Visibility for Context
-        // Ensure all words are fully visible so the user sees the text behind the gaze path.
+        // [NEW] Restore Text Visibility for Context (Aggressive & Immediate)
+        if (this.container) {
+            this.container.style.transition = "none";
+            this.container.style.opacity = "1";
+            this.container.style.visibility = "visible";
+        }
+
         if (this.words && this.words.length > 0) {
             this.words.forEach(w => {
                 if (w.element) {
@@ -598,134 +603,137 @@ class TextRenderer {
             });
         }
 
-        console.log(`[TextRenderer] Starting Direct Line-Locked Replay with ${gazeData.length} points...`);
+        console.log(`[TextRenderer] Text restored. Waiting 500ms before replay...`);
 
-        const visualLines = this.lines || [];
-        if (visualLines.length === 0) {
-            console.warn("[TextRenderer] No visual lines available for mapping.");
-            if (onComplete) onComplete();
-            return;
-        }
+        // DELAY REPLAY START to ensure text is seen first
+        setTimeout(() => {
+            console.log(`[TextRenderer] Starting Direct Line-Locked Replay with ${gazeData.length} points...`);
 
-        const processedPath = [];
-        let lastValidLineIndex = -1;
-
-        // Ensure sorted
-        // gazeData.sort((a, b) => a.t - b.t);
-
-        for (let i = 0; i < gazeData.length; i++) {
-            const p = gazeData[i];
-
-            // STRATEGY: Use Actual Line Index directly from data (Orange Line in Graph)
-            // This is pre-calculated and reliable.
-            let currentLineIndex = -1;
-
-            if (typeof p.lineIndex === 'number') currentLineIndex = p.lineIndex;
-            else if (typeof p.detectedLineIndex === 'number') currentLineIndex = p.detectedLineIndex;
-
-            // 1. Wait for First Valid Content (Skip Initial Noise)
-            if (lastValidLineIndex === -1 && currentLineIndex < 0) {
-                continue;
-            }
-
-            // 2. Update Context if valid
-            if (currentLineIndex >= 0) {
-                lastValidLineIndex = currentLineIndex;
-            }
-
-            // 3. Fallback: Maintain last valid line if current is missing (Gap filling)
-            if (lastValidLineIndex === -1) continue;
-
-            // 4. Map to Visual Y
-            // Clamp index to available visual lines
-            const safeIndex = Math.min(Math.max(0, lastValidLineIndex), visualLines.length - 1);
-            const lineObj = visualLines[safeIndex];
-
-            // If lineObj is missing for some reason, skip
-            if (!lineObj) continue;
-
-            const lineY = lineObj.visualY;
-
-            // 5. Use Raw X for Replay X
-            const rawX = p.x;
-
-            // Validation
-            if (isNaN(rawX) || rawX === 0) continue;
-
-            processedPath.push({
-                x: rawX,
-                y: lineY, // LOCKED visual Y
-                t: p.t
-            });
-        }
-
-        // Validation: If processed path is empty (no valid lines found)
-        if (processedPath.length < 2) {
-            console.warn("[TextRenderer] No valid line data found in replay segment.");
-            // Fallback: Use Raw Data just to show SOMETHING? 
-            // Or just exit. User wants strictly valid replay.
-            if (onComplete) onComplete();
-            return;
-        }
-
-        // 2. Setup Canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        canvas.style.position = 'fixed';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.pointerEvents = 'none';
-        canvas.style.zIndex = '999999';
-        document.body.appendChild(canvas);
-        const ctx = canvas.getContext('2d');
-
-        // 3. Animate
-        const path = processedPath;
-        let startTime = null;
-        const duration = 2500;
-
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            const progress = (timestamp - startTime) / duration;
-            if (progress >= 1) {
-                canvas.style.transition = "opacity 0.5s";
-                canvas.style.opacity = "0";
-                setTimeout(() => { canvas.remove(); if (onComplete) onComplete(); }, 500);
+            const visualLines = this.lines || [];
+            if (visualLines.length === 0) {
+                console.warn("[TextRenderer] No visual lines available for mapping.");
+                if (onComplete) onComplete();
                 return;
             }
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const processedPath = [];
+            let lastValidLineIndex = -1;
 
-            const maxIdx = Math.floor(path.length * progress);
-            if (maxIdx > 1) {
-                ctx.beginPath();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)'; // Magenta
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+            // Ensure sorted
+            // gazeData.sort((a, b) => a.t - b.t);
 
-                ctx.moveTo(path[0].x, path[0].y);
-                for (let i = 1; i < maxIdx; i++) {
-                    const p = path[i];
-                    // Direct connection (Diagonal on line change)
-                    ctx.lineTo(p.x, p.y);
+            for (let i = 0; i < gazeData.length; i++) {
+                const p = gazeData[i];
+
+                // STRATEGY: Use Actual Line Index directly from data (Orange Line in Graph)
+                // This is pre-calculated and reliable.
+                let currentLineIndex = -1;
+
+                if (typeof p.lineIndex === 'number') currentLineIndex = p.lineIndex;
+                else if (typeof p.detectedLineIndex === 'number') currentLineIndex = p.detectedLineIndex;
+
+                // 1. Wait for First Valid Content (Skip Initial Noise)
+                if (lastValidLineIndex === -1 && currentLineIndex < 0) {
+                    continue;
                 }
-                ctx.stroke();
 
-                // Head
-                const head = path[maxIdx - 1];
-                ctx.beginPath();
-                ctx.fillStyle = '#ff00ff';
-                ctx.shadowColor = '#ff00ff';
-                ctx.shadowBlur = 10;
-                ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
+                // 2. Update Context if valid
+                if (currentLineIndex >= 0) {
+                    lastValidLineIndex = currentLineIndex;
+                }
+
+                // 3. Fallback: Maintain last valid line if current is missing (Gap filling)
+                if (lastValidLineIndex === -1) continue;
+
+                // 4. Map to Visual Y
+                // Clamp index to available visual lines
+                const safeIndex = Math.min(Math.max(0, lastValidLineIndex), visualLines.length - 1);
+                const lineObj = visualLines[safeIndex];
+
+                // If lineObj is missing for some reason, skip
+                if (!lineObj) continue;
+
+                const lineY = lineObj.visualY;
+
+                // 5. Use Raw X for Replay X
+                const rawX = p.x;
+
+                // Validation
+                if (isNaN(rawX) || rawX === 0) continue;
+
+                processedPath.push({
+                    x: rawX,
+                    y: lineY, // LOCKED visual Y
+                    t: p.t
+                });
             }
+
+            // Validation: If processed path is empty (no valid lines found)
+            if (processedPath.length < 2) {
+                console.warn("[TextRenderer] No valid line data found in replay segment.");
+                if (onComplete) onComplete();
+                return;
+            }
+
+            // 2. Setup Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '999999';
+            document.body.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+
+            // 3. Animate
+            const path = processedPath;
+            let startTime = null;
+            const duration = 2500;
+
+            const animate = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const progress = (timestamp - startTime) / duration;
+                if (progress >= 1) {
+                    canvas.style.transition = "opacity 0.5s";
+                    canvas.style.opacity = "0";
+                    setTimeout(() => { canvas.remove(); if (onComplete) onComplete(); }, 500);
+                    return;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const maxIdx = Math.floor(path.length * progress);
+                if (maxIdx > 1) {
+                    ctx.beginPath();
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)'; // Magenta
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let i = 1; i < maxIdx; i++) {
+                        const p = path[i];
+                        // Direct connection (Diagonal on line change)
+                        ctx.lineTo(p.x, p.y);
+                    }
+                    ctx.stroke();
+
+                    // Head
+                    const head = path[maxIdx - 1];
+                    ctx.beginPath();
+                    ctx.fillStyle = '#ff00ff';
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 10;
+                    ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+                requestAnimationFrame(animate);
+            };
             requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
+        }, 500); // 500ms Delay BEFORE starting animation logic
     }
 }
 window.TextRenderer = TextRenderer;
