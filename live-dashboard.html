@@ -440,7 +440,7 @@
                         x: { ticks: { maxTicksLimit: 20 } },
                         yPos: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Position (px)' } },
                         yLine: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Line Index' }, min: 0 },
-                        yVel: { type: 'linear', display: false, position: 'right' } // Hide velocity axis text
+                        yVel: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Velocity (px/ms)' } }
                     },
                     plugins: {
                         tooltip: {
