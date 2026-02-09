@@ -310,7 +310,8 @@
                             // "Cursor hasn't shown next line yet" -> Impossible to read ahead.
                             if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
                                 if (simGazeLineIndex >= d0.lineIndex) {
-                                    // Block overshoot
+                                    // CASTLING FIX: Assign current value before continuing!
+                                    d0.simGazeLineIndex = simGazeLineIndex;
                                     continue;
                                 }
                             }
