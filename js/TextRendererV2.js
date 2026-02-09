@@ -582,31 +582,40 @@ class TextRenderer {
             return;
         }
 
-        // [NEW] Restore Text Visibility for Context (Aggressive & Immediate)
-        if (this.container) {
-            this.container.style.transition = "none";
-            this.container.style.opacity = "1";
-            this.container.style.visibility = "visible";
-        }
+        // Helper to force visibility against any async fade-outs
+        const forceVisibility = () => {
+            if (this.container) {
+                this.container.style.transition = "none";
+                this.container.style.opacity = "1";
+                this.container.style.visibility = "visible";
+            }
+            if (this.words && this.words.length > 0) {
+                this.words.forEach(w => {
+                    if (w.element) {
+                        w.element.style.transition = "none";
+                        w.element.style.opacity = "1";
+                        w.element.style.visibility = "visible";
+                        w.element.classList.remove("faded-out");
+                        w.element.classList.remove("chunk-fade-out"); // Specific class used by fadeOutChunk
+                        w.element.classList.remove("hidden");
+                    }
+                });
+            }
+        };
 
-        if (this.words && this.words.length > 0) {
-            this.words.forEach(w => {
-                if (w.element) {
-                    // Force immediate visibility, bypassing any CSS transitions or fade-outs
-                    w.element.style.transition = "none";
-                    w.element.style.opacity = "1";
-                    w.element.style.visibility = "visible";
-                    // Remove any fade classes if they exist
-                    w.element.classList.remove("faded-out");
-                    w.element.classList.remove("hidden");
-                }
-            });
-        }
+        // 1. Immediate Enforcement
+        forceVisibility();
 
-        console.log(`[TextRenderer] Text restored. Waiting 500ms before replay...`);
+        // 2. Continuous Enforcement (Anti-Async Guard)
+        // Run every 10ms during the wait period to override any pending fadeOut timers
+        const safetyInterval = setInterval(forceVisibility, 10);
+
+        console.log(`[TextRenderer] Text restored. Waiting 500ms, enforcing visibility...`);
 
         // DELAY REPLAY START to ensure text is seen first
         setTimeout(() => {
+            clearInterval(safetyInterval); // Stop the interval, we'll move to frame-based enforcement
+
             console.log(`[TextRenderer] Starting Direct Line-Locked Replay with ${gazeData.length} points...`);
 
             const visualLines = this.lines || [];
@@ -619,56 +628,47 @@ class TextRenderer {
             const processedPath = [];
             let lastValidLineIndex = -1;
 
-            // Ensure sorted
-            // gazeData.sort((a, b) => a.t - b.t);
-
             for (let i = 0; i < gazeData.length; i++) {
                 const p = gazeData[i];
 
-                // STRATEGY: Use Actual Line Index directly from data (Orange Line in Graph)
-                // This is pre-calculated and reliable.
+                // STRATEGY: Use Actual Line Index directly
                 let currentLineIndex = -1;
 
                 if (typeof p.lineIndex === 'number') currentLineIndex = p.lineIndex;
                 else if (typeof p.detectedLineIndex === 'number') currentLineIndex = p.detectedLineIndex;
 
-                // 1. Wait for First Valid Content (Skip Initial Noise)
+                // 1. Wait for First Valid Content
                 if (lastValidLineIndex === -1 && currentLineIndex < 0) {
                     continue;
                 }
 
-                // 2. Update Context if valid
+                // 2. Update Context
                 if (currentLineIndex >= 0) {
                     lastValidLineIndex = currentLineIndex;
                 }
 
-                // 3. Fallback: Maintain last valid line if current is missing (Gap filling)
+                // 3. Fallback
                 if (lastValidLineIndex === -1) continue;
 
                 // 4. Map to Visual Y
-                // Clamp index to available visual lines
                 const safeIndex = Math.min(Math.max(0, lastValidLineIndex), visualLines.length - 1);
                 const lineObj = visualLines[safeIndex];
 
-                // If lineObj is missing for some reason, skip
                 if (!lineObj) continue;
 
                 const lineY = lineObj.visualY;
-
-                // 5. Use Raw X for Replay X
                 const rawX = p.x;
 
-                // Validation
                 if (isNaN(rawX) || rawX === 0) continue;
 
                 processedPath.push({
                     x: rawX,
-                    y: lineY, // LOCKED visual Y
+                    y: lineY,
                     t: p.t
                 });
             }
 
-            // Validation: If processed path is empty (no valid lines found)
+            // Validation
             if (processedPath.length < 2) {
                 console.warn("[TextRenderer] No valid line data found in replay segment.");
                 if (onComplete) onComplete();
@@ -693,6 +693,9 @@ class TextRenderer {
             const duration = 2500;
 
             const animate = (timestamp) => {
+                // [SAFETY] Enforce visibility EVERY FRAME during replay
+                forceVisibility();
+
                 if (!startTime) startTime = timestamp;
                 const progress = (timestamp - startTime) / duration;
                 if (progress >= 1) {
@@ -715,7 +718,6 @@ class TextRenderer {
                     ctx.moveTo(path[0].x, path[0].y);
                     for (let i = 1; i < maxIdx; i++) {
                         const p = path[i];
-                        // Direct connection (Diagonal on line change)
                         ctx.lineTo(p.x, p.y);
                     }
                     ctx.stroke();
@@ -733,7 +735,7 @@ class TextRenderer {
                 requestAnimationFrame(animate);
             };
             requestAnimationFrame(animate);
-        }, 500); // 500ms Delay BEFORE starting animation logic
+        }, 500);
     }
 }
 window.TextRenderer = TextRenderer;
