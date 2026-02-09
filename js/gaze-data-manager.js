@@ -34,11 +34,10 @@ export class GazeDataManager {
 
         try {
             // Validity Check
-            if (typeof gazeInfo.timestamp !== 'number' || isNaN(gazeInfo.timestamp)) {
-                // If timestamp is invalid, use Date.now() fallback or just log warning
-                // But let's assume we proceed with Date.now() to uphold the "Insert Always" constitution
-                gazeInfo.timestamp = Date.now();
-            }
+            // [CRITICAL FIX] Force align timestamp to Date.now() (Epoch ms).
+            // This ensures alignment with game.js Logic which uses Date.now().
+            // Seeso SDK might return performance.now() or sensor time, causing mismatch.
+            gazeInfo.timestamp = Date.now();
 
             // Initialize start time OR Reset if timestamp went backwards (Session Reset)
             if (this.firstTimestamp === null || gazeInfo.timestamp < this.firstTimestamp) {
