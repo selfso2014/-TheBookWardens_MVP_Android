@@ -217,29 +217,79 @@
         function processData(rawData) {
             if (!rawData || !Array.isArray(rawData)) return;
 
-            let lastLineIndex = 0;
+            // 1. Simulation State
+            let simGazeLineIndex = 0;
+            let lastPosPeakTime = 0;
+            let lastTriggerTime = 0;
 
-            const data = rawData.map(d => {
-                // Fix Line Index Jitter: If -1 (lost track), use last known good index
-                let li = d.lineIndex;
-                if (li === undefined || li < 0) {
-                    li = lastLineIndex;
-                } else {
-                    lastLineIndex = li;
-                }
+            // Logic Helpers (Identical to GazeDataManager)
+            const getSmoothX = (idx) => {
+                if (idx < 0) return rawData[0].x;
+                if (idx >= rawData.length) return rawData[rawData.length - 1].x;
+                // Simple 3-point smoothing if gx missing, else use gx
+                return rawData[idx].gx !== undefined ? rawData[idx].gx : rawData[idx].x;
+            };
 
-                return {
+            const data = rawData.map((d, i) => {
+                const item = {
                     ...d,
                     t: Number(d.t),
                     x: Number(d.x),
                     y: Number(d.y),
                     vx: Number(d.vx),
-                    lineIndex: li, // Cleaned Line Index
-                    dbgThresh: d.debugThreshold,
-                    dbgVX: d.debugVX,
+                    lineIndex: d.lineIndex,
                     didFire: d.didFire,
-                    rsState: d.rsState // NEW: Debug State
+                    simTrigger: false,
+                    simGazeLineIndex: 0
                 };
+
+                // --- GLD SIMULATION (Immediate Fire) ---
+                if (i > 2) {
+                    const d0 = rawData[i];
+                    const d1 = rawData[i - 1];
+                    const d2 = rawData[i - 2];
+                    const now = d0.t;
+
+                    // Prep Values
+                    const sx0 = getSmoothX(i);
+                    const sx1 = getSmoothX(i - 1);
+                    const sx2 = getSmoothX(i - 2);
+
+                    const v0 = d0.vx || 0;
+                    const v1 = d1.vx || 0;
+                    const v2 = d2.vx || 0;
+
+                    // 1. Peak Detect
+                    const isPosPeak = (sx1 >= sx2) && (sx1 > sx0);
+                    const isVelZeroCrossDown = (v1 >= 0 && v0 < 0);
+
+                    if (isPosPeak || isVelZeroCrossDown) {
+                        lastPosPeakTime = d1.t;
+                    }
+
+                    // 2. Valley Detect
+                    const isVelValley = (v2 > v1) && (v1 < v0);
+                    const isDeepEnough = v1 < -0.4;
+
+                    // 3. Trigger Check
+                    if (isVelValley && isDeepEnough) {
+                        const timeSincePeak = d1.t - lastPosPeakTime;
+                        // Cascade Check (600ms)
+                        if (Math.abs(timeSincePeak) < 600) {
+                            // Cooldown Check (300ms)
+                            if (now - lastTriggerTime >= 300) {
+                                // FIRE!
+                                item.simTrigger = true;
+                                simGazeLineIndex++;
+                                lastTriggerTime = now;
+                                lastPosPeakTime = 0; // Reset Peak
+                            }
+                        }
+                    }
+                }
+
+                item.simGazeLineIndex = simGazeLineIndex;
+                return item;
             });
 
             analyzeDataHealth(data);
@@ -247,7 +297,7 @@
             document.getElementById('dashboard').style.display = 'block';
         }
 
-        // --- Health Check (Copied) ---
+        // --- Health Check ---
         function analyzeDataHealth(data) {
             if (data.length < 2) return;
             let timeReversals = 0, largeGaps = 0, maxGap = 0, sumGap = 0;
@@ -269,7 +319,7 @@
 
             const report = document.getElementById('healthReport');
             report.style.display = 'block';
-            report.borderColor = color;
+            report.style.borderLeftColor = color;
             report.innerHTML = `
             <h3 style="color:${color}; margin-top:0;">🩺 Health: ${status}</h3>
             <div>Hz: <b>${hz}</b> | Max Gap: <b>${maxGap}ms</b> | Samples: <b>${data.length}</b></div>
@@ -278,196 +328,84 @@
 
         // --- Chart Rendering ---
         function renderCharts(data) {
-            // 1. Calculate Delta Negative VX (Acceleration in negative zone)
-            for (let i = 1; i < data.length; i++) {
-                const curr = data[i];
-                const prev = data[i - 1];
-                // Calculate only if BOTH are negative (continuous negative zone)
-                if (curr.vx !== undefined && prev.vx !== undefined && curr.vx < 0 && prev.vx < 0) {
-                    // Start of sweep (moving left) -> vx becomes MORE negative -> Delta = (-) - (-)
-                    // E.g. -1 -> -5 => Delta = -4 (Accel)
-                    // E.g. -5 -> -1 => Delta = +4 (Decel)
-                    curr.deltaNegVX = curr.vx - prev.vx;
-                } else {
-                    curr.deltaNegVX = null;
-                }
-            }
-
-            // 2. SIMULATION: V-Shape Valley Detector (Local Minima)
-            data.forEach(d => d.simValley = null);
-            for (let i = 1; i < data.length - 1; i++) {
-                const prev = data[i - 1].vx;
-                const curr = data[i].vx;
-                const next = data[i + 1].vx;
-
-                if (typeof prev === 'number' && typeof curr === 'number' && typeof next === 'number') {
-                    // Condition: Valley shape (prev > curr < next) AND Depth < -0.4
-                    if (prev > curr && curr < next && curr < -0.4) {
-                        data[i].simValley = curr;
-                    }
-                }
-            }
-
-            // 3. SIMULATION: Top-Hat Peak Detector (SmoothX)
-            data.forEach(d => d.simPeak = null);
-            for (let i = 1; i < data.length - 1; i++) {
-                const prev = data[i - 1].gx; // gx is SmoothX
-                const curr = data[i].gx;
-                const next = data[i + 1].gx;
-
-                if (typeof prev === 'number' && typeof curr === 'number' && typeof next === 'number') {
-                    // Condition: Peak (prev < curr > next)
-                    if (prev < curr && curr > next) {
-                        data[i].simPeak = curr;
-                    }
-                }
-            }
-
-            // Register Plugin globally but DISABLE it by default
             if (window.ChartDataLabels) {
                 Chart.register(ChartDataLabels);
                 Chart.defaults.set('plugins.datalabels', { display: false });
             }
 
-            // Destroy old
             if (chart1) chart1.destroy();
             if (chart2) chart2.destroy();
             if (chart3) chart3.destroy();
             if (chart4) chart4.destroy();
 
             const labels = data.map(d => d.t);
-            const triggers = data.map(d => d.didFire ? d.vx : null);
 
-            // Chart 1: MAD Analysis (Kept as is)
+            // Chart 1: MAD Analysis (Kept Simple)
             chart1 = new Chart(document.getElementById('chart1'), {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Realtime VX', data: data.map(d => d.vx), borderColor: '#36a2eb', borderWidth: 1, pointRadius: 0, datalabels: { display: false } },
-                        { label: 'Threshold', data: data.map(d => d.dbgThresh), borderColor: '#ff6384', borderDash: [5, 5], borderWidth: 1, pointRadius: 0, datalabels: { display: false } },
-                        { label: 'Triggered', data: triggers, type: 'scatter', pointStyle: 'star', radius: 8, backgroundColor: 'gold', datalabels: { display: false } }
+                        { label: 'Realtime VX', data: data.map(d => d.vx), borderColor: '#36a2eb', borderWidth: 1, pointRadius: 0 },
+                        { label: 'Triggered', data: data.map(d => d.simTrigger ? d.vx : null), type: 'scatter', pointStyle: 'star', radius: 8, backgroundColor: 'gold' }
                     ]
                 },
-                options: { animation: false, interaction: { mode: 'index', intersect: false } }
+                options: { animation: false }
             });
 
-            // Chart 4: Comprehensive Trigger Analysis (Enhanced Tooltips)
+            // Chart 4: Comprehensive Trigger Analysis (Modified)
+            // Purple Gaze Line Index (Simulated)
             chart4 = new Chart(document.getElementById('chart4'), {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        // 0. Raw X (Position) - ADDED
-                        { label: 'Raw X', data: data.map(d => d.x), borderColor: 'rgba(75, 192, 192, 0.4)', borderWidth: 1, pointRadius: 0, yAxisID: 'yPos', datalabels: { display: false } },
+                        // 1. Raw X (Reference) - Light Green
+                        { label: 'Raw X', data: data.map(d => d.x), borderColor: 'rgba(75, 192, 192, 0.3)', borderWidth: 1, pointRadius: 0, yAxisID: 'yPos' },
 
-                        // 1. Smooth X (Position)
-                        { label: 'Smooth X', data: data.map(d => d.gx), borderColor: '#007bff', borderWidth: 2, pointRadius: 0, yAxisID: 'yPos', datalabels: { display: false } },
-
-                        // 2. Velocity X (Speed)
-                        { label: 'Velocity X', data: data.map(d => d.vx), borderColor: 'rgba(54, 162, 235, 0.5)', backgroundColor: 'rgba(54, 162, 235, 0.1)', borderWidth: 1, pointRadius: 0, fill: true, yAxisID: 'yVel', datalabels: { display: false } },
-
-                        // 3. Peak Detect (Smooth X)
+                        // 2. Simulated GLD Index - PURPLE LINE (Main Focus)
                         {
-                            label: 'Simulated Peak (Smooth X)',
-                            data: data.map(d => d.simPeak),
-                            type: 'scatter',
-                            pointStyle: 'triangle',
-                            radius: 6,
-                            borderColor: '#ff8800', // Orange
-                            backgroundColor: 'rgba(255, 136, 0, 0.8)',
-                            yAxisID: 'yPos',
-                            datalabels: { display: false }
+                            label: 'Gaze Line Index (Sim)',
+                            data: data.map(d => d.simGazeLineIndex),
+                            borderColor: '#800080', // Purple
+                            backgroundColor: 'rgba(128, 0, 128, 0.1)',
+                            borderWidth: 3,
+                            stepped: true, // Step-line
+                            pointRadius: 0,
+                            yAxisID: 'yLine'
                         },
 
-                        // 4. Valley Detect (Velocity)
+                        // 3. Trigger Event - RED STAR
                         {
-                            label: 'Simulated Valley (V-Shape)',
-                            data: data.map(d => d.simValley),
-                            type: 'scatter',
-                            pointStyle: 'triangle',
-                            rotation: 180, // Pointing down
-                            radius: 6,
-                            borderColor: '#00cc00', // Green
-                            backgroundColor: 'rgba(0, 204, 0, 0.8)',
-                            yAxisID: 'yVel',
-                            datalabels: { display: false }
-                        },
-
-                        // 5. Trigger Event (Result)
-                        {
-                            label: 'Trigger Event',
-                            data: data.map(d => d.didFire ? d.x : null),
+                            label: 'Simulated Trigger',
+                            data: data.map(d => d.simTrigger ? d.simGazeLineIndex : null),
                             type: 'scatter',
                             pointStyle: 'star',
-                            radius: 8,
+                            radius: 10,
                             backgroundColor: 'red',
                             borderColor: 'red',
-                            borderWidth: 1,
-                            yAxisID: 'yPos',
-                            datalabels: {
-                                display: function (context) {
-                                    const idx = context.dataIndex;
-                                    if (idx === 0) return true;
-                                    const curr = data[idx];
-                                    const prev = data[idx - 1];
-                                    if (!prev.didFire && curr.didFire) return true;
-                                    if ((curr.t - prev.t) > 200) return true;
-                                    return false;
-                                },
-                                formatter: function (value, context) {
-                                    const idx = context.dataIndex;
-                                    const item = data[idx];
-                                    const time = Math.round(data[idx].t);
-                                    const line = (item.lineIndex !== undefined && item.lineIndex !== null) ? item.lineIndex : '?';
-                                    return `${time}\nL:${line}`;
-                                },
-                                align: 'top', anchor: 'center', color: 'red', font: { weight: 'bold', size: 10 }, offset: 4
-                            }
+                            yAxisID: 'yLine'
                         },
 
-                        // 6. Line Index (Reference)
-                        { label: 'Line Index', data: data.map(d => d.lineIndex), borderColor: '#fd7e14', borderWidth: 2, pointRadius: 0, stepped: true, yAxisID: 'yLine', borderDash: [5, 5], datalabels: { display: false } }
+                        // 4. Velocity X - Light Blue Fill (Background Context)
+                        { label: 'Velocity X', data: data.map(d => d.vx), borderColor: 'rgba(54, 162, 235, 0.3)', backgroundColor: 'rgba(54, 162, 235, 0.1)', borderWidth: 1, pointRadius: 0, fill: true, yAxisID: 'yVel' }
                     ]
                 },
                 options: {
                     animation: false,
-                    interaction: { mode: 'nearest', intersect: true },
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
                         x: { ticks: { maxTicksLimit: 20 } },
                         yPos: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Position (px)' } },
-                        yVel: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Velocity (px/ms)' } },
-                        yZScore: { type: 'linear', display: true, position: 'right', min: -10, max: 5, grid: { drawOnChartArea: false }, title: { display: true, text: 'Z-Score' } },
-                        yLine: { type: 'linear', display: true, position: 'right', min: 0, max: 10, grid: { drawOnChartArea: false }, title: { display: true, text: 'Line Index' } }
+                        yLine: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Gaze Line Index' }, min: 0 },
+                        yVel: { type: 'linear', display: false, position: 'right' } // Hide velocity axis text to reduce clutter
                     },
                     plugins: {
-                        datalabels: {
-                            // Default global setting for this chart (safety)
-                            display: false
-                        },
                         tooltip: {
                             callbacks: {
                                 label: function (context) {
-                                    const idx = context.dataIndex;
-                                    const raw = data[idx];
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y.toFixed(2);
-                                    }
-                                    // Add extra details for Triggers
-                                    if (context.dataset.label === 'Trigger Event') {
-                                        return [
-                                            `🌟 TRIGGERED!`,
-                                            `Time: ${raw.t}`,
-                                            `Raw Y: ${raw.y.toFixed(1)}`,
-                                            `Velocity: ${raw.vx.toFixed(2)}`,
-                                            `Thresh: ${raw.dbgThresh ? raw.dbgThresh.toFixed(2) : 'N/A'}`
-                                        ];
-                                    }
-                                    return label;
+                                    if (context.dataset.label === 'Simulated Trigger') return `💥 Trigger!`;
+                                    return `${context.dataset.label}: ${context.raw}`;
                                 }
                             }
                         }
@@ -475,17 +413,13 @@
                 }
             });
 
-            // Chart 2 and 3 omitted for brevity but preserved by logic (copied from original as they were not target of change in logic block above, but full file write handles them)
-            // Wait, write_to_file replaces ENTIRE file. I must painstakingly ensure ALL original code is preserved.
-            // I will paste the REST of the file (Chart 2, 3 logic) below based on my read.
-
             // Chart 2: Spatial
             chart2 = new Chart(document.getElementById('chart2'), {
                 type: 'scatter',
                 data: {
                     datasets: [
                         { label: 'Gaze Path', data: data.map(d => ({ x: d.x, y: d.y })), borderColor: '#ccc', borderWidth: 1, showLine: true, pointRadius: 1 },
-                        { label: 'Trigger Points', data: data.filter(d => d.didFire).map(d => ({ x: d.x, y: d.y })), backgroundColor: 'gold', pointRadius: 6 }
+                        { label: 'Triggers', data: data.filter(d => d.simTrigger).map(d => ({ x: d.x, y: d.y })), backgroundColor: 'red', pointRadius: 5 }
                     ]
                 },
                 options: {
@@ -497,21 +431,21 @@
                 }
             });
 
-            // Chart 3: Position & Line Index
+            // Chart 3: Simple Logic Check
             chart3 = new Chart(document.getElementById('chart3'), {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Raw X', data: data.map(d => d.x), borderColor: '#28a745', borderWidth: 1, yAxisID: 'y' },
-                        { label: 'Line Index', data: data.map(d => d.lineIndex), borderColor: '#fd7e14', borderWidth: 2, stepper: true, yAxisID: 'y1' }
+                        { label: 'Velocity', data: data.map(d => d.vx), borderColor: 'blue', borderWidth: 1 },
+                        { label: 'Gaze Line (Sim)', data: data.map(d => d.simGazeLineIndex), borderColor: 'purple', borderWidth: 2, stepped: true, yAxisID: 'y1' }
                     ]
                 },
                 options: {
                     animation: false,
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left' },
-                        y1: { type: 'linear', display: true, position: 'right', min: 0, max: 10 }
+                        y: { position: 'left' },
+                        y1: { position: 'right', min: 0 }
                     }
                 }
             });

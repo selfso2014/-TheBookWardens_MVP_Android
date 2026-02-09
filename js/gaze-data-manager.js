@@ -16,11 +16,6 @@ export class GazeDataManager {
         // NEW: State for Max-Min Cascade
         this.lastPosPeakTime = 0;
 
-        // NEW: Rhythm Logic State
-        this.lastLineChangeTime = -9999;
-        this.prevLineIndex = -1;
-        this.pendingReturnSweep = null; // { t: timestamp, vx: velocity }
-
         // NEW: Start time of actual content (first valid line index)
         this.firstContentTime = null;
     }
@@ -236,9 +231,7 @@ export class GazeDataManager {
         this.lineMetadata = {};
         this.lastTriggerTime = 0;
         this.lastPosPeakTime = 0;
-        this.lastLineChangeTime = -9999;
-        this.prevLineIndex = -1;
-        this.pendingReturnSweep = null;
+        this.firstContentTime = null;
     }
 
     exportCSV(startTime = 0, endTime = Infinity) {
@@ -505,12 +498,11 @@ export class GazeDataManager {
         return lineNum;
     }
 
-    // --- UPDATED: MAX-MIN CASCADE TRIGGER (V2 with Rhythm Game Logic) ---
+    // --- UPDATED: SIMPLE PEAK-VALLEY TRIGGER (Immediate Fire) ---
     // Rule:
-    // 1. Position Peak (Rising -> Falling)
-    // 2. Velocity Valley (Deep Negative V)
-    // 3. Cascade Check (Valley within 500ms of Peak)
-    // 4. Rhythm Check (Line Change within ±600ms of Valley) [UPDATED: 300 -> 600]
+    // 1. Position Peak (Right side)
+    // 2. Velocity Valley (Fast Left Movement)
+    // 3. Cascade Check (Valley within 600ms of Peak) -> FIRE IMMEDIATELY
     detectRealtimeReturnSweep(lookbackMs = 2000) {
         try {
             const len = this.data.length;
@@ -520,45 +512,6 @@ export class GazeDataManager {
             const d1 = this.data[len - 2]; // Previous (t-1)
             const d2 = this.data[len - 3]; // Prev-Prev (t-2)
             const now = d0.t;
-
-            // --- 0. Update Line Change State ---
-            const currentLineIndex = d0.lineIndex; // From ProcessGaze -> Context
-            // Check if lineIndex changed (ensure valid numbers)
-            if (typeof currentLineIndex === 'number' && typeof this.prevLineIndex === 'number') {
-                if (currentLineIndex !== this.prevLineIndex) {
-                    this.lastLineChangeTime = now;
-                    this.prevLineIndex = currentLineIndex;
-
-                    // --- CHECK PENDING TRIGGERS (Future Check) ---
-                    // If we were waiting for a line change, here it is!
-                    if (this.pendingReturnSweep) {
-                        const diff = now - this.pendingReturnSweep.t;
-                        if (diff <= 600) { // Within 600ms window (Increased from 300)
-                            this._fireEffect("Delayed", this.pendingReturnSweep.vx);
-                            d0.rsState = "Delayed_Success"; // Mark current frame
-                        } else {
-                            // Too late? (Should be covered by timeout check below, but good to strict check)
-                            d0.rsState = "Delayed_Fail_TooLate";
-                        }
-                        this.pendingReturnSweep = null; // Clear pending
-                    }
-                }
-            } else if (typeof currentLineIndex === 'number') {
-                // First initialization
-                this.prevLineIndex = currentLineIndex;
-            }
-
-            // --- 0.5. Check Pending Timeout ---
-            if (this.pendingReturnSweep) {
-                if ((now - this.pendingReturnSweep.t) > 600) { // Timeout after 600ms
-                    this.pendingReturnSweep = null;
-                    d0.rsState = "Timeout";
-                    // console.log(`[RS] ❌ Pending Trigger Timeout`);
-                } else {
-                    d0.rsState = "Pending";
-                }
-            }
-
 
             // 1. Calculate Realtime SMOOTH X
             const smoothX = (d0.x * 0.5 + d1.x * 0.3 + d2.x * 0.2);
@@ -606,28 +559,19 @@ export class GazeDataManager {
                 // Key is that they are temporal neighbors.
                 if (Math.abs(timeSincePeak) < 600) {
 
-                    // -- STEP D: RHYTHM CHECK (±600ms Line Change) --
-                    // Increased from 300ms to 600ms for broader tolerance
+                    // -- STEP D: IMMEDIATE FIRE (No Line Change Check) --
+                    // The eye moved correctly (Right -> Left Fast).
+                    // We interpret this as a Return Sweep and fire immediately.
 
-                    // Case 1: Past Check (Line Changed Recently?)
-                    const timeSinceLineChange = now - this.lastLineChangeTime;
-                    // Note: lastLineChangeTime init is -9999, so check sanity
-                    if (timeSinceLineChange >= 0 && timeSinceLineChange <= 600) {
-                        this._fireEffect("Immediate", v1);
-                        d0.rsState = "Immediate_Success";
-                        this.lastPosPeakTime = 0; // Reset peak
-                        return true;
-                    }
+                    this._fireEffect("Immediate", v1);
+                    d0.rsState = "Immediate_Success";
+                    this.lastPosPeakTime = 0; // Reset peak
 
-                    // Case 2: Future Check (Wait for Line Change)
-                    else {
-                        // Enter Pending State
-                        if (!this.pendingReturnSweep) {
-                            this.pendingReturnSweep = { t: now, vx: v1 };
-                            d0.rsState = "Pending_Start";
-                            // console.log(`[RS] ⏳ Pending... Waiting for Line Change`);
-                        }
-                    }
+                    // Increment Gaze Line Index (Logic for Replay)
+                    // If we want to track 'how many lines read', we can do it here.
+                    // But for replay, we rely on coordinate data more.
+
+                    return true;
                 }
             }
             return false;
