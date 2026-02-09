@@ -574,7 +574,7 @@ class TextRenderer {
         return true;
     }
 
-    // --- NEW: Gaze Replay Visualization (Line-Locked) ---
+    // --- NEW: Gaze Replay Visualization (Direct Actual Line Index) ---
     playGazeReplay(gazeData, onComplete) {
         if (!gazeData || gazeData.length < 2) {
             console.warn("[TextRenderer] No gaze data for replay.");
@@ -582,10 +582,8 @@ class TextRenderer {
             return;
         }
 
-        console.log(`[TextRenderer] Starting Line-Locked Replay with ${gazeData.length} points...`);
+        console.log(`[TextRenderer] Starting Direct Line-Locked Replay with ${gazeData.length} points...`);
 
-        // 1. Calculate Line Indices (Simulation Logic)
-        // mimics simple "Return Sweep Detection" to increment line index.
         const visualLines = this.lines || [];
         if (visualLines.length === 0) {
             console.warn("[TextRenderer] No visual lines available for mapping.");
@@ -594,90 +592,64 @@ class TextRenderer {
         }
 
         const processedPath = [];
-
-        // Start at the first line of the current screen
-        let simGazeLineIndex = 0;
-        let lastValleyTime = -9999;
-        let lastPeakTime = -9999;
-        let contentStarted = false; // [NEW] Wait for actual line detection
+        let lastValidLineIndex = -1;
 
         // Ensure sorted
         // gazeData.sort((a, b) => a.t - b.t);
 
-        for (let i = 2; i < gazeData.length; i++) {
-            const d2 = gazeData[i - 2];
-            const d1 = gazeData[i - 1];
-            const d0 = gazeData[i];
+        for (let i = 0; i < gazeData.length; i++) {
+            const p = gazeData[i];
 
-            if (!d1 || !d2) continue;
+            // STRATEGY: Use Actual Line Index directly from data (Orange Line in Graph)
+            // This is pre-calculated and reliable.
+            let currentLineIndex = -1;
 
-            // [NEW] Check if content reading has actually started
-            if (!contentStarted) {
-                if (typeof d1.lineIndex === 'number' && d1.lineIndex >= 0) {
-                    contentStarted = true;
-                    // Reset simIndex to the first detected line to sync
-                    simGazeLineIndex = d1.lineIndex;
-                } else {
-                    // Skip data before content start (Noise filter)
-                    continue;
-                }
+            if (typeof p.lineIndex === 'number') currentLineIndex = p.lineIndex;
+            else if (typeof p.detectedLineIndex === 'number') currentLineIndex = p.detectedLineIndex;
+
+            // 1. Wait for First Valid Content (Skip Initial Noise)
+            if (lastValidLineIndex === -1 && currentLineIndex < 0) {
+                continue;
             }
 
-            const t = d1.t;
-            // Use Raw X for Replay X
-            const rawX = d1.x;
-
-            // Stats for Detection
-            const smoothX = (d1.gx !== undefined) ? d1.gx : d1.x;
-            const velX = (d1.vx !== undefined) ? d1.vx : 0;
-
-            // --- Logic from Live-Dashboard (Chart 4) ---
-
-            // 1. Peak (SmoothX Local Max)
-            const isPeak = (d1.gx > d2.gx && d1.gx > d0.gx);
-
-            // 2. Valley (Velocity X < -0.4 is a strong leftward sweep)
-            const isValley = (velX < -0.4);
-
-            if (isValley) {
-                lastValleyTime = t;
+            // 2. Update Context if valid
+            if (currentLineIndex >= 0) {
+                lastValidLineIndex = currentLineIndex;
             }
 
-            // 3. Trigger (Peak shortly after Valley)
-            // Window: 500ms
-            if (isPeak && (t - lastValleyTime < 500)) {
-                // Debounce: Don't trigger multiple lines instantly
-                if (t - lastPeakTime > 500) {
-                    simGazeLineIndex++;
-                    lastPeakTime = t;
-                    // console.log(`[Replay] Line Jump detected at ${t}ms -> Line ${simGazeLineIndex}`);
-                }
-            }
+            // 3. Fallback: Maintain last valid line if current is missing (Gap filling)
+            if (lastValidLineIndex === -1) continue;
 
-            // Clamp index to available lines in this paragraph
-            // If simGazeLineIndex exceeds visualLines, stay at last line.
-            // If user read partially, it stays at current.
-            const safeLineIndex = Math.min(Math.max(0, simGazeLineIndex), visualLines.length - 1);
+            // 4. Map to Visual Y
+            // Clamp index to available visual lines
+            const safeIndex = Math.min(Math.max(0, lastValidLineIndex), visualLines.length - 1);
+            const lineObj = visualLines[safeIndex];
 
-            const lineObj = visualLines[safeLineIndex];
-            const lineY = lineObj ? lineObj.visualY : 0;
+            // If lineObj is missing for some reason, skip
+            if (!lineObj) continue;
 
-            // Validation: Skip if RawX is garbage (e.g. 0 or NaN)
+            const lineY = lineObj.visualY;
+
+            // 5. Use Raw X for Replay X
+            const rawX = p.x;
+
+            // Validation
             if (isNaN(rawX) || rawX === 0) continue;
 
-            // Push to path
             processedPath.push({
                 x: rawX,
                 y: lineY, // LOCKED visual Y
-                t: t
+                t: p.t
             });
         }
 
-        // Fallback: If logic found no points (rare), just force raw plot?
-        // But likely we have points.
+        // Validation: If processed path is empty (no valid lines found)
         if (processedPath.length < 2) {
-            console.warn("[TextRenderer] Processed path too short.");
-            if (onComplete) onComplete(); return;
+            console.warn("[TextRenderer] No valid line data found in replay segment.");
+            // Fallback: Use Raw Data just to show SOMETHING? 
+            // Or just exit. User wants strictly valid replay.
+            if (onComplete) onComplete();
+            return;
         }
 
         // 2. Setup Canvas
@@ -719,10 +691,9 @@ class TextRenderer {
 
                 ctx.moveTo(path[0].x, path[0].y);
                 for (let i = 1; i < maxIdx; i++) {
-                    // Check for Line Jump? 
-                    // If visualY changed, it means jump.
-                    // Just connect them -> Diagonal line.
-                    ctx.lineTo(path[i].x, path[i].y);
+                    const p = path[i];
+                    // Direct connection (Diagonal on line change)
+                    ctx.lineTo(p.x, p.y);
                 }
                 ctx.stroke();
 
