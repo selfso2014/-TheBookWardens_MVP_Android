@@ -324,6 +324,15 @@
                         }
                     }
                 }
+
+                // [NEW] Context Reset / Downward Sync
+                // If actual line index drops (e.g. New Level starts at 0), force GLI to reset down.
+                if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
+                    if (simGazeLineIndex > d0.lineIndex) {
+                        simGazeLineIndex = d0.lineIndex;
+                    }
+                }
+
                 d0.simGazeLineIndex = simGazeLineIndex;
             }
 

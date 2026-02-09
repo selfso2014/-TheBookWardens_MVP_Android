@@ -665,6 +665,14 @@ class TextRenderer {
                 const d2 = gazeData[i - 2];
                 const now = d0.t;
 
+                // [NEW] Context Reset (Sync Down)
+                // If actual line index resets (e.g. New Level), force GLI down.
+                if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
+                    if (simGLI > d0.lineIndex) {
+                        simGLI = d0.lineIndex;
+                    }
+                }
+
                 // 1. Wait for Content
                 if (!hasContentStarted) {
                     if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
