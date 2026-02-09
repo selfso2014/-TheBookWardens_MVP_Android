@@ -273,10 +273,10 @@ export class CalibrationManager {
         ctx.fill();
 
         // Text
-        ctx.fillStyle = "white";
-        ctx.font = "bold 14px Arial";
-        ctx.textAlign = "center";
-        // Show % closer to point
-        ctx.fillText(`${Math.round(p * 100)}%`, cx, cy - 20);
+        // Text Removed as per request (distracts user)
+        // ctx.fillStyle = "white";
+        // ctx.font = "bold 14px Arial";
+        // ctx.textAlign = "center";
+        // ctx.fillText(`${Math.round(p*100)}%`, cx, cy - 20);
     }
 }
