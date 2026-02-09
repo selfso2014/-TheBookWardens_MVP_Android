@@ -345,7 +345,7 @@ export class GazeDataManager {
 
             // [MODIFIED] Capture Chart Image cropped to content start
             const chartStartTime = (this.firstContentTime !== null) ? this.firstContentTime : 0;
-            this.exportChartImage(deviceType, chartStartTime, Infinity);
+            // this.exportChartImage(deviceType, chartStartTime, Infinity); // DISABLED: No auto-download per user request
 
             const rawPayload = {
                 meta: {
@@ -473,12 +473,14 @@ export class GazeDataManager {
                 setTimeout(() => { ctx.drawImage(tempCanvas, 0, yOffset); chart.destroy(); resolve(); }, 100);
             });
         }
-        const link = document.createElement('a');
-        link.download = `${deviceType}_gaze_chart_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
-        link.href = mainCanvas.toDataURL('image/png');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        /* [DISABLED] Auto-download chart image
+    const link = document.createElement('a');
+    link.download = `${deviceType}_gaze_chart_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+    link.href = mainCanvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    */
     }
 
     detectLinesMobile(startTime = 0, endTime = Infinity) {
