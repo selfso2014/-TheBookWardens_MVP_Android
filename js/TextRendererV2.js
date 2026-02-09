@@ -784,6 +784,14 @@ class TextRenderer {
                 });
             });
 
+            // [DEBUG] Expose Replay Path for Dashboard
+            try {
+                if (window.opener) window.opener.dashboardReplayData = processedPath;
+                window.dashboardReplayData = processedPath;
+            } catch (e) {
+                console.warn("Could not expose replay data to opener", e);
+            }
+
             // ---------------------------------------------------------
             // VALIDATION & RENDER
             // ---------------------------------------------------------

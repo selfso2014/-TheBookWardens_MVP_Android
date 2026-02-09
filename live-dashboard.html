@@ -580,6 +580,67 @@
                     }
                 }
             });
+
+            // Chart 6: Real Replay Trajectory (Debug)
+            if (!document.getElementById('chart6')) {
+                const container = document.createElement('div');
+                container.className = 'chart-container';
+                container.style.marginTop = "20px";
+                const canvas = document.createElement('canvas');
+                canvas.id = 'chart6';
+                container.appendChild(canvas);
+                document.getElementById('dashboard').appendChild(container);
+            }
+
+            let realReplayData = [];
+            try {
+                if (window.opener && window.opener.dashboardReplayData) {
+                    realReplayData = window.opener.dashboardReplayData;
+                }
+            } catch (e) { }
+
+            chart6 = new Chart(document.getElementById('chart6'), {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Real Replay X',
+                            data: realReplayData.map(d => ({ x: d.t, y: d.x })),
+                            borderColor: 'green', borderWidth: 2, pointRadius: 0, order: 1, yAxisID: 'yPos'
+                        },
+                        {
+                            label: 'Real Replay Y (Pixel)',
+                            data: realReplayData.map(d => ({ x: d.t, y: d.y })),
+                            borderColor: 'red', borderWidth: 2, pointRadius: 0, order: 2, yAxisID: 'yPos' // Use Pixel Axis
+                        },
+                        {
+                            label: 'Actual Line Index',
+                            data: data.map(d => ({ x: d.t, y: d.lineIndex })),
+                            borderColor: 'orange', borderDash: [5, 5], stepped: true, pointRadius: 0, order: 3, yAxisID: 'yLine'
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' } },
+                        yPos: {
+                            type: 'linear', display: true, position: 'left',
+                            title: { display: true, text: 'Pixel Position' },
+                            reverse: true // Y is top-down in screen coords
+                        },
+                        yLine: {
+                            type: 'linear', display: true, position: 'right',
+                            title: { display: true, text: 'Line Index' },
+                            min: -1, grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Chart 6: Real Replay Trajectory (From Game Engine)' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
         }
     </script>
 </body>
