@@ -634,44 +634,28 @@ body {
 }
 
 /* Custom Cursor (for TextRenderer) */
+/* Custom Cursor (for TextRenderer) - HIDDEN (Guide Runner) */
 .tr-cursor {
   display: inline-block;
   width: 12px;
-  /* Circle Size */
   height: 12px;
-  background-color: #ff00ff;
-  /* Magenta */
+  background-color: transparent;
+  /* Hidden */
   border-radius: 50%;
-  /* Circle */
-  animation: tr-blink 1s infinite;
-  box-shadow: 0 0 10px #ff00ff;
+  animation: none;
+  /* Remove blink animation */
+  box-shadow: none;
+  /* Remove glow */
   position: absolute;
   pointer-events: none;
   transition: left 0.1s linear, top 0.1s linear;
-  /* Fast & Smooth */
   z-index: 200000 !important;
   transform: translate(0, -50%);
-  /* Center Vertically by default logic */
+  opacity: 0 !important;
+  /* Force invisible */
 }
 
-@keyframes tr-blink {
-
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 8px #ffd700;
-  }
-
-  50% {
-    opacity: 0.3;
-    box-shadow: none;
-  }
-
-  50% {
-    opacity: 0.3;
-    box-shadow: none;
-  }
-}
+/* tr-blink animation removed */
 
 /* Impact Pulse for Return Sweep (Rhythm) */
 .tr-cursor.impact-pulse {
