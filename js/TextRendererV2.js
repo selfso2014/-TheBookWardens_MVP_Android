@@ -690,7 +690,7 @@ class TextRenderer {
             // 3. Animate
             const path = processedPath;
             let startTime = null;
-            const duration = 2500;
+            const duration = 5000; // Slowed down by 2x (was 2500)
 
             const animate = (timestamp) => {
                 // [SAFETY] Enforce visibility EVERY FRAME during replay
