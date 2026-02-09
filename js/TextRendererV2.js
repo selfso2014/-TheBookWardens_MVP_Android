@@ -769,7 +769,7 @@ class TextRenderer {
 
                     processedPath.push({
                         x: mappedX,
-                        y: lineObj.visualY, // Locked Y
+                        y: lineObj.rect.top + (lineObj.rect.height / 2), // Mathematically Centered Y
                         t: p.t,
                         isJump: false
                     });
@@ -816,42 +816,15 @@ class TextRenderer {
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // Draw up to current progress
+                // Draw Head Only (No Trail)
                 const maxIdx = Math.floor(path.length * progress);
 
                 if (maxIdx > 1) {
-                    ctx.beginPath();
-                    ctx.lineWidth = 4;
-                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)'; // Magenta
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-
-                    // Draw logic with jumps
-                    let hasStarted = false;
-                    for (let i = 0; i < maxIdx; i++) {
-                        const p = path[i];
-                        if (p.isJump) {
-                            ctx.stroke();
-                            ctx.beginPath();
-                            hasStarted = false;
-                            continue;
-                        }
-
-                        if (!hasStarted) {
-                            ctx.moveTo(p.x, p.y);
-                            hasStarted = true;
-                        } else {
-                            ctx.lineTo(p.x, p.y);
-                        }
-                    }
-                    ctx.stroke();
-
-                    // Head
                     const head = path[maxIdx - 1];
                     if (head && !head.isJump) {
                         ctx.beginPath();
-                        ctx.fillStyle = '#ff00ff';
-                        ctx.shadowColor = '#ff00ff';
+                        ctx.fillStyle = '#00ff00'; // Green
+                        ctx.shadowColor = '#00ff00'; // Green Glow
                         ctx.shadowBlur = 10;
                         ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
                         ctx.fill();
