@@ -656,6 +656,17 @@ const Game = {
     confrontVillain() {
         if (this.typewriter) this.typewriter.isPaused = true; // Stop typewriter logic
         this.state.isTracking = false;
+
+        // [FIX] Clean up Reading Screen Artifacts
+        // 1. Hide Pang Markers (Clear Layer)
+        const pangLayer = document.getElementById("pang-marker-layer");
+        if (pangLayer) pangLayer.innerHTML = "";
+
+        // 2. Hide Reading Content (Prevent Flash/Ghosting on next load)
+        // By clearing this now, we ensure the next paragraph starts fresh without old text visible.
+        const bookContent = document.getElementById("book-content");
+        if (bookContent) bookContent.innerHTML = "";
+
         this.switchScreen("screen-boss");
     },
 
