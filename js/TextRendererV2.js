@@ -378,8 +378,10 @@ class TextRenderer {
                         // SYNC: Tell GazeDataManager...
                         if (typeof w.lineIndex === 'number' && this.lines[w.lineIndex]) {
                             this.currentVisibleLineIndex = w.lineIndex;
-                            if (window.Game && window.Game.gazeManager) {
-                                window.Game.gazeManager.setContext({
+                            // [COORDINATION] Robust Gaze Manager Lookup
+                            const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
+                            if (gm && typeof gm.setContext === 'function') {
+                                gm.setContext({
                                     lineIndex: w.lineIndex,
                                     lineY: this.lines[w.lineIndex].visualY
                                 });
@@ -399,8 +401,10 @@ class TextRenderer {
                     if (typeof w.lineIndex === 'number') {
                         if (w.lineIndex !== this.currentVisibleLineIndex) {
                             this.currentVisibleLineIndex = w.lineIndex;
-                            if (window.Game && window.Game.gazeManager && this.lines[w.lineIndex]) {
-                                window.Game.gazeManager.setContext({
+                            // [COORDINATION] Robust Gaze Manager Lookup
+                            const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
+                            if (gm && typeof gm.setContext === 'function' && this.lines[w.lineIndex]) {
+                                gm.setContext({
                                     lineIndex: w.lineIndex,
                                     lineY: this.lines[w.lineIndex].visualY
                                 });

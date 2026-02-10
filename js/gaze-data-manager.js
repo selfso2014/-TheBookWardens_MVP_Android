@@ -240,6 +240,16 @@ export class GazeDataManager {
         this.firstContentTime = null;
     }
 
+    // NEW: Reset only trigger logic (for new paragraph/level) without clearing data
+    resetTriggers() {
+        this.firstContentTime = null;
+        this.lastTriggerTime = 0;
+        this.lastPosPeakTime = 0;
+        this.pendingReturnSweep = null;
+        // Also reset visual context if needed, but context comes from TextRenderer updates.
+        console.log("[GazeDataManager] Triggers Reset (New Content Started).");
+    }
+
     exportCSV(startTime = 0, endTime = Infinity) {
         if (!this.data || this.data.length === 0) {
             alert("No gaze data to export.");
@@ -560,13 +570,34 @@ export class GazeDataManager {
             const isDeepEnough = v1 < -0.4;
 
             // -- STEP C: CASCADE CHECK --
-            // Global cooldown check (300ms since last FIRE) - KEEP AS IS
-            if (this.lastTriggerTime && (now - this.lastTriggerTime < 300)) return false;
+            // 1. GLOBAL GATE: Content Start Check
+            // Prevent triggers before the user has actually started reading (looked at a line).
+            if (!this.firstContentTime || now < this.firstContentTime) return false;
+
+            // 2. GLOBAL GATE: Last Line Check
+            // A Return Sweep moves from Line N to N+1. If we are on the Last Line, there is no N+1.
+            // We disable detection if the user is currently reading the last line.
+            if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer) {
+                const renderer = window.Game.typewriter.renderer;
+                if (renderer.lines && renderer.lines.length > 0) {
+                    const totalLines = renderer.lines.length;
+                    // Use current strict line index from data
+                    // If undefined/null, we assume we might be in transition, so we proceed (risky but needed for gaps).
+                    // But if we clearly see "Last Line", we STOP.
+                    if (d0.lineIndex === totalLines - 1) {
+                        return false;
+                    }
+                }
+            }
+
+            // 3. COOLDOWN: Extended to 1200ms (Average reading time for a line is > 2s)
+            // 300ms was too sensitive, allowing multiple triggers on regressions.
+            if (this.lastTriggerTime && (now - this.lastTriggerTime < 1200)) return false;
 
             if (isVelValley && isDeepEnough) {
                 const timeSincePeak = d1.t - this.lastPosPeakTime;
 
-                // 1. Cascade Check: Relaxed Timing (±600ms)
+                // 4. Cascade Check: Relaxed Timing (±600ms)
                 // Allow peak to be slightly after valley (due to smoothing lag) or normally before.
                 // Key is that they are temporal neighbors.
                 if (Math.abs(timeSincePeak) < 600) {

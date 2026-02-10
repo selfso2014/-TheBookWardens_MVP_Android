@@ -195,6 +195,14 @@ const Game = {
 
     init() {
         console.log("Game Init");
+        // [COORDINATION] Link Gaze Data Manager
+        if (window.gazeDataManager) {
+            this.gazeManager = window.gazeDataManager;
+            console.log("[Game] Linked to window.gazeDataManager");
+        } else {
+            console.warn("[Game] window.gazeDataManager not found during init. Will retry in start().");
+        }
+
         this.bindEvents();
 
         this.updateUI();
@@ -842,6 +850,11 @@ Game.typewriter = {
         window.scrollTo(0, 0);
         const screenRead = document.getElementById('screen-read');
         if (screenRead) screenRead.scrollTop = 0;
+
+        // [CRITICAL FIX] Reset Pang Event Logic / First Content Time for new paragraph
+        if (window.gazeDataManager && typeof window.gazeDataManager.resetTriggers === 'function') {
+            window.gazeDataManager.resetTriggers();
+        }
 
         if (this.currentParaIndex >= this.paragraphs.length) {
             // All paragraphs done. Trigger FINAL BOSS.
