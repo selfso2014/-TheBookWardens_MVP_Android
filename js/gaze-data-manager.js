@@ -607,9 +607,19 @@ export class GazeDataManager {
         console.log(`[RS] 💥 TRIGGER! (${type}) VX:${vx.toFixed(2)} at ${d0.t}ms`);
 
         // 1. Visual Effect (Existing)
+        // 1. Visual Effect (Existing)
         if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
             typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
-            window.Game.typewriter.renderer.triggerReturnEffect(d0.lineIndex);
+
+            // [Fix 1] Only trigger visual effect if we are actively reading (screen-read active)
+            // This prevents Pang effects during Boss Battles or Transitions.
+            const readScreen = document.getElementById('screen-read');
+            if (readScreen && readScreen.classList.contains('active')) {
+                // [Fix 2] Target the PREVIOUS line (the one just finished), not the current one.
+                // Return Sweep means we moved FROM line N TO line N+1. We want to mark line N.
+                const targetLine = (d0.lineIndex > 0) ? d0.lineIndex - 1 : 0;
+                window.Game.typewriter.renderer.triggerReturnEffect(targetLine);
+            }
         }
 
         // 2. Game Reward (New: Ink +10)
