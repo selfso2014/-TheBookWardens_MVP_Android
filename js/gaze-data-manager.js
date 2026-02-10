@@ -22,8 +22,8 @@ export class GazeDataManager {
         // NEW: Replay Data Storage (Chart 6)
         this.replayData = null;
 
-        // NEW: Strictly Monotonic Line Guard (V9.4)
-        this.lastFiredLineIndex = -1; // Initialize to -1 so line 0 can fire (0 > -1)
+        // NEW: Max Reach Line Guard (V9.5) - Tracks highest line index triggered
+        this.maxLineIndexReached = -1; // Initialize to -1 so line 0 can fire (0 > -1)
     }
 
     /**
@@ -249,7 +249,7 @@ export class GazeDataManager {
         this.lastTriggerTime = 0;
         this.lastPosPeakTime = 0;
         this.pendingReturnSweep = null;
-        this.lastFiredLineIndex = -1; // Reset to -1 on new content
+        this.maxLineIndexReached = -1; // Reset max reach guard
         // Also reset visual context if needed, but context comes from TextRenderer updates.
         console.log("[GazeDataManager] Triggers Reset (New Content Started).");
     }
@@ -604,28 +604,23 @@ export class GazeDataManager {
                 // 4. Time Window Check (±600ms)
                 if (Math.abs(timeSincePeak) < 600) {
 
-                    // -- STEP D: LOGIC GUARD (V9.4 - NEXT LINE ONLY) --
+                    // -- STEP D: LOGIC GUARD (V9.5 - MAX REACH GUARANTEE) --
                     // We only fire if the user has advanced to a NEW line index
-                    // that is greater than the last one we fired on.
+                    // that is STRICTLY greater than the maximum line index ever reached in this section.
 
                     if (d0.lineIndex !== undefined && d0.lineIndex !== null) {
 
-                        // Rule 1: Monotonic Increase Check
-                        // Must be strictly greater. (e.g. 0 > -1, 1 > 0).
-                        // Equal (0==0) or Less (0 < 1) are ignored.
-                        if (d0.lineIndex <= this.lastFiredLineIndex) {
-                            // console.log("[RS] Blocked: Not a new line", d0.lineIndex);
+                        // Rule 1: Max Reach Check
+                        if (d0.lineIndex <= this.maxLineIndexReached) {
                             return false;
                         }
 
                         // Rule 2: Last Line Guard
-                        // If we are on the last line, we cannot sweep to a "next line".
                         if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer) {
                             const renderer = window.Game.typewriter.renderer;
                             if (renderer.lines && renderer.lines.length > 0) {
                                 const totalLines = renderer.lines.length;
                                 if (d0.lineIndex >= totalLines - 1) {
-                                    // console.log("[RS] Blocked: Last Line", d0.lineIndex);
                                     return false;
                                 }
                             }
@@ -633,7 +628,6 @@ export class GazeDataManager {
 
                     } else {
                         // If lineIndex is null (transition), we act conservatively and DO NOT fire.
-                        // We wait for a valid line lock.
                         return false;
                     }
 
@@ -641,9 +635,9 @@ export class GazeDataManager {
                     this._fireEffect("Immediate", v1);
                     d0.rsState = "Immediate_Success";
 
-                    // Update Guard State
+                    // Update Guard State (New High Score)
                     this.lastPosPeakTime = 0;
-                    this.lastFiredLineIndex = d0.lineIndex; // Lock this line
+                    this.maxLineIndexReached = d0.lineIndex;
 
                     return true;
                 }
