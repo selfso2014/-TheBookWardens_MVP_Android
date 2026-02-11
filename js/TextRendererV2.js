@@ -698,12 +698,21 @@ class TextRenderer {
         const safetyInterval = setInterval(forceVisibility, 10);
 
         console.log(`[TextRenderer] Text restored. Waiting 500ms, enforcing visibility...`);
-
         // DELAY REPLAY START
         setTimeout(() => {
             clearInterval(safetyInterval);
 
+            // [NEW] CRITICAL FIX: Re-Lock Layout to get EXACT current coordinates
+            // This handles any shifts, reflows, or scroll changes that happened since reading.
+            // We measure the text AS IT IS NOW, ensuring 0px error.
+            if (this.words.length > 0) {
+                console.log("[TextRenderer] Zero-Error Mapping: Re-calculating layout...");
+                this.lockLayout();
+            }
+
+            // Use the freshly calculated lines
             const visualLines = this.lines || [];
+
             if (visualLines.length === 0) {
                 console.warn("[TextRenderer] No visual lines available for mapping.");
                 if (onComplete) onComplete();
@@ -750,6 +759,8 @@ class TextRenderer {
 
                 // Safety: Check if line exists
                 if (!visualLines[targetLineIndex]) return;
+
+                // [ZERO-ERROR] Use the CURRENT Visual Y from the freshly locked layout
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
