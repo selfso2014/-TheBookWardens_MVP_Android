@@ -1393,7 +1393,7 @@ Game.typewriter = {
 
             // Delay and Switch to New Sequence (Final Villain Screen -> Score -> etc)
             setTimeout(() => {
-                Game.switchScreen("screen-new-villain");
+                Game.goToNewScore();
             }, 2500);
 
         } else {
