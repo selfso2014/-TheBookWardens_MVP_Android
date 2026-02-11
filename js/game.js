@@ -747,6 +747,24 @@ const Game = {
         } else {
             this.switchScreen("screen-home");
         }
+    },
+
+    // --- NEW: Enriched Game Flow (Debug / Implementation) ---
+    debugFinalVillain() {
+        console.log("Debug: Starting Final Villain Sequence");
+        this.switchScreen("screen-new-villain");
+    },
+
+    goToNewScore() {
+        this.switchScreen("screen-new-score");
+    },
+
+    goToNewSignup() {
+        this.switchScreen("screen-new-signup");
+    },
+
+    goToNewShare() {
+        this.switchScreen("screen-new-share");
     }
 };
 
