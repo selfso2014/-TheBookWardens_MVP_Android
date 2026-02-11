@@ -859,8 +859,8 @@ class TextRenderer {
             const pathStartTime = path[0].t;
             const pathEndTime = path[path.length - 1].t;
 
-            // [SPEED UP] Make replay very fast (2.0s fixed)
-            const duration = 2000;
+            // [SPEED UP] Make replay very fast (3.0s fixed)
+            const duration = 3000;
 
             let startTime = null;
 
