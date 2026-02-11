@@ -813,3 +813,32 @@ span.tr-word.chunk-fade-out {
     transform: translateY(-15px);
   }
 }
+
+/* --- New Scene Stylings --- */
+.reward-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  max-width: 800px;
+  margin: 0 auto 40px auto;
+}
+
+@media (max-width: 600px) {
+  .score-grid {
+    grid-template-columns: 1fr;
+    /* Stack vertically on mobile */
+    gap: 10px;
+  }
+
+  .reward-box {
+    transform: scale(0.9);
+  }
+}

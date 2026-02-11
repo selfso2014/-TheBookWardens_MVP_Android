@@ -462,8 +462,10 @@
           about her and to wonder what was going to happen next. First, she tried to look down and make out what she was
           coming to, but it was too dark to see anything; then she looked at the sides of the well, and noticed that
           they were filled with <span class="rift-word">cupboards</span> and <span
-            class="rift-word">book-shelves</span>; here and there she saw <span class="rift-word">maps</span> and <span
-            class="rift-word">pictures</span> hung upon pegs. She
+            class="rift-word">book-shelves</span>;
+          here and there she saw <span class="rift-word">maps</span> and <span class="rift-word">pictures</span> hung
+          upon
+          pegs. She
           took down a jar from one of the shelves as she passed; it was labelled “<span class="rift-word">ORANGE
             MARMALADE</span>”, but to her great
           disappointment it was <span class="rift-word">empty</span>: she did not like to drop the jar for fear of
@@ -646,19 +648,19 @@
 
       <div style="animation: float 3s ease-in-out infinite;">
         <h1
-          style="font-family: 'Cinzel', serif; font-size: 3.5rem; color: #00e5ff; text-shadow: 0 0 30px #00e5ff; margin-bottom: 10px;">
+          style="font-family: 'Cinzel', serif; font-size: 3.5rem; color: #00e5ff; text-shadow: 0 0 30px #00e5ff; margin-bottom: 20px;">
           RIFT SEALED</h1>
         <p style="color: #ccc; letter-spacing: 3px; font-size: 1.2rem; margin-bottom: 50px;">The story has been
           restored.</p>
       </div>
 
       <!-- Rewards Container -->
-      <div style="display: flex; gap: 60px; justify-content: center; margin-bottom: 60px;">
+      <div style="display: flex; gap: 40px; justify-content: center; margin-bottom: 60px; flex-wrap: wrap;">
 
         <!-- INK REWARD -->
         <div class="reward-box"
           style="text-align: center; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.5s both;">
-          <div style="font-size: 5rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px #8b2fc9);">🖋️</div>
+          <img src="./ink.png" class="reward-icon" alt="Ink">
           <div style="font-size: 2rem; color: #fff; font-weight: bold; text-shadow: 0 0 10px #8b2fc9;">+150</div>
           <div style="font-size: 1rem; color: #aa88ff; text-transform: uppercase; letter-spacing: 1px;">Ink Collected
           </div>
@@ -667,7 +669,8 @@
         <!-- GEM REWARD -->
         <div class="reward-box"
           style="text-align: center; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.8s both;">
-          <div style="font-size: 5rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px #ff4444);">💎</div>
+          <img src="./gem.png" class="reward-icon" alt="Gem"
+            style="filter: drop-shadow(0 0 15px rgba(255, 68, 68, 0.6));">
           <div style="font-size: 2rem; color: #fff; font-weight: bold; text-shadow: 0 0 10px #ff4444;">+50</div>
           <div style="font-size: 1rem; color: #ff8888; text-transform: uppercase; letter-spacing: 1px;">Gems Earned
           </div>
@@ -675,8 +678,7 @@
 
       </div>
 
-      <button class="btn-primary" onclick="Game.goToNewScore()"
-        style="background: linear-gradient(90deg, #00e5ff, #2979ff); box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); font-size: 1.5rem; padding: 20px 60px;">
+      <button class="btn-primary" onclick="Game.goToNewScore()" style="margin-top: 20px;">
         Claim Rewards
       </button>
     </section>
@@ -690,12 +692,11 @@
         READING REPORT</h1>
       <p style="color: #aaa; margin-bottom: 40px;">Daily Mission Complete</p>
 
-      <div
-        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 800px; margin: 0 auto 50px auto;">
+      <div class="score-grid">
 
         <!-- CARD 1: WPM -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
+          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
           <div style="font-size: 3rem; margin-bottom: 10px;">⚡</div>
           <div id="report-wpm" style="font-size: 2.5rem; font-weight: bold; color: #00e5ff;">0</div>
           <div style="color: #888; font-size: 0.9rem;">AVG. WPM</div>
@@ -703,7 +704,7 @@
 
         <!-- CARD 2: ACCURACY (Mock) -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
+          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
           <div style="font-size: 3rem; margin-bottom: 10px;">🎯</div>
           <div id="report-acc" style="font-size: 2.5rem; font-weight: bold; color: #00ff00;">94%</div>
           <div style="color: #888; font-size: 0.9rem;">FOCUS SCORE</div>
@@ -711,14 +712,14 @@
 
         <!-- CARD 3: RANK -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
+          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
           <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
           <div style="font-size: 2.5rem; font-weight: bold; color: gold;">S</div>
           <div style="color: #888; font-size: 0.9rem;">TOTAL RANK</div>
         </div>
       </div>
 
-      <button class="btn-primary" onclick="Game.goToNewSignup()" style="font-size: 1.3rem; padding: 15px 50px;">
+      <button class="btn-primary" onclick="Game.goToNewSignup()">
         Join the Wardens
       </button>
     </section>
@@ -756,32 +757,66 @@
     <section id="screen-new-share" class="screen"
       style="text-align: center; background: radial-gradient(circle, #2a0a38 0%, #000 90%);">
 
-      <h1 style="color: #e040fb; margin-bottom: 20px; font-family: 'Cinzel', serif; font-size: 2.5rem;">SHARE GLORY</h1>
+      <h1 style="color: #e040fb; margin-bottom: 20px; font-family: 'Cinzel', serif; font-size: 2.5rem;">SHARE GLORY
+      </h1>
       <p style="color: #ccc; margin-bottom: 40px;">Recruit more Wardens to seal the Rift.</p>
 
       <div class="share-card-preview"
-        style="background: #fff; width: 300px; height: 160px; margin: 0 auto 40px auto; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #333; overflow: hidden; position: relative;">
+        style="background: #fff; width: 300px; height: 160px; margin: 0 auto 40px auto; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #333; overflow: hidden; position: relative; box-shadow: 0 0 20px rgba(224, 64, 251, 0.4);">
         <!-- Simulated Image -->
         <img src="./alice_summary_card.png" alt="Card" style="width: 100%; height: 100%; object-fit: cover;">
         <div
-          style="position: absolute; bottom: 10px; left: 10px; font-weight: bold; color: #fff; text-shadow: 0 0 5px #000;">
+          style="position: absolute; bottom: 10px; left: 10px; font-weight: bold; color: #fff; text-shadow: 0 0 5px #000; font-family: 'Outfit', sans-serif;">
           Rank: S-Class</div>
       </div>
 
       <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 50px;">
-        <!-- Kakao / Twitter / FB placehodlers -->
+        <!-- Kakao -->
         <button
-          style="width: 60px; height: 60px; border-radius: 50%; border: none; background: #fee500; font-weight: bold; font-size: 0.8rem; cursor: pointer;">KAKAO</button>
+          style="width: 50px; height: 50px; border-radius: 50%; border: none; background: #fee500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+          onclick="alert('Shared to KakaoTalk!')" onmouseover="this.style.transform='scale(1.1)'"
+          onmouseout="this.style.transform='scale(1)'">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#3c1e1e">
+            <path
+              d="M12 3C6.48 3 2 6.48 2 10.77C2 13.54 3.78 16.02 6.64 17.38C6.64 17.38 6.2 19.38 6.07 20.08C5.97 20.64 6.57 20.89 6.96 20.52C8.38 19.18 10.3 17.3 10.3 17.3C10.86 17.38 11.42 17.43 12 17.43C17.52 17.43 22 13.95 22 9.66C22 5.37 17.52 3 12 3Z" />
+          </svg>
+        </button>
+
+        <!-- Facebook -->
         <button
-          style="width: 60px; height: 60px; border-radius: 50%; border: none; background: #1877f2; color: white; font-weight: bold; cursor: pointer;">FB</button>
+          style="width: 50px; height: 50px; border-radius: 50%; border: none; background: #1877f2; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+          onclick="alert('Shared to Facebook!')" onmouseover="this.style.transform='scale(1.1)'"
+          onmouseout="this.style.transform='scale(1)'">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+          </svg>
+        </button>
+
+        <!-- X (Twitter) -->
         <button
-          style="width: 60px; height: 60px; border-radius: 50%; border: none; background: #000; border: 1px solid #333; color: white; font-weight: bold; cursor: pointer;">X</button>
+          style="width: 50px; height: 50px; border-radius: 50%; border: none; background: #000; border: 1px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+          onclick="alert('Shared to X!')" onmouseover="this.style.transform='scale(1.1)'"
+          onmouseout="this.style.transform='scale(1)'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </button>
+
+        <!-- Instagram -->
         <button
-          style="width: 60px; height: 60px; border-radius: 50%; border: none; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: white; font-weight: bold; cursor: pointer;">IG</button>
+          style="width: 50px; height: 50px; border-radius: 50%; border: none; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+          onclick="alert('Shared to Instagram!')" onmouseover="this.style.transform='scale(1.1)'"
+          onmouseout="this.style.transform='scale(1)'">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.069-4.85.069-3.204 0-3.584-.012-4.849-.069-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+          </svg>
+        </button>
       </div>
 
-      <button class="btn-primary" onclick="Game.switchScreen('screen-home')"
-        style="background: #333; border: 1px solid #555;">
+      <button class="btn-primary" onclick="Game.switchScreen('screen-home')">
         Return to Lobby
       </button>
     </section>
