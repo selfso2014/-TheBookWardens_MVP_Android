@@ -751,9 +751,13 @@ const Game = {
 
     // --- NEW: Enriched Game Flow (Debug / Implementation) ---
     debugFinalVillain() {
-        console.log("Debug: Skipping Final Villain Sequence -> Going directly to Score");
-        // Skip screen-new-villain and go straight to Score Report
-        this.goToNewScore();
+        console.log("Debug: Starting Final Villain Sequence");
+        if (this.typewriter && typeof this.typewriter.triggerFinalBossBattle === "function") {
+            this.typewriter.triggerFinalBossBattle();
+        } else {
+            console.error("Game.typewriter.triggerFinalBossBattle is missing!");
+            this.switchScreen("screen-final-boss"); // Fallback
+        }
     },
 
     goToNewScore() {
