@@ -653,31 +653,33 @@
         READING REPORT</h1>
       <p style="color: #aaa; margin-bottom: 40px;">Daily Mission Complete</p>
 
-      <div class="score-grid">
+      <div class="score-grid"
+        style="grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; max-width: 100%; margin: 0 auto 30px auto;">
 
         <!-- CARD 1: WPM -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
-          <div style="font-size: 3rem; margin-bottom: 10px;">⚡</div>
-          <div id="report-wpm" style="font-size: 2.5rem; font-weight: bold; color: #00e5ff;">0</div>
-          <div style="color: #888; font-size: 0.9rem;">AVG. WPM</div>
+          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 2rem; margin-bottom: 5px;">⚡</div>
+          <div id="report-wpm" style="font-size: 1.6rem; font-weight: bold; color: #00e5ff; line-height: 1.2;">0</div>
+          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">AVG. WPM</div>
         </div>
 
-        <!-- CARD 2: ACCURACY (Mock) -->
+        <!-- CARD 2: ACCURACY -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
-          <div style="font-size: 3rem; margin-bottom: 10px;">🎯</div>
-          <div id="report-acc" style="font-size: 2.5rem; font-weight: bold; color: #00ff00;">94%</div>
-          <div style="color: #888; font-size: 0.9rem;">FOCUS SCORE</div>
+          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 2rem; margin-bottom: 5px;">🎯</div>
+          <div id="report-acc" style="font-size: 1.6rem; font-weight: bold; color: #00ff00; line-height: 1.2;">94%</div>
+          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">ACCURACY</div>
         </div>
 
         <!-- CARD 3: RANK -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);">
-          <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
-          <div style="font-size: 2.5rem; font-weight: bold; color: gold;">S</div>
-          <div style="color: #888; font-size: 0.9rem;">TOTAL RANK</div>
+          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 2rem; margin-bottom: 5px;">🏆</div>
+          <div style="font-size: 1.6rem; font-weight: bold; color: gold; line-height: 1.2;">S</div>
+          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">RANK</div>
         </div>
+
       </div>
 
       <button class="btn-primary" onclick="Game.goToNewSignup()">
