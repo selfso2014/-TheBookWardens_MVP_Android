@@ -1001,7 +1001,81 @@ class TextRenderer {
             el.style.opacity = '0';
         });
 
+        // [NEW] Trigger Flying Ink Animation
+        this._animateScoreToHud(xPos, yPos, score);
+
         setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
+    }
+
+    _animateScoreToHud(startX, startY, score) {
+        // Find Target (Ink Icon/Counter in HUD)
+        const targetEl = document.getElementById("ink-count");
+        if (!targetEl) return;
+
+        // Use parent for bigger target area if possible, else use count itself
+        const targetRect = (targetEl.parentElement || targetEl).getBoundingClientRect();
+        const targetX = targetRect.left + targetRect.width / 2;
+        const targetY = targetRect.top + targetRect.height / 2;
+
+        // Create Flying Particle
+        const p = document.createElement('div');
+        p.className = 'flying-ink';
+        p.innerText = `+${score}`;
+        p.style.position = 'fixed';
+        p.style.left = startX + 'px';
+        p.style.top = startY + 'px';
+        p.style.color = '#00ffff'; // Cyan for Ink
+        p.style.fontWeight = 'bold';
+        p.style.fontSize = '12px';
+        p.style.pointerEvents = 'none';
+        p.style.zIndex = '1000001';
+        p.style.transform = 'translate(-50%, -50%) scale(1)';
+        p.style.transition = 'transform 0.1s'; // For scale effect
+
+        document.body.appendChild(p);
+
+        // Animation Loop
+        let startTime = null;
+        const duration = 800; // 0.8s flight
+
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const progress = (timestamp - startTime) / duration;
+
+            if (progress >= 1) {
+                // Hit!
+                if (p.parentNode) p.remove();
+
+                // Add Score Real
+                if (window.Game && typeof window.Game.addInk === 'function') {
+                    window.Game.addInk(score);
+                }
+
+                // HUD Feedback (Pulse)
+                const hudIcon = targetEl.parentElement || targetEl;
+                hudIcon.style.transition = "transform 0.1s";
+                hudIcon.style.transform = "scale(1.3)";
+                setTimeout(() => hudIcon.style.transform = "scale(1)", 150);
+
+                return;
+            }
+
+            // Ease-In (Accelerate)
+            const ease = progress * progress * progress;
+
+            const currentX = startX + (targetX - startX) * ease;
+            const currentY = startY + (targetY - startY) * ease;
+
+            p.style.left = currentX + 'px';
+            p.style.top = currentY + 'px';
+
+            // Shrink as it flies
+            const scale = 1 - (progress * 0.5);
+            p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
     }
 
     _spawnReplayPulse(yPos) {
