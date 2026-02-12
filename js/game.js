@@ -93,7 +93,7 @@ const Game = {
         introScreen.classList.add("scene-destruction");
 
         // CRITICAL MESSAGE - Extended Duration
-        this.showStoryText("The words are fading... WARDEN, RESTORE THE STORY!");
+        this.showStoryText("The words are fading...<br>WARDEN, RESTORE THE STORY!");
         textContainer.classList.add("rift-damaged");
 
         // Heavy meteors
@@ -130,7 +130,7 @@ const Game = {
         } else {
             const overlay = document.getElementById("rift-story-overlay");
             if (!overlay) return;
-            overlay.innerText = message;
+            overlay.innerHTML = message; // Allow HTML for <br>
             overlay.classList.add("show");
             setTimeout(() => overlay.classList.remove("show"), 3500);
         }
