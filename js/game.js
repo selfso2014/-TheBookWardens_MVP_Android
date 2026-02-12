@@ -203,6 +203,11 @@ const Game = {
             console.warn("[Game] window.gazeDataManager not found during init. Will retry in start().");
         }
 
+        // [NEW] Hook for App.js to update Game Loading UI
+        window.updateLoadingProgress = (pct, msg) => {
+            if (this.updateSDKProgress) this.updateSDKProgress(pct, msg);
+        };
+
         this.bindEvents();
 
         this.updateUI();
@@ -290,14 +295,24 @@ const Game = {
                 // Initialize in background
                 this.trackingInitPromise = (async () => {
                     try {
+                        this.updateSDKProgress(10, "Starting Magic...");
                         if (typeof window.startEyeTracking === "function") {
+                            // Hook into window.onSDKProgress if available (we will add this to app.js later)
+                            // For now, manual updates
+                            setTimeout(() => this.updateSDKProgress(30, "Looking for You..."), 500);
+
                             const ok = await window.startEyeTracking();
+
                             if (!ok) {
                                 throw new Error("Permission denied or initialization failed.");
                             }
+
+                            this.updateSDKProgress(100, "Ready!");
+                            this.showToast("Magic Eye Ready!"); // Shortened message
                             return true;
                         } else {
                             console.warn("window.startEyeTracking not found.");
+                            this.updateSDKProgress(0, "Magic Error :(");
                             return false;
                         }
                     } catch (e) {
@@ -315,6 +330,49 @@ const Game = {
                 })();
             };
         }
+    },
+
+    // --- NEW: SDK Loading Feedback ---
+    updateSDKProgress(progress, status) {
+        // Init state if missing
+        if (!this.state.sdkLoading) this.state.sdkLoading = { progress: 0, status: 'Idle', isReady: false };
+
+        this.state.sdkLoading.progress = progress;
+        this.state.sdkLoading.status = status;
+        this.state.sdkLoading.isReady = (progress >= 100);
+
+        // Update Modal if visible
+        const modal = document.getElementById("sdk-loading-modal");
+        if (modal && modal.style.display === "flex") {
+            const bar = modal.querySelector(".sdk-progress-bar");
+            const txt = modal.querySelector(".sdk-status-text");
+            if (bar) bar.style.width = `${progress}%`;
+            if (txt) txt.textContent = `${status} (${progress}%)`;
+
+            // Auto-close if ready
+            if (this.state.sdkLoading.isReady) {
+                setTimeout(() => {
+                    modal.style.display = "none";
+                    // If we were waiting, retry the pending action (WPM selection)
+                    if (this.pendingWPMAction) {
+                        this.pendingWPMAction();
+                        this.pendingWPMAction = null;
+                    }
+                }, 500);
+            }
+        }
+    },
+
+    showToast(msg, duration = 3000) {
+        let toast = document.getElementById("game-toast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "game-toast";
+            document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), duration);
     },
 
     onCalibrationFinish() {
@@ -616,6 +674,31 @@ const Game = {
 
             // Initialize Eye Tracking & Calibration logic
             (async () => {
+                // --- NEW: Loading Guard ---
+                if (this.state.sdkLoading && !this.state.sdkLoading.isReady) {
+                    console.log("SDK not ready, showing modal...");
+
+                    // Show Modal
+                    const modal = document.getElementById("sdk-loading-modal");
+                    if (modal) {
+                        modal.style.display = "flex";
+                        // Update initial state
+                        const p = this.state.sdkLoading.progress;
+                        const s = this.state.sdkLoading.status;
+                        const bar = modal.querySelector(".sdk-progress-bar");
+                        const txt = modal.querySelector(".sdk-status-text");
+                        if (bar) bar.style.width = `${p}%`;
+                        if (txt) txt.textContent = `${s} (${p}%)`;
+                    }
+
+                    // Queue Action
+                    this.pendingWPMAction = () => {
+                        console.log("SDK Ready! Resuming WPM Selection...");
+                        this.selectWPM(wpm, btnElement); // Recursive call when ready
+                    };
+                    return; // Stop here
+                }
+
                 if (this.trackingInitPromise) {
                     const ok = await this.trackingInitPromise;
                     if (!ok) return;

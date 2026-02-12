@@ -1,0 +1,107 @@
+/* CSS for SDK Loading Modal and Game Toast */
+
+/* 1. Modal Overlay (Centered, Dark, Blur) */
+#sdk-loading-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 30000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+    flex-direction: column;
+}
+
+/* 2. Modal Card */
+.sdk-loading-card {
+    background: #1a1a1a;
+    color: #f0f0f0;
+    width: 90%;
+    max-width: 400px;
+    padding: 30px;
+    border-radius: 12px;
+    border: 2px solid #00e5ff;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+    position: relative;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 3. Loading Header */
+.sdk-loading-title {
+    font-family: 'Cinzel', serif;
+    color: #00e5ff;
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+/* 4. Progress Container */
+.sdk-progress-container {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+}
+
+/* 5. Progress Bar */
+.sdk-progress-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #00e5ff, #0091ea);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+/* 6. Status Text (Loading...) */
+.sdk-status-text {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+/* 7. Game Toast (Top-Center Notification) */
+#game-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #00e5ff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    border: 1px solid #00e5ff;
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    z-index: 40000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#game-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(10px);
+}
