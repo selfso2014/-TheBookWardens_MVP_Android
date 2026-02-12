@@ -322,7 +322,7 @@ const Game = {
         this.initWPMPreviews();
     },
 
-    // [New] Animation Logic for WPM Previews based on exact mathematical model (Character-Based + Chunk Pauses)
+    // [New] Animation Logic: Mimics Game's TextRendererV2 (Word-Based + Fade + Chunk Pause)
     initWPMPreviews() {
         const boxes = document.querySelectorAll('.wpm-anim-box');
         if (boxes.length === 0) return;
@@ -335,101 +335,129 @@ const Game = {
             "They played together and felt very happy."
         ];
 
-        // Combine for continuous loop
+        // Loop text for continuous preview
         const fullText = sentences.join(" ");
-        const words = fullText.split(" ");
 
         boxes.forEach(box => {
-            // Clear existing content (Remove placeholder spans)
-            box.innerHTML = "";
-
             const wpm = parseInt(box.getAttribute('data-wpm'), 10) || 100;
+            // Clear previous
+            if (box._previewCleanup) box._previewCleanup();
 
-            // Formula: Word Interval = 60000 / WPM
-            // Character Interval = Word Interval / 5 (Avg length)
-            const baseCharInterval = (60000 / wpm) / 5;
-
-            let currentWordIndex = 0;
-            let currentText = "";
-
-            // Container for dynamic text
-            const textSpan = document.createElement("span");
-            textSpan.style.whiteSpace = "pre"; // Preserve spaces
-            box.appendChild(textSpan);
-
-            // Cursor effect
-            const cursorSpan = document.createElement("span");
-            cursorSpan.textContent = "|";
-            cursorSpan.style.animation = "blink 1s infinite";
-            cursorSpan.style.opacity = "0.7";
-            box.appendChild(cursorSpan);
-
-            const typeNextWord = () => {
-                // Reset Check
-                if (currentWordIndex >= words.length) {
-                    currentWordIndex = 0;
-                    currentText = "";
-                    textSpan.textContent = "";
-                    setTimeout(typeNextWord, 1000); // Pause before restart
-                    return;
-                }
-
-                const word = words[currentWordIndex];
-                const isEndOfSentence = word.includes('.') || word.includes('?') || word.includes('!');
-                const isComma = word.includes(',');
-
-                // Chunk Logic: Pause every 3-4 words OR at punctuation
-                // Simple heuristic: If punctuation, long pause. Else short pause.
-
-                let charIndex = 0;
-
-                const typeChar = () => {
-                    if (charIndex < word.length) {
-                        currentText += word[charIndex];
-                        textSpan.textContent = currentText;
-                        charIndex++;
-                        setTimeout(typeChar, baseCharInterval); // Typing speed
-                    } else {
-                        // Word Finished. Add Space.
-                        currentText += " ";
-                        textSpan.textContent = currentText;
-                        currentWordIndex++;
-
-                        // Calculate Pause to next word
-                        // Standard Gap: 0 (Continuous typing) vs Chunk Pause?
-                        // User wants "Chunk Concept". Let's pause after words.
-
-                        let pause = baseCharInterval * 2; // Default word spacing
-
-                        if (isEndOfSentence) {
-                            pause = baseCharInterval * 15; // Long pause (~3 words)
-                        } else if (isComma) {
-                            pause = baseCharInterval * 8; // Medium pause
-                        } else if (currentWordIndex % 4 === 0) {
-                            pause = baseCharInterval * 6; // Chunk pause every 4 words
-                        }
-
-                        // Auto-scroll logic (Keep view fresh)
-                        // If text gets too long, trim start
-                        if (currentText.length > 25) {
-                            currentText = currentText.substring(currentText.indexOf(" ") + 1);
-                            textSpan.textContent = currentText;
-                        }
-
-                        setTimeout(typeNextWord, pause);
-                    }
-                };
-
-                typeChar(); // Start typing word
-            };
-
-            // Start Loop
-            // Clear existing (if re-init)
-            if (box._typeTimeout) clearTimeout(box._typeTimeout);
-
-            // Start
-            typeNextWord();
+            // Run the simulation
+            this.runWPMPreview(box, wpm, fullText);
         });
+    },
+
+    // Reusable WPM Simulation Engine
+    runWPMPreview(container, wpm, text) {
+        container.innerHTML = "";
+        container.style.position = "relative";
+        container.style.whiteSpace = "normal"; // Allow wrap if needed, but usually single line
+        container.style.overflow = "hidden";
+        container.style.display = "block"; // Ensure block layout for words
+        container.style.height = "2.5em"; // Fixed height
+
+        // chunk logic: split by space
+        const words = text.split(" ");
+        let wordSpans = [];
+
+        // Pre-create generic spans (mimicking TextRenderer structure)
+        words.forEach(w => {
+            const span = document.createElement("span");
+            span.textContent = w;
+            span.style.opacity = "0";
+            span.style.marginRight = "0.3em";
+            span.style.display = "inline-block";
+            span.style.transition = "opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+            span.style.transform = "translateY(10px)";
+            span.style.color = "#ccc"; // Preview color
+            container.appendChild(span);
+            wordSpans.push(span);
+        });
+
+        // Loop State
+        let currentIndex = 0;
+        let isRunning = true;
+        let timer = null;
+        let chunkCount = 0;
+
+        // Game Logic Factors
+        const WORD_INTERVAL = 150; // Fixed 150ms per word (Game Logic)
+
+        // Pause Calculation: Mimic Game.selectWPM logic
+        // Game: targetChunkDelay = (10000 / wpm) * 8
+        // e.g. 100 WPM -> 100ms * 8 = 800ms
+        // e.g. 300 WPM -> 33ms * 8 = ~260ms
+        const baseDelay = Math.floor(10000 / wpm);
+        const chunkPause = Math.max(200, baseDelay * 8);
+
+        const tick = () => {
+            if (!isRunning) return;
+
+            if (currentIndex >= wordSpans.length) {
+                // Determine restart
+                setTimeout(() => {
+                    // Reset all
+                    wordSpans.forEach(s => {
+                        s.style.opacity = "0";
+                        s.style.transform = "translateY(10px)";
+                    });
+                    currentIndex = 0;
+                    chunkCount = 0;
+                    tick();
+                }, 2000); // 2s wait before loop
+                return;
+            }
+
+            const span = wordSpans[currentIndex];
+            const wordText = words[currentIndex];
+
+            // Reveal Word (Animation)
+            span.style.opacity = "1";
+            span.style.transform = "translateY(0)";
+
+            // Logic: Move to next
+            currentIndex++;
+            chunkCount++;
+
+            // Fade Out Scheduling (Tail Effect)
+            // In game: 3000ms. Here: quick fade to keep box clean
+            setTimeout(() => {
+                if (isRunning && span) {
+                    span.style.opacity = "0.3"; // Dim instead of hide for preview
+                }
+            }, 2000);
+
+            // Determine Next Delay
+            let nextDelay = WORD_INTERVAL; // Default speed between words
+
+            // Check for Pause Condition (Punctuation or Chunk Size)
+            const isEnd = wordText.includes('.') || wordText.includes('?') || wordText.includes('!');
+            const isComma = wordText.includes(',');
+
+            if (isEnd || isComma || chunkCount >= 4) {
+                nextDelay = chunkPause;
+                chunkCount = 0; // Reset chunk
+            }
+
+            // Correction for 100 WPM to make it distinctly slower in FEEL
+            // Since WordInterval is fixed, slower WPM must have MUCH longer pauses.
+            if (wpm <= 100 && (isEnd || chunkCount === 0)) {
+                nextDelay *= 1.5;
+            }
+
+            timer = setTimeout(tick, nextDelay);
+        };
+
+        // Start
+        tick();
+
+        // Cleanup Hook
+        container._previewCleanup = () => {
+            isRunning = false;
+            if (timer) clearTimeout(timer);
+            container.innerHTML = "";
+        };
     },
 
     // --- NEW: SDK Loading Feedback ---
