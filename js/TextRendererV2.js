@@ -1050,10 +1050,25 @@ class TextRenderer {
         const targetEl = document.getElementById("ink-count");
         if (!targetEl) return;
 
-        // Use parent for bigger target area if possible, else use count itself
+        // Use parent for bigger target area if possible
         const targetRect = (targetEl.parentElement || targetEl).getBoundingClientRect();
         const targetX = targetRect.left + targetRect.width / 2;
         const targetY = targetRect.top + targetRect.height / 2;
+
+        // Calculate Control Point (CP) for Bezier Curve
+        // CP.x = startX (Vertical rise initially)
+        // CP.y = Midpoint between HUD and First Line of Text
+        let firstLineY = startY;
+        if (this.lines && this.lines.length > 0) {
+            firstLineY = this.lines[0].visualY || this.lines[0].rect.top;
+        }
+        // Ensure CP is higher than startY even if on first line
+        if (firstLineY > startY) firstLineY = startY;
+
+        // CP Y: Midpoint between HUD (targetY) and First Line
+        // We add an extra offset (-50) to ensure it arcs OVER the text if needed
+        const cpX = startX;
+        const cpY = (targetY + firstLineY) / 2 - 50;
 
         // Create Flying Particle
         const p = document.createElement('div');
@@ -1062,65 +1077,50 @@ class TextRenderer {
         p.style.position = 'fixed';
         p.style.left = startX + 'px';
         p.style.top = startY + 'px';
-        p.style.color = '#00ffff'; // Cyan for Ink
+        p.style.color = '#00ffff';
         p.style.fontWeight = 'bold';
-        p.style.fontSize = '18px'; // 1.5x Larger (12 -> 18)
+        p.style.fontSize = '18px';
         p.style.pointerEvents = 'none';
         p.style.zIndex = '1000001';
-        p.style.transform = 'translate(-50%, -50%) scale(1.5)'; // Start at 1.5x
+        p.style.transform = 'translate(-50%, -50%) scale(1.5)';
         p.style.transition = 'transform 0.1s';
 
         document.body.appendChild(p);
 
-        // Animation Loop (L-Shape: Up -> Left)
+        // Animation Loop (Quadratic Bezier)
         let startTime = null;
-        const duration = 1000; // 1.0s flight (Slower for L-turn)
+        const duration = 1000;
 
         const animate = (timestamp) => {
             if (!startTime) startTime = timestamp;
             const progress = (timestamp - startTime) / duration;
 
             if (progress >= 1) {
-                // Hit!
                 if (p.parentNode) p.remove();
-
-                // Add Score Real
                 if (window.Game && typeof window.Game.addInk === 'function') {
                     window.Game.addInk(score);
                 }
-
-                // HUD Feedback (Pulse)
                 const hudIcon = targetEl.parentElement || targetEl;
                 hudIcon.style.transition = "transform 0.1s";
                 hudIcon.style.transform = "scale(1.3)";
                 setTimeout(() => hudIcon.style.transform = "scale(1)", 150);
-
                 return;
             }
 
-            let currentX, currentY;
+            // Ease-In-Out
+            const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            const t = ease;
 
-            // Phase 1: Move UP (Y changes, X fixed) - 0% to 40%
-            if (progress < 0.4) {
-                const subProgress = progress / 0.4;
-                // Ease Out Quad (Start fast, slow down at corner)
-                const ease = 1 - (1 - subProgress) * (1 - subProgress);
-                currentX = startX;
-                currentY = startY + (targetY - startY) * ease;
-            }
-            // Phase 2: Move LEFT (X changes, Y fixed) - 40% to 100%
-            else {
-                const subProgress = (progress - 0.4) / 0.6;
-                // Ease In Out Quad (Smooth acceleration/deceleration)
-                const ease = subProgress < 0.5 ? 2 * subProgress * subProgress : 1 - Math.pow(-2 * subProgress + 2, 2) / 2;
-                currentX = startX + (targetX - startX) * ease;
-                currentY = targetY;
-            }
+            // Quadratic Bezier Formula
+            // B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+            const invT = 1 - t;
+            const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
+            const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
 
             p.style.left = currentX + 'px';
             p.style.top = currentY + 'px';
 
-            // Shrink slightly as it flies (1.5 -> 1.0)
+            // Shrink slightly (1.5 -> 1.0)
             const scale = 1.5 - (progress * 0.5);
             p.style.transform = `translate(-50%, -50%) scale(${scale})`;
 
