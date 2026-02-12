@@ -1064,17 +1064,17 @@ class TextRenderer {
         p.style.top = startY + 'px';
         p.style.color = '#00ffff'; // Cyan for Ink
         p.style.fontWeight = 'bold';
-        p.style.fontSize = '12px';
+        p.style.fontSize = '18px'; // 1.5x Larger (12 -> 18)
         p.style.pointerEvents = 'none';
         p.style.zIndex = '1000001';
-        p.style.transform = 'translate(-50%, -50%) scale(1)';
-        p.style.transition = 'transform 0.1s'; // For scale effect
+        p.style.transform = 'translate(-50%, -50%) scale(1.5)'; // Start at 1.5x
+        p.style.transition = 'transform 0.1s';
 
         document.body.appendChild(p);
 
-        // Animation Loop
+        // Animation Loop (L-Shape: Up -> Left)
         let startTime = null;
-        const duration = 800; // 0.8s flight
+        const duration = 1000; // 1.0s flight (Slower for L-turn)
 
         const animate = (timestamp) => {
             if (!startTime) startTime = timestamp;
@@ -1098,17 +1098,30 @@ class TextRenderer {
                 return;
             }
 
-            // Ease-In (Accelerate)
-            const ease = progress * progress * progress;
+            let currentX, currentY;
 
-            const currentX = startX + (targetX - startX) * ease;
-            const currentY = startY + (targetY - startY) * ease;
+            // Phase 1: Move UP (Y changes, X fixed) - 0% to 40%
+            if (progress < 0.4) {
+                const subProgress = progress / 0.4;
+                // Ease Out Quad (Start fast, slow down at corner)
+                const ease = 1 - (1 - subProgress) * (1 - subProgress);
+                currentX = startX;
+                currentY = startY + (targetY - startY) * ease;
+            }
+            // Phase 2: Move LEFT (X changes, Y fixed) - 40% to 100%
+            else {
+                const subProgress = (progress - 0.4) / 0.6;
+                // Ease In Out Quad (Smooth acceleration/deceleration)
+                const ease = subProgress < 0.5 ? 2 * subProgress * subProgress : 1 - Math.pow(-2 * subProgress + 2, 2) / 2;
+                currentX = startX + (targetX - startX) * ease;
+                currentY = targetY;
+            }
 
             p.style.left = currentX + 'px';
             p.style.top = currentY + 'px';
 
-            // Shrink as it flies
-            const scale = 1 - (progress * 0.5);
+            // Shrink slightly as it flies (1.5 -> 1.0)
+            const scale = 1.5 - (progress * 0.5);
             p.style.transform = `translate(-50%, -50%) scale(${scale})`;
 
             requestAnimationFrame(animate);
