@@ -35,8 +35,8 @@ const Game = {
         const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         // Initial Delay for SDK Loading Message (2.0s)
-        // Kept on Home Screen during this time
-        await wait(2000);
+        // Initial Delay for SDK Loading Message (2.0s) - REMOVED per user request
+        // await wait(2000);
 
         this.switchScreen("screen-rift-intro");
 
