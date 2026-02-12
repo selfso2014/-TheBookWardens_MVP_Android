@@ -64,10 +64,12 @@ class TextRenderer {
         // 0. Safety First: Stop any previous rendering
         this.cancelAllAnimations();
 
-        // 1. Reset
-        this.container.innerHTML = "";
+        // Clear previous state
+        if (this.container) this.container.innerHTML = "";
         this.words = [];
         this.chunks = [];
+        this.lines = []; // [FIX] Reset lines
+        this.isLayoutLocked = false; // [FIX] Unlock layout
 
         if (!rawText) return;
 
