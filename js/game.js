@@ -620,8 +620,6 @@ const Game = {
                 this.spawnRuneParticles(startX, startY);
             }
 
-            this.addRunes(10); // +10 Rune
-
             // Wait for animation
             await new Promise(r => setTimeout(r, 1200));
 
@@ -755,6 +753,8 @@ const Game = {
                 p.remove();
                 // Pump Effect on Target (Trigger on first few for impact)
                 if (i === 0) {
+                    // Add Score HERE (On Arrival)
+                    this.addRunes(10);
                     targetEl.style.transition = "transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                     targetEl.style.transform = "scale(1.8)";
                     targetEl.style.filter = "brightness(2.5) drop-shadow(0 0 20px gold)";
