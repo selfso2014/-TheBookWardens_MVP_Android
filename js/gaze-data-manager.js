@@ -603,25 +603,22 @@ export class GazeDataManager {
                     if (d0.lineIndex !== undefined && d0.lineIndex !== null) {
 
                         // Rule 1: START LINE BLOCK
-                        // We do not fire on Line 0. Starting to read is not a "Return Sweep".
-                        // Also prevents double-marking Line 0 (once at start, once at transition to Line 1).
                         if (d0.lineIndex === 0) {
                             return false;
                         }
 
                         // Rule 2: Max Reach Check (Monotonic)
-                        // If we are looking at a line we already reached/passed, don't fire.
-                        // This prevents duplicates when looking back (Regression) or lingering.
                         if (d0.lineIndex <= this.maxLineIndexReached) {
+                            // DEBUG: Log rejection
+                            // console.log(`[RS Reject] Line ${d0.lineIndex} <= Max ${this.maxLineIndexReached}`);
                             return false;
                         }
 
-                        // Rule 3: Last Line Guard REMOVED (V10.0)
-                        // Transition to the Last Line IS a valid Sweep (signals completion of N-1).
-                        // 'maxReached' handles the "don't fire repeatedly on last line" case.
+                        // Legacy Rule 3 Removed.
 
                     } else {
                         // If lineIndex is null (transition), we act conservatively and DO NOT fire.
+                        // console.log("[RS Reject] Null Line Index");
                         return false;
                     }
 
