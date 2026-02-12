@@ -539,9 +539,26 @@ const Game = {
         const titleEl = document.getElementById("vocab-word");
         if (titleEl) titleEl.textContent = data.word;
 
+        // Update Image
+        const imgPlaceholder = document.querySelector(".word-image-placeholder");
+        if (imgPlaceholder) {
+            imgPlaceholder.innerHTML = ""; // Clear text
+            if (data.image) {
+                const img = document.createElement("img");
+                img.src = data.image;
+                img.alt = data.word;
+                img.style.maxWidth = "100%";
+                img.style.maxHeight = "100%";
+                img.style.objectFit = "contain";
+                img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
+                img.onerror = () => { img.style.display = "none"; imgPlaceholder.textContent = "[Magic Art Missing]"; };
+                imgPlaceholder.appendChild(img);
+            } else {
+                imgPlaceholder.textContent = "[Magic Image Placeholder]";
+            }
+        }
+
         // Find the sentence paragraph - assuming it's the <p> after title
-        // Better to use a specific ID if possible, but structure is fixed in HTML
-        // Let's rely on querySelector within .word-card if IDs aren't granular
         const card = document.querySelector(".word-card");
         if (card) {
             const p = card.querySelector("p");
@@ -560,19 +577,20 @@ const Game = {
                 const btn = document.createElement("button");
                 btn.className = "option-btn";
                 btn.textContent = optText;
-                btn.onclick = () => Game.checkVocab(idx);
+                btn.onclick = (e) => Game.checkVocab(idx, e); // Pass event for coordinates
                 optionsDiv.appendChild(btn);
             });
         }
     },
 
-    async checkVocab(optionIndex) {
+    async checkVocab(optionIndex, event) {
         // Prevent re-entry if already processing (simple lock)
         if (this.isProcessingVocab) return;
         this.isProcessingVocab = true;
 
         const currentIndex = this.state.vocabIndex || 0;
         const currentData = this.vocabList[currentIndex];
+        // Use 'answer' property as per data structure
         const isCorrect = (optionIndex === currentData.answer);
 
         // Find the button element that was clicked
@@ -587,9 +605,13 @@ const Game = {
             // --- JUICY SUCCESS ---
             if (selectedBtn) {
                 selectedBtn.classList.add("correct");
-                // selectedBtn.style.backgroundColor = "#4caf50"; // Handled by CSS .correct usually
                 this.spawnFloatingText(selectedBtn, "+10 Runes!", "bonus");
-                this.spawnParticles(selectedBtn, 15); // Confetti
+
+                // Trigger Rune Particle Animation
+                const rect = selectedBtn.getBoundingClientRect();
+                const startX = event ? event.clientX : (rect.left + rect.width / 2);
+                const startY = event ? event.clientY : (rect.top + rect.height / 2);
+                this.spawnRuneParticles(startX, startY);
             }
 
             this.addRunes(10); // +10 Rune
@@ -609,28 +631,89 @@ const Game = {
             }
         } else {
             // --- JUICY FAIL ---
-            this.addRunes(-10); // -10 Rune (Penalty)
+            this.addRunes(-5); // -5 Rune (Penalty Reduced)
             if (selectedBtn) {
                 selectedBtn.classList.add("wrong");
-                this.spawnFloatingText(selectedBtn, "-10 Rune", "error");
+                this.spawnFloatingText(selectedBtn, "-5 Rune", "error");
             }
 
-            // Re-enable OTHER buttons so user can try again? 
-            // OR strict mode: move to next word? 
-            // Request says "1회로 끝나야 한다". Assuming "End trigger" or just "One attempt". 
-            // "맞든 틀리든 1회로 끝나야 한다" implies we move on even if wrong.
-            // But usually vocabs let you retry. 
-            // Interpreting as: "Clicking triggers ONCE."
-            // If user wants to "Retry", we should re-enable. 
-            // BUT "맞든 틀리든 1회로 끝나야 한다" strongly suggests "One shot per question" or "Once clicked, no more clicks on THIS button".
-
-            // Re-enabling others to allow retry for now, as game logic usually permits retry.
-            // BUT to fix "infinite score change", we keep THIS button disabled.
+            // Allow Retry? Or Move On?
+            // "맞든 틀리든 1회로 끝나야 한다" -> Move on anyway?
+            // Usually games let you retry or just mark wrong and move on.
+            // Let's implement: Re-enable others so they can find the right one (Learning), 
+            // BUT penalty applied. 
+            // If strictly "1 attempt", we should move on.
+            // User requirement ambiguity: "1회로 끝나야 한다" -> likely implies "processing done in one go".
+            // Let's keep retry logic for now as it's better for learning.
             btns.forEach((btn, idx) => {
                 if (idx !== optionIndex) btn.disabled = false;
             });
 
             this.isProcessingVocab = false; // Release lock
+        }
+    },
+
+    // --- NEW: Rune Particle Animation (Curve to HUD) ---
+    spawnRuneParticles(startX, startY) {
+        const targetEl = document.getElementById("rune-count"); // HUD Rune Icon
+        if (!targetEl) return;
+
+        const targetRect = targetEl.getBoundingClientRect();
+        const targetX = targetRect.left + targetRect.width / 2;
+        const targetY = targetRect.top + targetRect.height / 2;
+
+        const particleCount = 6;
+        const colors = ["#ffd700", "#ffae00", "#ffffff"]; // Gold & White
+
+        for (let i = 0; i < particleCount; i++) {
+            const p = document.createElement("div");
+            p.className = "rune-particle";
+            // Random initial offset
+            const offsetX = (Math.random() - 0.5) * 50;
+            const offsetY = (Math.random() - 0.5) * 50;
+
+            p.style.left = (startX + offsetX) + "px";
+            p.style.top = (startY + offsetY) + "px";
+            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+            // CSS for particle (dynamic injection or relies on style.css)
+            p.style.position = "fixed";
+            p.style.width = "8px";
+            p.style.height = "8px";
+            p.style.borderRadius = "50%";
+            p.style.zIndex = "10000";
+            p.style.boxShadow = "0 0 10px " + p.style.backgroundColor;
+            p.style.transition = "transform 0.5s, opacity 0.5s"; // Initial burst
+
+            document.body.appendChild(p);
+
+            // 1. Burst Out
+            setTimeout(() => {
+                p.style.transform = `translate(${offsetX * 2}px, ${offsetY * 2}px) scale(0.5)`;
+            }, 10);
+
+            // 2. Fly to Target (Bezier Curve Simulation)
+            // Using WAAPI (Web Animations API) is cleaner for curves
+            const anim = p.animate([
+                { transform: `translate(0,0) scale(1)`, left: `${startX}px`, top: `${startY}px`, opacity: 1 },
+                { transform: `translate(0,0) scale(0.2)`, left: `${targetX}px`, top: `${targetY}px`, opacity: 0 } // Fade out at end
+            ], {
+                duration: 800 + Math.random() * 400,
+                easing: "cubic-bezier(0.25, 1, 0.5, 1)", // Ease out
+                fill: "forwards",
+                delay: 100 // Wait for burst
+            });
+
+            anim.onfinish = () => {
+                p.remove();
+                // Pump Effect on Target
+                targetEl.style.transform = "scale(1.5)";
+                targetEl.style.filter = "brightness(1.5)";
+                setTimeout(() => {
+                    targetEl.style.transform = "scale(1)";
+                    targetEl.style.filter = "brightness(1)";
+                }, 150);
+            };
         }
     },
 
