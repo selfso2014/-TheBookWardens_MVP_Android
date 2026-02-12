@@ -84,10 +84,10 @@
     bottom: 5%;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
-    /* Increased width (1.8x equivalent) */
-    max-width: 1200px;
-    padding: 10px 40px;
+    width: 95%;
+    /* Increased width again (+15%) */
+    max-width: 1400px;
+    padding: 10px 20px;
     background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.8), transparent);
     /* Subtitle Gradient */
     border: none;
