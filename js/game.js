@@ -357,8 +357,10 @@ const Game = {
         }
         // ELSE: Show non-intrusive Toast feedback
         else {
-            // Only show significant updates or if user acts
-            this.showToast(`${status} (${progress}%)`, 2000);
+            // Do NOT show "Connected" toast automatically to avoid overlap with Intro
+            if (progress < 100) {
+                this.showToast(`${status} (${progress}%)`, 2000);
+            }
         }
     },
 
