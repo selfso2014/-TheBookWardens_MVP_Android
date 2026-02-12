@@ -279,7 +279,7 @@ const Game = {
                 const loader = document.getElementById("loader-container");
                 const bar = document.getElementById("loader-bar");
                 if (loader && bar) {
-                    loader.style.display = "block";
+                    loader.style.visibility = "visible";
                     bar.getBoundingClientRect();
                     bar.style.width = "100%";
                 }
