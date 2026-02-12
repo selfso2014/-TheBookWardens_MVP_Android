@@ -327,12 +327,11 @@ const Game = {
         const boxes = document.querySelectorAll('.wpm-anim-box');
         if (boxes.length === 0) return;
 
+        // Reduced to 3 lines for compact view
         const sentences = [
             "The sun was warm in the sky.",
             "A small boy walked to the park.",
-            "He saw a dog running on the grass.",
-            "The boy threw a ball, and the dog ran fast to get it.",
-            "They played together and felt very happy."
+            "He saw a dog on the grass."
         ];
 
         // Loop text for continuous preview
@@ -356,13 +355,16 @@ const Game = {
         container.style.overflow = "hidden";
         container.style.display = "block";
         container.style.height = "auto";
-        container.style.minHeight = "2.5em";
+        container.style.minHeight = "1.8em"; // Compact height
+        container.style.fontSize = "0.85rem"; // Smaller font for speed feel
+        container.style.lineHeight = "1.4"; // Space saver
+        container.style.color = "#aaa"; // Dimmer text
 
         // Split into words
         const words = text.split(" ");
         let wordSpans = [];
 
-        // Pre-create spans (Word-Based)
+        // Pre-create generic spans (Word-Based)
         words.forEach(w => {
             const span = document.createElement("span");
             span.textContent = w;
@@ -372,7 +374,7 @@ const Game = {
             // Game-like Fade In + Slide Up
             span.style.transition = "opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
             span.style.transform = "translateY(10px)";
-            span.style.color = "#ccc"; // Preview color
+            span.style.color = "#eee"; // Highlighted text color
             container.appendChild(span);
             wordSpans.push(span);
         });
