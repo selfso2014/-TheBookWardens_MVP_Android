@@ -68,20 +68,15 @@ class TextRenderer {
         this.container.innerHTML = "";
         this.words = [];
         this.chunks = [];
-        this.lines = [];
-        this.isLayoutLocked = false;
 
         if (!rawText) return;
 
         // --- DYNAMIC CHUNKING LOGIC (Sync with WPM Preview) ---
         // 1. Get Target Chunk Size (Default to 4 if not set)
-        // This variable is set in Game.selectWPM based on user choice (3, 4, 6)
         const targetSize = (typeof Game !== 'undefined' && Game.targetChunkSize) ? Game.targetChunkSize : 4;
-
         console.log(`[TextRenderer] Preparing text with Chunk Size: ${targetSize}`);
 
         // 2. Normalize Text: Remove existing '/' delimiters which were static
-        // We want to re-chunk dynamically based on WPM.
         const cleanText = rawText.replace(/\//g, " ");
 
         // 3. Split into Words
@@ -94,13 +89,13 @@ class TextRenderer {
             // Create Span for Word
             const span = document.createElement("span");
             span.className = "tr-word";
-            span.style.color = "#ffffff"; // Default color
-            span.style.opacity = "0";     // Initially hidden for animation
-            span.style.marginRight = this.options.wordSpacing; // Use options for spacing
-            span.style.display = "inline-block"; // Ensure proper layout
-            span.style.lineHeight = "1.2"; // Specific line height for word spans
-            span.style.verticalAlign = "middle"; // Align vertically
-            span.dataset.index = index; // Store index for easy lookup
+            span.style.color = "#ffffff";
+            span.style.opacity = "0";
+            span.style.marginRight = this.options.wordSpacing;
+            span.style.display = "inline-block";
+            span.style.lineHeight = "1.2";
+            span.style.verticalAlign = "middle";
+            span.dataset.index = index;
             span.textContent = w;
 
             this.container.appendChild(span);
@@ -108,7 +103,7 @@ class TextRenderer {
                 element: span,
                 text: w,
                 index: index,
-                rect: null // Will be filled during lockLayout
+                rect: null
             });
 
             // Add to current chunk
@@ -116,10 +111,7 @@ class TextRenderer {
             wordCountInChunk++;
 
             // --- CHUNK CUTTING LOGIC ---
-            // Cut if:
-            // A. Punctuation detected (Natural pause)
-            // B. Target Chunk Size reached (Rhythm control)
-
+            // Cut if: Punctuation OR Target Size reached
             const isPunctuation = w.includes('.') || w.includes('?') || w.includes('!') || w.includes(',') || w.includes(';') || w.includes(':');
 
             if (isPunctuation || wordCountInChunk >= targetSize) {

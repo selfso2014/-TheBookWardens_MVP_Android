@@ -962,11 +962,7 @@ const Game = {
 
     // --- 1.2 WPM Selection ---
     selectWPM(wpm, btnElement) {
-        console.log(`[Game] User selected WPM: ${wpm}`);
-
-        // Visual Feedback: Active State
-        // Remove    selectWPM(wpm, btnElement) {
-        // ... (UI Update Logic: Highlight selected button) ...
+        // UI Reset
         const buttons = document.querySelectorAll('.wpm-btn');
         buttons.forEach(btn => {
             btn.classList.remove('selected');
@@ -975,258 +971,239 @@ const Game = {
             btn.style.transform = 'scale(1)';
         });
 
-        // Select Current
-        btnElement.classList.add('selected');
-        btnElement.style.borderColor = btnElement.style.borderColor.replace('0.3', '1');
-        btnElement.style.boxShadow = `0 0 20px ${window.getComputedStyle(btnElement).color}`;
-        btnElement.style.transform = 'scale(1.05)';
+        // UI Select
+        if (btnElement) {
+            btnElement.classList.add('selected');
+            btnElement.style.borderColor = btnElement.style.borderColor.replace('0.3', '1');
+            btnElement.style.boxShadow = `0 0 20px ${window.getComputedStyle(btnElement).color}`;
+            btnElement.style.transform = 'scale(1.05)';
+        }
 
-        // Store selected WPM
         this.wpm = wpm;
 
         // --- CORE LOGIC: Sync with WPM Preview ---
-
-        // 1. Determine Target Chunk Size (Variable Scope)
-        // 100 WPM -> 3 words (focused)
-        // 200 WPM -> 4 words (standard)
-        // 300 WPM -> 6 words (extended)
+        // 1. Target Chunk Size
         let targetChunkSize = 4;
         if (wpm <= 100) targetChunkSize = 3;
         if (wpm >= 300) targetChunkSize = 6;
-
         Game.targetChunkSize = targetChunkSize;
 
-        // 2. Calculate Calibrated Pause Time (Rhythm)
-        // Base Formula: 10000 / WPM * 8 (from original game logic)
-        // Multiplier Correction: Matches the statistical tuning in Preview
+        // 2. Calibrated Pause Time
         let pauseMultiplier = 1.0;
-        if (wpm <= 100) pauseMultiplier = 1.4; // Slower pace for beginners
-        if (wpm === 200) pauseMultiplier = 1.5; // Standard pacing correction
-        if (wpm >= 300) pauseMultiplier = 1.0; // Speed reading
+        if (wpm <= 100) pauseMultiplier = 1.4;
+        if (wpm === 200) pauseMultiplier = 1.5;
+        if (wpm >= 300) pauseMultiplier = 1.0;
 
         const baseDelay = Math.floor(10000 / wpm);
         const calibratedPause = Math.max(200, (baseDelay * 8) * pauseMultiplier);
 
-        this.targetSpeed = baseDelay; // Kept for legacy reference
-        this.targetChunkDelay = calibratedPause; // Actual pause usage in tick()
+        this.targetSpeed = baseDelay;
+        this.targetChunkDelay = calibratedPause;
 
         console.log(`[Game] WPM Selected: ${wpm}`);
-        console.log(`[Game Logic] Target Chunk Size: ${targetChunkSize} words`);
-        console.log(`[Game Logic] Calibrated Chunk Pause: ${Math.round(calibratedPause)}ms (Multiplier: x${pauseMultiplier})`);
+        console.log(`[Game Logic] Target Chunk Size: ${targetChunkSize}, Pause: ${Math.round(calibratedPause)}ms`);
 
-        // Proceed to calibration after short delay
-        setTimeout(() => {
-            // Show Modal
-            const modal = document.getElementById("sdk-loading-modal");
-            if (modal) {
-                modal.style.display = "flex";
-                // Update initial state
-                const p = this.state.sdkLoading.progress;
-                const s = this.state.sdkLoading.status;
-                const bar = modal.querySelector(".sdk-progress-bar");
-                const txt = modal.querySelector(".sdk-status-text");
-                if (bar) bar.style.width = `${p}%`;
-                if (txt) txt.textContent = `${s} (${p}%)`;
+        // Wait a bit then proceed
+        setTimeout(async () => {
+            // Check SDK Status (Optional guard)
+            if (this.state.sdkLoading && !this.state.sdkLoading.isReady) {
+                console.log("SDK not ready, showing modal...");
+                const modal = document.getElementById("sdk-loading-modal");
+                if (modal) modal.style.display = "flex";
+                // Retry logic could go here but let's assume it catches up or user waits
+                // Ideally we pause here. For now let's proceed to calibration screen which usually handles it.
             }
 
-            // Queue Action
-            this.pendingWPMAction = () => {
-                console.log("SDK Ready! Resuming WPM Selection...");
-                this.selectWPM(wpm, btnElement); // Recursive call when ready
-            };
-            return; // Stop here
-        }
-
-                if (this.trackingInitPromise) {
-            const ok = await this.trackingInitPromise;
-            if (!ok) return;
-        }
-
-        this.switchScreen("screen-calibration");
-        setTimeout(() => {
-            if (typeof window.startCalibrationRoutine === "function") {
-                window.startCalibrationRoutine();
-            } else {
-                this.switchScreen("screen-read");
+            // Ensure Tracking Init
+            if (this.trackingInitPromise) {
+                const ok = await this.trackingInitPromise;
             }
+
+            this.switchScreen("screen-calibration");
+            setTimeout(() => {
+                if (typeof window.startCalibrationRoutine === "function") {
+                    window.startCalibrationRoutine();
+                } else {
+                    this.switchScreen("screen-read");
+                }
+            }, 500);
+
         }, 500);
-    })();
-        }, 300); // 300ms Visual Delay
     },
 
 
-// --- 1.5 Owl ---
-startOwlScene() {
-    this.state.isTracking = true;
-    this.state.isOwlTracker = true;
-    this.switchScreen("screen-owl");
-    // User Request: Make gaze dot transparent (invisible) but keep tracking active
-    if (typeof window.setGazeDotState === "function") {
-        window.setGazeDotState(false);
-    }
-},
-
-startReadingFromOwl() {
-    // Stop owl tracking and start reading
-    this.state.isOwlTracker = false;
-    this.switchScreen("screen-read");
-
-    // [FIX] Explicitly START the game engine here mostly ONCE.
-    if (this.typewriter && typeof this.typewriter.start === 'function') {
-        this.typewriter.start();
-    }
-},
-
-// --- 2. Reading Rift (Original Logic kept for reference, overlaid below) ---
-startReadingSession_OLD() {
-    // ... existing logic ...
-},
-
-confrontVillain() {
-    if (this.typewriter) this.typewriter.isPaused = true; // Stop typewriter logic
-    this.state.isTracking = false;
-
-    // [FIX] Clean up Reading Screen Artifacts
-    // 1. Hide Pang Markers (Clear Layer)
-    const pangLayer = document.getElementById("pang-marker-layer");
-    if (pangLayer) pangLayer.innerHTML = "";
-
-    // 2. Hide Reading Content (Prevent Flash/Ghosting on next load)
-    // By clearing this now, we ensure the next paragraph starts fresh without old text visible.
-    const bookContent = document.getElementById("book-content");
-    if (bookContent) bookContent.innerHTML = "";
-
-    this.switchScreen("screen-boss");
-},
-
-// Called by app.js (SeeSo overlay)
-onGaze(x, y) {
-    // Owl Interaction
-    if (this.state.isOwlTracker) {
-        const pupils = document.querySelectorAll('.pupil');
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        const maxMove = 20;
-
-        let dx = (x - cx) / (window.innerWidth / 2) * maxMove;
-        let dy = (y - cy) / (window.innerHeight / 2) * maxMove;
-        dx = Math.max(-maxMove, Math.min(maxMove, dx));
-        dy = Math.max(-maxMove, Math.min(maxMove, dy));
-
-        pupils.forEach(p => {
-            p.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        });
-        return;
-    }
-
-    // Typewriter Gaze Feedback
-    if (this.typewriter) {
-        // New Ink Logic
-        if (typeof this.typewriter.updateGazeStats === "function") {
-            this.typewriter.updateGazeStats(x, y);
+    // --- 1.5 Owl ---
+    startOwlScene() {
+        this.state.isTracking = true;
+        this.state.isOwlTracker = true;
+        this.switchScreen("screen-owl");
+        // User Request: Make gaze dot transparent (invisible) but keep tracking active
+        if (typeof window.setGazeDotState === "function") {
+            window.setGazeDotState(false);
         }
-        // Legacy Logic (if exists)
-        if (typeof this.typewriter.checkGazeDistance === "function") {
-            this.typewriter.checkGazeDistance(x, y);
+    },
+
+    startReadingFromOwl() {
+        // Stop owl tracking and start reading
+        this.state.isOwlTracker = false;
+        this.switchScreen("screen-read");
+
+        // [FIX] Explicitly START the game engine here mostly ONCE.
+        if (this.typewriter && typeof this.typewriter.start === 'function') {
+            this.typewriter.start();
         }
-    }
-},
+    },
 
-onCalibrationFinish() {
-    console.log("Calibration finished. Starting Owl Scene.");
-    this.startOwlScene();
-},
+    // --- 2. Reading Rift (Original Logic kept for reference, overlaid below) ---
+    startReadingSession_OLD() {
+        // ... existing logic ...
+    },
 
-// --- 3. Boss Battle ---
-// checkBoss(optionIndex) - DELETED (Deprecated feature: Direct call to Typewriter checkBossAnswer used instead)
+    confrontVillain() {
+        if (this.typewriter) this.typewriter.isPaused = true; // Stop typewriter logic
+        this.state.isTracking = false;
+
+        // [FIX] Clean up Reading Screen Artifacts
+        // 1. Hide Pang Markers (Clear Layer)
+        const pangLayer = document.getElementById("pang-marker-layer");
+        if (pangLayer) pangLayer.innerHTML = "";
+
+        // 2. Hide Reading Content (Prevent Flash/Ghosting on next load)
+        // By clearing this now, we ensure the next paragraph starts fresh without old text visible.
+        const bookContent = document.getElementById("book-content");
+        if (bookContent) bookContent.innerHTML = "";
+
+        this.switchScreen("screen-boss");
+    },
+
+    // Called by app.js (SeeSo overlay)
+    onGaze(x, y) {
+        // Owl Interaction
+        if (this.state.isOwlTracker) {
+            const pupils = document.querySelectorAll('.pupil');
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            const maxMove = 20;
+
+            let dx = (x - cx) / (window.innerWidth / 2) * maxMove;
+            let dy = (y - cy) / (window.innerHeight / 2) * maxMove;
+            dx = Math.max(-maxMove, Math.min(maxMove, dx));
+            dy = Math.max(-maxMove, Math.min(maxMove, dy));
+
+            pupils.forEach(p => {
+                p.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            });
+            return;
+        }
+
+        // Typewriter Gaze Feedback
+        if (this.typewriter) {
+            // New Ink Logic
+            if (typeof this.typewriter.updateGazeStats === "function") {
+                this.typewriter.updateGazeStats(x, y);
+            }
+            // Legacy Logic (if exists)
+            if (typeof this.typewriter.checkGazeDistance === "function") {
+                this.typewriter.checkGazeDistance(x, y);
+            }
+        }
+    },
+
+    onCalibrationFinish() {
+        console.log("Calibration finished. Starting Owl Scene.");
+        this.startOwlScene();
+    },
+
+    // --- 3. Boss Battle ---
+    // checkBoss(optionIndex) - DELETED (Deprecated feature: Direct call to Typewriter checkBossAnswer used instead)
 
 
-// --- 4. Splash Screen Logic ---
-dismissSplash() {
-    console.log("Splash Displayed. User interaction detected.");
+    // --- 4. Splash Screen Logic ---
+    dismissSplash() {
+        console.log("Splash Displayed. User interaction detected.");
 
-    // 1. Check In-App Browser IMMEDIATELY upon touch
-    if (this.isInAppBrowser()) {
-        // If In-App, redirect to System Browser (Chrome) immediately.
-        // This will reload the page in Chrome with ?skip_intro=1
-        this.openSystemBrowser();
-        return;
-    }
+        // 1. Check In-App Browser IMMEDIATELY upon touch
+        if (this.isInAppBrowser()) {
+            // If In-App, redirect to System Browser (Chrome) immediately.
+            // This will reload the page in Chrome with ?skip_intro=1
+            this.openSystemBrowser();
+            return;
+        }
 
-    // 2. If Normal Browser, Transition to Lobby
-    // Audio interaction could go here
+        // 2. If Normal Browser, Transition to Lobby
+        // Audio interaction could go here
 
-    // Transition to Lobby
-    const splash = document.getElementById("screen-splash");
-    if (splash) {
-        splash.style.opacity = "0";
-        setTimeout(() => {
+        // Transition to Lobby
+        const splash = document.getElementById("screen-splash");
+        if (splash) {
+            splash.style.opacity = "0";
+            setTimeout(() => {
+                this.switchScreen("screen-home");
+                // Reset opacity for potential reuse or simply hide
+                splash.style.display = "none";
+            }, 500); // Match CSS transition if any, or just fast
+        } else {
             this.switchScreen("screen-home");
-            // Reset opacity for potential reuse or simply hide
-            splash.style.display = "none";
-        }, 500); // Match CSS transition if any, or just fast
-    } else {
-        this.switchScreen("screen-home");
-    }
-},
-
-// --- NEW: Enriched Game Flow (Debug / Implementation) ---
-debugFinalVillain() {
-    console.log("Debug: Starting Final Villain Sequence");
-    if (this.typewriter && typeof this.typewriter.triggerFinalBossBattle === "function") {
-        this.typewriter.triggerFinalBossBattle();
-    } else {
-        console.error("Game.typewriter.triggerFinalBossBattle is missing!");
-        this.switchScreen("screen-final-boss"); // Fallback
-    }
-},
-
-goToNewScore() {
-    this.switchScreen("screen-new-score");
-
-    // Animated Count Up for Stats
-    // 1. WPM
-    let wpmVal = Math.round(this.state.wpmDisplay || 180);
-    if (wpmVal < 50) wpmVal = 150 + Math.floor(Math.random() * 100); // Fallback for debug
-    this.animateValue("report-wpm", 0, wpmVal, 1500);
-
-    // 2. Accuracy (Mock based on missing lines?)
-    const accVal = 88 + Math.floor(Math.random() * 11); // 88-99%
-    this.animateValue("report-acc", 0, accVal, 1500, "%");
-},
-
-goToNewSignup() {
-    this.switchScreen("screen-new-signup");
-},
-
-goToNewShare() {
-    // Simulate Signup submission if coming from Signup screen
-    const emailInput = document.querySelector("#screen-new-signup input[type='email']");
-    if (emailInput && emailInput.value) {
-        console.log("Signup Email:", emailInput.value);
-        // Optionally show toast
-    }
-    this.switchScreen("screen-new-share");
-},
-
-// Utilities
-animateValue(id, start, end, duration, suffix = "") {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        // Ease-out effect
-        const easeProgress = 1 - Math.pow(1 - progress, 3);
-
-        obj.innerHTML = Math.floor(easeProgress * (end - start) + start) + suffix;
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
         }
-    };
-    window.requestAnimationFrame(step);
-}
+    },
+
+    // --- NEW: Enriched Game Flow (Debug / Implementation) ---
+    debugFinalVillain() {
+        console.log("Debug: Starting Final Villain Sequence");
+        if (this.typewriter && typeof this.typewriter.triggerFinalBossBattle === "function") {
+            this.typewriter.triggerFinalBossBattle();
+        } else {
+            console.error("Game.typewriter.triggerFinalBossBattle is missing!");
+            this.switchScreen("screen-final-boss"); // Fallback
+        }
+    },
+
+    goToNewScore() {
+        this.switchScreen("screen-new-score");
+
+        // Animated Count Up for Stats
+        // 1. WPM
+        let wpmVal = Math.round(this.state.wpmDisplay || 180);
+        if (wpmVal < 50) wpmVal = 150 + Math.floor(Math.random() * 100); // Fallback for debug
+        this.animateValue("report-wpm", 0, wpmVal, 1500);
+
+        // 2. Accuracy (Mock based on missing lines?)
+        const accVal = 88 + Math.floor(Math.random() * 11); // 88-99%
+        this.animateValue("report-acc", 0, accVal, 1500, "%");
+    },
+
+    goToNewSignup() {
+        this.switchScreen("screen-new-signup");
+    },
+
+    goToNewShare() {
+        // Simulate Signup submission if coming from Signup screen
+        const emailInput = document.querySelector("#screen-new-signup input[type='email']");
+        if (emailInput && emailInput.value) {
+            console.log("Signup Email:", emailInput.value);
+            // Optionally show toast
+        }
+        this.switchScreen("screen-new-share");
+    },
+
+    // Utilities
+    animateValue(id, start, end, duration, suffix = "") {
+        const obj = document.getElementById(id);
+        if (!obj) return;
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            // Ease-out effect
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+            obj.innerHTML = Math.floor(easeProgress * (end - start) + start) + suffix;
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            }
+        };
+        window.requestAnimationFrame(step);
+    }
 };
 
 // --- Typewriter Mode Logic (Refactored for TextRenderer) ---
