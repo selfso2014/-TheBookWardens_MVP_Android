@@ -1017,7 +1017,7 @@ class TextRenderer {
         el.style.transform = 'translate(-50%, -50%) scale(0)'; // Start scaling from 0
         el.style.color = '#FFD700'; // Gold Color for Combo
         el.style.fontWeight = 'bold';
-        el.style.fontSize = '24px'; // Larger Base Font
+        el.style.fontSize = '16px'; // Reduced Base Font
         el.style.fontFamily = 'monospace';
         el.style.pointerEvents = 'none';
         el.style.zIndex = '1000000';
