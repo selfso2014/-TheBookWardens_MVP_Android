@@ -81,26 +81,21 @@
 /* Story Text Overlay (HUD Box - Lore Style) */
 #rift-story-overlay {
     position: absolute;
-    bottom: 10%;
+    bottom: 5%;
     left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    transform: translateX(-50%);
     width: auto;
-    max-width: 80%;
-    padding: 12px 40px;
-    background: rgba(0, 0, 0, 0.6);
-    /* Semi-transparent subtitle style */
-    border-top: 1px solid rgba(255, 215, 0, 0.4);
-    border-bottom: 1px solid rgba(255, 215, 0, 0.4);
-    border-left: none;
-    border-right: none;
-    /* border: 1px solid rgba(255, 215, 0, 0.3); */
-    border-radius: 4px;
-    /* Less rounded */
+    max-width: 90%;
+    padding: 10px 40px;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.8), transparent);
+    /* Subtitle Gradient */
+    border: none;
+    border-radius: 0;
     text-align: center;
     font-family: 'Cinzel', serif;
     /* Game theme font */
-    font-size: 1.3rem;
-    /* Smaller font */
+    font-size: 1.1rem;
+    /* Smaller, elegant font */
     color: #ffd700;
     /* Gold text */
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -110,8 +105,8 @@
     pointer-events: none;
     cursor: default;
     /* Not clickable */
-    backdrop-filter: blur(2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(1px);
+    box-shadow: none;
 }
 
 #rift-story-overlay.show {
