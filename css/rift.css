@@ -1,0 +1,319 @@
+/* Rift Animation Styles: Scene-based */
+#screen-rift-intro {
+    background: radial-gradient(circle at center, #1a0a1f 0%, #000 90%);
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: none;
+    color: white;
+    font-family: 'Cinzel', serif;
+}
+
+#screen-rift-intro.active {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: flex-start;
+    /* Changed from center */
+    align-items: center;
+    padding-top: 100px;
+    /* Much more space at top for Villain */
+    box-sizing: border-box;
+}
+
+/* Scene 1: Peace (Golden Light) */
+.scene-peace #rift-text-container {
+    opacity: 1;
+    opacity: 1;
+    transform: translateY(0);
+    /* box-shadow: 0 0 50px rgba(255, 215, 0, 0.2); handled by image drop-shadow */
+    /* border-color: rgba(255, 215, 0, 0.4); */
+}
+
+.scene-peace .rift-book-title {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+/* Scene 2: Warning (Darkness & Fog) */
+.scene-warning {
+    background: linear-gradient(180deg, #000 0%, #1a0520 100%) !important;
+    transition: background 2s;
+}
+
+.scene-warning #rift-villain-container {
+    opacity: 0.6;
+    transform: scale(1.05);
+}
+
+.scene-warning #rift-text-container {
+    filter: brightness(0.7) blur(1px);
+    border-color: #555;
+}
+
+/* Scene 3: Invasion (Red Alert) */
+.scene-invasion #rift-villain-container {
+    opacity: 1;
+    transform: scale(1.1) translateY(-10px);
+    filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.6));
+}
+
+.scene-invasion #rift-text-container {
+    animation: mildShake 3s infinite;
+    /* border-color: #ff4444; */
+}
+
+/* Scene 4: Destruction (Chaos) */
+.scene-destruction {
+    background: #2a0000 !important;
+    animation: bgFlash 0.5s infinite alternate;
+}
+
+.scene-destruction #rift-text-container {
+    animation: hardShake 0.1s infinite;
+    filter: contrast(1.5) hue-rotate(-20deg);
+}
+
+/* Story Text Overlay (HUD Box) */
+/* Story Text Overlay (HUD Box - Lore Style) */
+#rift-story-overlay {
+    position: absolute;
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+    /* Increased width again (+15%) */
+    max-width: 1400px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.8), transparent);
+    /* Subtitle Gradient */
+    border: none;
+    border-radius: 0;
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    /* Game theme font */
+    font-size: 1.2rem;
+    /* Slightly larger for readability */
+    color: #ffd700;
+    /* Gold text */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.5s;
+    z-index: 99999;
+    pointer-events: none;
+    cursor: default;
+    /* Not clickable */
+    backdrop-filter: blur(1px);
+    box-shadow: none;
+    line-height: 1.6;
+}
+
+#rift-story-overlay.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Villain Container */
+#rift-villain-container {
+    margin-bottom: 20px;
+    z-index: 5;
+    opacity: 0;
+    /* Initially hidden */
+    transition: all 2s ease-in-out;
+    position: relative;
+    /* For speech bubble positioning */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Villain Speech Bubble */
+#rift-villain-speech {
+    position: absolute;
+    top: 100%;
+    /* Below the villain */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #fff;
+    color: #8b0000;
+    /* Dark Red Speech */
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: 3px solid #000;
+    font-family: 'Impact', sans-serif;
+    /* Strong readable font */
+    font-size: 1.5rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+#rift-villain-speech::after {
+    /* Speech Bubble Tail (Pointing UP) */
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -10px;
+    transform: translateX(-50%);
+    border-width: 0 10px 10px 10px;
+    border-style: solid;
+    border-color: transparent transparent #fff transparent;
+}
+
+#rift-villain-speech.show {
+    opacity: 1;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    from {
+        transform: translateX(-50%) translateY(10px) scale(0);
+    }
+
+    to {
+        transform: translateX(-50%) translateY(10px) scale(1);
+    }
+}
+
+.rift-villain-img {
+    width: 180px;
+    /* Smaller to prevent clipping */
+    height: auto;
+    filter: drop-shadow(0 0 10px rgba(100, 0, 100, 0.5));
+}
+
+#rift-text-container {
+    width: 90%;
+    max-width: 1000px;
+    padding: 30px;
+    color: #eee;
+    /* Pure white for original text */
+    font-family: 'Crimson Text', serif;
+    font-size: 1.2rem;
+    /* Slightly larger text */
+    line-height: 1.6;
+    /* background: rgba(0, 0, 0, 0.7); Remove box background */
+    /* border: 1px solid #555; Remove border */
+    border-radius: 8px;
+    z-index: 4;
+    position: relative;
+    transition: all 1s;
+    /* box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); Remove box shadow */
+    text-align: center;
+    opacity: 0;
+    /* Initially hidden */
+    transform: translateY(20px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rift-book-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    color: #ffd700;
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+    padding-bottom: 10px;
+}
+
+/* Damaged Text State */
+.rift-damaged {
+    /* Container Shake/Rotation only - Visual damage is on the Image now via rift-book.css */
+    transform: rotate(-1deg);
+    /* border-color: #ff0000 !important; */
+    /* background: rgba(50, 0, 0, 0.8) !important; */
+}
+
+/* Meteor/Rift Magic Streak */
+.meteor {
+    position: absolute;
+    width: 250px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #ff4444, #ffffff);
+    border-radius: 5px;
+    box-shadow: 0 0 10px #ff0000, 0 0 20px #ffffff;
+    opacity: 0;
+    transform-origin: left center;
+    transform: rotate(45deg);
+    z-index: 9999;
+    pointer-events: none;
+    animation: meteorFly 1.5s cubic-bezier(0.2, 0.4, 0.8, 1) forwards;
+}
+
+@keyframes meteorFly {
+    0% {
+        transform: translate(-20vw, -20vh) rotate(45deg) scaleX(0.5);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(120vw, 120vh) rotate(45deg) scaleX(1.5);
+        opacity: 0;
+    }
+}
+
+/* Animations */
+@keyframes bgFlash {
+    0% {
+        background-color: #2a0000;
+    }
+
+    50% {
+        background-color: #440000;
+    }
+
+    100% {
+        background-color: #1a0000;
+    }
+}
+
+@keyframes mildShake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-2px);
+    }
+
+    75% {
+        transform: translateX(2px);
+    }
+}
+
+@keyframes hardShake {
+    0% {
+        transform: translate(0, 0) rotate(0);
+    }
+
+    25% {
+        transform: translate(-5px, 5px) rotate(-1deg);
+    }
+
+    50% {
+        transform: translate(5px, -5px) rotate(1deg);
+    }
+
+    75% {
+        transform: translate(-5px, -5px) rotate(-1deg);
+    }
+
+    100% {
+        transform: translate(5px, 5px) rotate(1deg);
+    }
+}

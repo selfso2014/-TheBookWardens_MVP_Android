@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaze Data Graph Visualizer</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        // --- Chart 10: MAD Algorithm Debug Analysis (Realtime VX vs Threshold) ---
+        const debugVX=data.map(d=> d.debugVX);
+        const debugThresh=data.map(d=> d.debugThreshold);
+        const debugMed=data.map(d=> d.debugMedian);
+
+        // Only render if debug data exists
+        if (debugVX.some(v=> v !==null && v !==undefined)) {
+            const ctx10=createCanvas('chart10', "Chart 10: MAD Return Sweep Detection (Realtime VX vs Dynamic Threshold)");
+
+            const chart10=new Chart(ctx10, {
+
+                type: 'line',
+                data: {
+
+                    labels: labels,
+                    datasets: [ {
+                        label: 'Realtime VX (Negative)',
+                        data: debugVX,
+                        borderColor: 'blue',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        order: 2
+                    }
+
+                    ,
+                    {
+                    label: 'Dynamic Threshold (K=1.5)',
+                    data: debugThresh,
+                    borderColor: 'red',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    order: 1
+                }
+
+                ,
+                {
+                label: 'Median (Neg Samples)',
+                data: debugMed,
+                borderColor: 'green',
+                borderWidth: 1,
+                borderDash: [2, 2],
+                pointRadius: 0,
+                hidden: true // Hide by default to reduce clutter
+            }
+
+            ,
+            {
+            label: 'Did Fire (Triggered)',
+            data: data.map(d=> d.didFire ? d.debugVX : null),
+            type: 'scatter',
+            backgroundColor: 'gold',
+            pointStyle: 'star',
+            radius: 8,
+            order: 0
+        }
+
+        ]
+        }
+
+        ,
+        options: {
+
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            }
+
+            ,
+            scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 20
+                    }
+                }
+
+                ,
+                y: {
+                    title: {
+                        display: true, text: 'Velocity (px/ms)'
+                    }
+
+                    // We expect negative values mostly
+                }
+            }
+
+            ,
+            plugins: {
+                annotation: {
+                    annotations: {
+                        zeroLine: {
+                            type: 'line',
+                            yMin: 0,
+                            yMax: 0,
+                            borderColor: 'black',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            }
+        }
+
+        ,
+        plugins: [shadingPlugin]
+        });
+        algoCharts.push(chart10);
+        }
+
+        .container {
+            border: 1px solid #ccc;
+            padding: 2rem;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .upload-area {
+            margin: 2rem 0;
+            border: 2px dashed #aaa;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .upload-area:hover {
+            background: #f0f8ff;
+            border-color: #007bff;
+        }
+
+        #log {
+            white-space: pre-wrap;
+            background: #333;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Chart Layout */
+        #charts-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 300px !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Gaze Data Graph Visualizer</h1>
+        <p>Upload a CSV file to visualize gaze data analysis graphs instantly.</p>
+
+        <div class="upload-area" id="dropZone">
+            <p>Drag & Drop CSV file here or click to upload</p>
+            <input type="file" id="fileInput" accept=".csv,.txt" style="display: none;">
+            <button class="btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Select
+                File</button>
+        </div>
+
+        <div id="log">Ready. Waiting for file...</div>
+
+        <div id="charts-container">
+            <!-- Charts will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        // Global Error Handler to catch and display script errors
+        window.onerror = function (msg, url, line, col, error) {
+            const el = document.getElementById('log');
+            if (el) {
+                el.innerText += `\n[ERROR] ${msg} (Line ${line})\n`;
+                el.style.color = '#ff5555';
+            }
+            console.error("Global Error:", msg, error);
+            return false;
+        };
+
+        // --- 1. Core Algorithms (Inlined from velx-spike-detector.js) ---
+
+        function median(arr) {
+            const a = arr.filter(Number.isFinite).slice().sort((x, y) => x - y);
+            const n = a.length;
+            if (n === 0) return NaN;
+            const mid = Math.floor(n / 2);
+            return n % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+        }
+
+        function mad(arr, med) {
+            return median(arr.filter(Number.isFinite).map(v => Math.abs(v - med)));
+        }
+
+        function detectVelXSpikes(samples, { k = 3.0, gapMs = 120, expandOneSample = true } = {}) {
+            const ts = samples.map(s => Number(s.ts_ms));
+            const velX = samples.map(s => Number(s.velX));
+            const absVel = velX.map(v => Math.abs(v));
+
+            const med = median(absVel);
+            let m = mad(absVel, med);
+            let scale = 1.4826 * m;
+
+            if (!Number.isFinite(scale) || scale < 1e-12) {
+                const finite = absVel.filter(Number.isFinite);
+                const mean = finite.reduce((a, b) => a + b, 0) / Math.max(1, finite.length);
+                const varr = finite.reduce((a, v) => { const d = v - mean; return a + d * d; }, 0) / Math.max(1, finite.length - 1);
+                const std = Math.sqrt(varr);
+                scale = std > 1e-12 ? std : 1.0;
+            }
+
+            const threshold = med + k * scale;
+            const spikeMask = absVel.map(v => Number.isFinite(v) && v > threshold);
+
+            const idx = [];
+            for (let i = 0; i < spikeMask.length; i++) if (spikeMask[i]) idx.push(i);
+
+            let segments = [];
+            if (idx.length) {
+                let s = idx[0], p = idx[0];
+                for (let j = 1; j < idx.length; j++) {
+                    const i = idx[j];
+                    if (i === p + 1) p = i;
+                    else { segments.push([s, p]); s = i; p = i; }
+                }
+                segments.push([s, p]);
+            }
+
+            if (expandOneSample) {
+                segments = segments.map(([a, b]) => [Math.max(0, a - 1), Math.min(samples.length - 1, b + 1)]);
+            }
+
+            const timeSegments = segments.map(([a, b]) => [ts[a], ts[b], a, b]);
+            const merged = [];
+            for (const seg of timeSegments) {
+                if (!merged.length) merged.push(seg.slice());
+                else {
+                    const last = merged[merged.length - 1];
+                    if (seg[0] - last[1] <= gapMs) { last[1] = seg[1]; last[3] = seg[3]; }
+                    else merged.push(seg.slice());
+                }
+            }
+
+            const spikeIntervals = merged.map(([start_ms, end_ms, aIdx, bIdx]) => {
+                let peak = 0;
+                for (let i = aIdx; i <= bIdx; i++) peak = Math.max(peak, Math.abs(velX[i]) || 0);
+                return { start_ms, end_ms, duration_ms: end_ms - start_ms, peakAbsVelX: peak, startIndex: aIdx, endIndex: bIdx };
+            });
+
+            return { threshold, spikeIntervals, spikeMask };
+        }
+
+        // --- 2. Logic (Ported from GazeDataManager & debug-reprocess.mjs) ---
+
+        function log(msg) {
+            const el = document.getElementById('log');
+            el.innerText += msg + "\n";
+            el.scrollTop = el.scrollHeight;
+            console.log(msg);
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                log(`File loaded. Size: ${content.length} bytes.`);
+                runAlgo(content, file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        function runAlgo(rawContent, filename) {
+            log("Parsing CSV for Visualization (Skipping Reprocessing)...");
+
+            // Remove BOM if present
+            if (rawContent.charCodeAt(0) === 0xFEFF) {
+                rawContent = rawContent.slice(1);
+            }
+
+            const lines = rawContent.split(/\r?\n/).filter(line => line.trim() !== '');
+            const data = [];
+            let firstTimestamp = null;
+            let ignoredLines = 0;
+
+            // Column Mapping (Init with -1)
+            let colMap = {
+                t: -1, x: -1, y: -1,
+                gx: -1, gy: -1,
+                vx: -1, vy: -1,
+                lineIndex: -1, charIndex: -1,
+                targetY: -1, avgY: -1,
+                algoLineIndex: -1,
+                isReturnSweep: -1,
+                extrema: -1,
+                rx: -1, ry: -1,
+                inkY: -1, inkSuccess: -1,
+                // Debug Columns
+                isArmed: -1, didFire: -1,
+                debugSamples: -1, debugMedian: -1, debugThreshold: -1, debugVX: -1
+            };
+
+            let startRow = 0;
+            let delimiter = ',';
+
+            // 1. Detect Delimiter & Header
+            if (lines.length > 0) {
+                const firstLine = lines[0].trim();
+
+                // Delimiter check
+                const commaCount = (firstLine.match(/,/g) || []).length;
+                const tabCount = (firstLine.match(/\t/g) || []).length;
+                if (tabCount > commaCount) delimiter = '\t';
+
+                const parts = firstLine.split(delimiter).map(s => s.trim().toLowerCase());
+
+                // Header Detection
+                if (isNaN(parseFloat(parts[0]))) {
+                    log(`Header detected. Delimiter: '${delimiter === '\t' ? 'TAB' : 'COMMA'}'`);
+
+                    parts.forEach((p, i) => {
+                        // Time
+                        if (p.includes('relative') || p.includes('time') || p === 't') colMap.t = i;
+                        // Raw
+                        else if (p === 'rawx' || p === 'x') colMap.x = i;
+                        else if (p === 'rawy' || p === 'y') colMap.y = i;
+                        // Smooth
+                        else if (p === 'smoothx' || p === 'gx') colMap.gx = i;
+                        else if (p === 'smoothy' || p === 'gy') colMap.gy = i;
+                        // Velocity
+                        else if (p === 'velx' || p === 'vx') colMap.vx = i;
+                        else if (p === 'vely' || p === 'vy') colMap.vy = i;
+                        // Indices
+                        else if (p === 'lineindex') colMap.lineIndex = i;
+                        else if (p === 'charindex') colMap.charIndex = i;
+                        else if (p === 'algolineindex' || p.includes('algo')) colMap.algoLineIndex = i;
+                        // Metadata
+                        else if (p.includes('targety')) colMap.targetY = i;
+                        else if (p.includes('avgcool')) colMap.avgY = i;
+                        else if (p.includes('returnsweep')) colMap.isReturnSweep = i;
+                        else if (p.includes('extrema')) colMap.extrema = i;
+                        // Replay & Ink
+                        else if (p.includes('replayx')) colMap.rx = i;
+                        else if (p.includes('replayy')) colMap.ry = i;
+                        else if (p.includes('inky') || p.includes('ink_y')) colMap.inkY = i;
+                        else if (p.includes('inksuccess') || p === 'inksuccess' || p === 'success') colMap.inkSuccess = i;
+                        // Debug
+                        else if (p.includes('isarmed')) colMap.isArmed = i;
+                        else if (p.includes('didfire')) colMap.didFire = i;
+                        else if (p.includes('debug_samples')) colMap.debugSamples = i;
+                        else if (p.includes('debug_median')) colMap.debugMedian = i;
+                        else if (p.includes('debug_threshold')) colMap.debugThreshold = i;
+                        else if (p.includes('debug_realtimevx')) colMap.debugVX = i;
+                    });
+
+                    startRow = 1;
+                } else {
+                    // No Header - Default Mapping (Assume Raw Format)
+                    log("No Header detected. Using default Raw indices (T=0, X=1, Y=2).");
+                    colMap.t = 0; colMap.x = 1; colMap.y = 2;
+                }
+            }
+
+            // Fallback: If T is not mapped, assume 0
+            if (colMap.t === -1) {
+                log("Warning: Time column not found by name. Forcing T=0.");
+                colMap.t = 0;
+            }
+
+            log(`Mapped Columns: T=${colMap.t}, X=${colMap.x}, SmoothX=${colMap.gx}, LineIndex=${colMap.lineIndex}, AlgoIdx=${colMap.algoLineIndex}, Rx=${colMap.rx}, Ry=${colMap.ry}, InkY=${colMap.inkY}`);
+            log(`Debug Cols: VX=${colMap.debugVX}, Thresh=${colMap.debugThreshold}, Fire=${colMap.didFire}`);
+
+            // 2. Parse Data
+            let lastValidLineIndex = null;
+
+            for (let i = startRow; i < lines.length; i++) {
+                const line = lines[i];
+                const parts = line.split(delimiter).map(s => s.trim());
+
+                if (parts.length < 2) {
+                    ignoredLines++;
+                    if (ignoredLines <= 3) log(`[Ignored] Line ${i} too short: "${line}"`);
+                    continue;
+                }
+
+                // Safe Parse Helper
+                const getVal = (idx) => {
+                    if (idx === -1 || idx >= parts.length) return null;
+                    const val = parts[idx];
+                    if (val === "" || val === "null" || val === undefined) return null;
+                    const num = parseFloat(val);
+                    return isNaN(num) ? val : num;
+                };
+
+                const t = getVal(colMap.t);
+                if (t === null || typeof t !== 'number') {
+                    ignoredLines++;
+                    if (ignoredLines <= 3) log(`[Ignored] Line ${i}: Invalid Timestamp at col ${colMap.t}. Value="${parts[colMap.t]}"`);
+                    continue;
+                }
+
+                // Parsing Logic
+                let lIdx = getVal(colMap.lineIndex);
+                if (lIdx !== null && typeof lIdx === 'number') {
+                    lastValidLineIndex = lIdx;
+                } else {
+                    lIdx = lastValidLineIndex;
+                }
+
+                const gx = getVal(colMap.gx);
+                const gy = getVal(colMap.gy);
+
+                // Return Sweep Parsing
+                let isRS = false;
+                const rsVal = getVal(colMap.isReturnSweep);
+                if (rsVal === "TRUE" || rsVal === "true" || rsVal === true) isRS = true;
+
+                // DidFire Parsing
+                let fired = false;
+                const fireVal = getVal(colMap.didFire);
+                if (fireVal === "TRUE" || fireVal === "true" || fireVal === true) fired = true;
+
+                data.push({
+                    t: t,
+                    x: getVal(colMap.x),
+                    y: getVal(colMap.y),
+                    gx: gx,
+                    gy: gy,
+                    vx: getVal(colMap.vx),
+                    vy: getVal(colMap.vy),
+                    lineIndex: lIdx,
+                    charIndex: getVal(colMap.charIndex),
+                    inkY: getVal(colMap.inkY),
+                    targetY: getVal(colMap.targetY),
+                    avgY: getVal(colMap.avgY),
+                    detectedLineIndex: getVal(colMap.algoLineIndex),
+                    extrema: getVal(colMap.extrema),
+                    isReturnSweep: isRS,
+                    rx: getVal(colMap.rx),
+                    ry: getVal(colMap.ry),
+                    inkSuccess: (getVal(colMap.inkSuccess) === "TRUE" || getVal(colMap.inkSuccess) === "true" || getVal(colMap.inkSuccess) === true),
+                    // Debug Fields
+                    isArmed: (getVal(colMap.isArmed) === "TRUE" || getVal(colMap.isArmed) === "true"),
+                    didFire: fired,
+                    debugSamples: getVal(colMap.debugSamples),
+                    debugMedian: getVal(colMap.debugMedian),
+                    debugThreshold: getVal(colMap.debugThreshold),
+                    debugVX: getVal(colMap.debugVX),
+
+                    type: 'Unknown'
+                });
+            }
+
+            log(`Loaded ${data.length} valid rows. (Ignored ${ignoredLines} lines)`);
+            if (data.length > 0) {
+                log(`Sample Row [0]: T=${data[0].t}, VX=${data[0].vx}, DebugVX=${data[0].debugVX}, Thresh=${data[0].debugThreshold}`);
+            }
+            log("Skipping internal reprocessing (Interpolation/Smoothing/Detection) as requested.");
+
+            if (data.length < 10) {
+                log("Warning: Less than 10 data points loaded.");
+            }
+
+            // Directly Render
+            log("Rendering Charts with CSV Data...");
+            setTimeout(() => renderCharts(data), 100);
+        }
+
+        function preprocessData(geoData) {
+            // ... (rest of preprocess logic)
+        }
+
+        // --- 3. Helper Functions & Plugins ---
+
+        const shadingPlugin = {
+            id: 'shading',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea, scales } = chart;
+                if (!chartArea) return;
+                const x = scales.x;
+
+                // data is available via chart.config.data
+                // We need to access return sweep info.
+                // It's attached to the dataset or we can infer it.
+                // Actually, let's access the raw data if bound, or pass it via options?
+                // Simplest: The chart context usually has access to the data array if mapped.
+                // But here we rely on the global 'data' scope or we passed it?
+                // Wait, 'shadingPlugin' is used in specific charts (2, 3, 7). 
+                // We need to know 'isReturnSweep' time ranges.
+                // We can iterate the dataset index 0 (assumed to be primary) and check time holes? No.
+
+                // FIX: Let's pass the shading ranges via chart options or assume a global 'window.shadingRanges'?
+                // Or better, generate the shading intervals inside renderCharts and attach to the plugin instance?
+                // Given the architecture, let's just implement a simple version or skip if complex.
+                // The previous error was just 'createCanvas is not defined'.
+                // Let's implement basics.
+            }
+        };
+
+        function createCanvas(id, title) {
+            const container = document.getElementById('charts-container');
+            let wrapper = document.getElementById(`wrapper-${id}`);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.id = `wrapper-${id}`;
+                wrapper.className = 'chart-wrapper';
+
+                const header = document.createElement('h3');
+                header.innerText = title;
+                wrapper.appendChild(header);
+
+                const cvs = document.createElement('canvas');
+                cvs.id = id;
+                wrapper.appendChild(cvs);
+                container.appendChild(wrapper);
+            } else {
+                // Update title if changed
+                wrapper.querySelector('h3').innerText = title;
+            }
+            return document.getElementById(id).getContext('2d');
+        }
+
+        // --- 4. Chart Rendering ---
+
+        let algoCharts = [];
+
+        function renderCharts(data) {
+            // Clear container
+            const container = document.getElementById('charts-container');
+            // We don't clear innerHTML because we want to reuse wrappers if possible to avoid flicker,
+            // or we just clear all.
+            container.innerHTML = '';
+            algoCharts.forEach(c => c.destroy());
+            algoCharts = [];
+
+            const labels = data.map(d => d.t); // Define labels here
+
+            // Helper for shading Return Sweeps (Generic)
+            const returnSweepIntervals = [];
+            let rStart = null;
+            data.forEach(d => {
+                if (d.isReturnSweep) {
+                    if (rStart === null) rStart = d.t;
+                } else {
+                    if (rStart !== null) {
+                        returnSweepIntervals.push({ start: rStart, end: d.t }); // End at current
+                        rStart = null;
+                    }
+                }
+            });
+            // If data ends with sweep
+            if (rStart !== null) returnSweepIntervals.push({ start: rStart, end: data[data.length - 1].t });
+
+            // Re-define plugin with closure over intervals
+            const shadingPlugin = {
+                id: 'shading',
+                beforeDatasetsDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+                    const x = scales.x;
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 0, 255, 0.1)'; // Light Magenta
+
+                    for (const it of returnSweepIntervals) {
+                        const x0 = x.getPixelForValue(it.start);
+                        const x1 = x.getPixelForValue(it.end);
+                        if (Number.isFinite(x0) && Number.isFinite(x1)) {
+                            // Draw rect covering full height
+                            ctx.fillRect(Math.min(x0, x1), chartArea.top, Math.abs(x1 - x0), chartArea.bottom - chartArea.top);
+                        }
+                    }
+                    ctx.restore();
+                }
+            };
+
+            // --- Chart 2: SmoothY, TargetY, AvgCoolGazeY, ReplayY, InkY ---
+            const ctx2 = createCanvas('chart2', "Chart 2: Vertical Y Analysis");
+            const chart2 = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'SmoothY', data: data.map(d => d.gy), borderColor: 'orange', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'TargetY_Px', data: data.map(d => d.targetY), borderColor: 'blue', borderWidth: 2, pointRadius: 0, stepped: true },
+                        { label: 'AvgCoolGazeY_Px', data: data.map(d => d.avgY), borderColor: 'green', borderWidth: 2, pointRadius: 0, borderDash: [5, 5], stepped: true },
+                        { label: 'ReplayY', data: data.map(d => d.ry), borderColor: '#9932CC', borderWidth: 2, pointRadius: 0, borderDash: [2, 2] },
+                        { label: 'InkY_Px', data: data.map(d => d.inkY), borderColor: 'red', borderWidth: 2, pointRadius: 0, borderDash: [1, 2], stepped: true } // New: InkY visualization
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart2);
+
+            // --- Chart 3: SmoothX, Extrema, ReturnSweep, ReplayX ---
+            const lineStarts = data.map(d => d.extrema === 'LineStart' ? d.gx : null);
+            const posMaxs = data.map(d => d.extrema === 'PosMax' ? d.gx : null);
+
+            const ctx3 = createCanvas('chart3', "Chart 3: SmoothX & Extrema & ReturnSweeps");
+            const chart3 = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'SmoothX', data: data.map(d => d.gx), borderColor: 'blue', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'ReplayX', data: data.map(d => d.rx), borderColor: '#00FFFF', borderWidth: 2, pointRadius: 0, borderDash: [2, 2] }, // Cyan Dashed
+                        { label: 'ReturnSweep', data: data.map(d => d.isReturnSweep ? d.gx : null), type: 'scatter', backgroundColor: 'magenta', pointStyle: 'rectRot', radius: 4 },
+                        { label: 'LineStart', data: lineStarts, type: 'scatter', backgroundColor: 'green', pointStyle: 'triangle', radius: 6, rotation: 180 },
+                        { label: 'PosMax', data: posMaxs, type: 'scatter', backgroundColor: 'red', pointStyle: 'triangle', radius: 6 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } }, plugins: { legend: { labels: { usePointStyle: true } } } },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart3);
+
+            // --- Chart 4: VelX, VelY ---
+            const ctx4 = createCanvas('chart4', "Chart 4: Velocity X/Y");
+            const chart4 = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'VelX', data: data.map(d => d.vx), borderColor: 'purple', borderWidth: 1, pointRadius: 0 },
+                        { label: 'VelY', data: data.map(d => d.vy), borderColor: 'brown', borderWidth: 1, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
+            });
+            algoCharts.push(chart4);
+
+            // --- Chart 5: LineIndex, AlgoLineIndex ---
+            const ctx5 = createCanvas('chart5', "Chart 5: Line Indices");
+            const chart5 = new Chart(ctx5, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'LineIndex',
+                            data: data.map(d => d.lineIndex),
+                            borderColor: 'rgba(0, 255, 255, 0.6)',
+                            backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                            borderWidth: 8, // Very thick
+                            stepped: true,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'AlgoLineIndex',
+                            data: data.map(d => d.detectedLineIndex),
+                            borderColor: '#ff00ff',
+                            borderWidth: 2,
+                            borderDash: [0, 0], // Solid line for visibility
+                            stepped: true,
+                            pointRadius: 3, // Add points to make it stand out on top
+                            pointBackgroundColor: '#ff00ff'
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
+            });
+            algoCharts.push(chart5);
+
+            // --- Chart 6: CharIndex ---
+            const ctx6 = createCanvas('chart6', "Chart 6: Char Index");
+            const chart6 = new Chart(ctx6, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'CharIndex', data: data.map(d => d.charIndex), borderColor: 'black', borderWidth: 2, pointRadius: 0, stepped: true }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } } }
+            });
+            algoCharts.push(chart6);
+
+            // --- Chart 7: Replay X/Y Combined with ReturnSweep ---
+            // MOVED TO renderChart11 to synchronize with Dynamic K Return Sweeps
+            /*
+            const ctx7 = createCanvas('chart7', "Chart 7: Replay X/Y & ReturnSweep");
+            const chart7 = new Chart(ctx7, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'ReplayX', data: data.map(d => d.rx), borderColor: '#00FFFF', borderWidth: 2, pointRadius: 0 },
+                        { label: 'ReplayY', data: data.map(d => d.ry), borderColor: '#9932CC', borderWidth: 2, pointRadius: 0 },
+                        {
+                            label: 'ReturnSweep',
+                            data: data.map(d => d.isReturnSweep ? d.rx || d.gx : null), // Fallback to SmoothX if ReplayX is null
+                            type: 'scatter',
+                            backgroundColor: 'magenta',
+                            pointStyle: 'rectRot',
+                            radius: 4
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { maxTicksLimit: 20 } } }, plugins: { legend: { labels: { usePointStyle: true } } } },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart7);
+            */
+
+            // --- Chart 8: Spatial Plot (RawX vs RawY) with Target Lines ---
+            const maxX = Math.max(...data.map(d => typeof d.x === 'number' ? d.x : 0), 1000);
+            // Filter unique TargetY values
+            const uniqueTargetYs = [...new Set(data.map(d => d.targetY))].filter(y => y !== null && y !== "" && !isNaN(y)).sort((a, b) => a - b);
+
+            // Color Palette for Segments
+            const segmentColors = [
+                'rgba(255, 0, 0, 0.6)',    // Red
+                'rgba(255, 140, 0, 0.6)',  // Dark Orange
+                'rgba(200, 200, 0, 0.6)',  // Darker Yellow (for visibility)
+                'rgba(0, 150, 0, 0.6)',    // Green
+                'rgba(0, 0, 255, 0.6)',    // Blue
+                'rgba(75, 0, 130, 0.6)',   // Indigo
+                'rgba(148, 0, 211, 0.6)',  // Violet
+                'rgba(0, 139, 139, 0.6)',  // Dark Cyan
+                'rgba(128, 0, 0, 0.6)',    // Maroon
+                'rgba(85, 107, 47, 0.6)'   // Olive
+            ];
+
+            const spatialDatasets = [];
+            const sweepPoints = [];
+
+            let currentSegment = [];
+            let segIndex = 0;
+            let isInSweep = false;
+
+            data.forEach((d, i) => {
+                // User Request: Force X to 100 for all points
+                const pt = { x: 100, y: d.y };
+
+                if (d.isReturnSweep) {
+                    sweepPoints.push(pt);
+
+                    // If we were not in a sweep, this marks the end of a segment
+                    if (!isInSweep) {
+                        if (currentSegment.length > 0) {
+                            spatialDatasets.push({
+                                label: `Segment ${segIndex + 1}`,
+                                data: [...currentSegment],
+                                backgroundColor: segmentColors[segIndex % segmentColors.length],
+                                pointRadius: 3,
+                                type: 'scatter'
+                            });
+                            currentSegment = [];
+                            segIndex++;
+                        }
+                        isInSweep = true;
+                    }
+                } else {
+                    // Reset sweep flag if we are back to normal
+                    if (isInSweep) {
+                        isInSweep = false;
+                    }
+                    currentSegment.push(pt);
+                }
+            });
+
+            // Add remaining segment
+            if (currentSegment.length > 0) {
+                spatialDatasets.push({
+                    label: `Segment ${segIndex + 1}`,
+                    data: [...currentSegment],
+                    backgroundColor: segmentColors[segIndex % segmentColors.length],
+                    pointRadius: 3,
+                    type: 'scatter'
+                });
+            }
+
+            // Add Return Sweeps Dataset (Visualized on top)
+            if (sweepPoints.length > 0) {
+                spatialDatasets.push({
+                    label: 'Return Sweep',
+                    data: sweepPoints,
+                    backgroundColor: 'rgba(255, 0, 255, 0.9)', // Bright Magenta
+                    pointRadius: 4,
+                    pointStyle: 'triangle',
+                    type: 'scatter'
+                });
+            }
+
+            // Add Lines for TargetY
+            uniqueTargetYs.forEach((yVal, idx) => {
+                spatialDatasets.push({
+                    label: `Line Y=${yVal}`,
+                    data: [{ x: 0, y: yVal }, { x: maxX, y: yVal }], // Horizontal line
+                    type: 'line',
+                    borderColor: 'rgba(255, 0, 0, 0.8)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    borderDash: [5, 5],
+                    fill: false
+                });
+            });
+
+            const ctx8 = createCanvas('chart8', "Chart 8: Spatial Gaze Plot (RawX vs RawY) - Color Coded by Line Segment");
+            const chart8 = new Chart(ctx8, {
+                data: { datasets: spatialDatasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            reverse: true, // Screen coordinate system (Y goes down)
+                            title: { display: true, text: 'Raw Y (Px) - Reversed' },
+                            beginAtZero: true
+                        },
+                        x: {
+                            position: 'top',
+                            title: { display: true, text: 'Raw X (Px)' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                filter: function (item, chart) {
+                                    // Show Segments and Return Sweep, hide individual target lines to save space if needed
+                                    // But showing target line legend is okay.
+                                    return true;
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    if (context.dataset.type === 'line') return `Target Line Y: ${context.parsed.y}`;
+                                    return `(${context.parsed.x}, ${context.parsed.y}) [${context.dataset.label}]`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            algoCharts.push(chart8);
+
+            // --- Chart 9: Positive VelY Spike Detection (k=1.5) ---
+            // Detect Positive VelY spikes (Downward movement = Line Breaks)
+            const velySamples = data.map(d => ({
+                ts_ms: d.t,
+                velX: (typeof d.vy === 'number' && d.vy > 0) ? d.vy : 0 // FILTER: Positive Only
+            }));
+
+            const velYResult = detectVelXSpikes(velySamples, { k: 1.5, gapMs: 120, expandOneSample: true });
+
+            // Map spikes back to data for visualization
+            const velYSpikePoints = [];
+            velYResult.spikeIntervals.forEach(interval => {
+                for (let k = interval.startIndex; k <= interval.endIndex; k++) {
+                    if (data[k] && data[k].vy > 0) velYSpikePoints.push({ x: data[k].t, y: data[k].vy });
+                }
+            });
+
+            const ctx9 = createCanvas('chart9', "Chart 9: Positive Vertical Velocity (VelY > 0) Analysis (Default k=1.5)");
+            const chart9 = new Chart(ctx9, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Positive VelY',
+                            data: data.map(d => (d.vy > 0 ? d.vy : 0)), // Display only positive
+                            borderColor: 'brown',
+                            borderWidth: 1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Detected Spikes (k=1.0)',
+                            data: velYSpikePoints,
+                            type: 'scatter',
+                            backgroundColor: 'red',
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 20 } },
+                        y: { beginAtZero: true, min: 0 } // Force Y axis to start at 0
+                    },
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                thresholdLine: {
+                                    type: 'line',
+                                    yMin: velYResult.threshold,
+                                    yMax: velYResult.threshold,
+                                    borderColor: 'rgba(255, 0, 0, 0.5)',
+                                    borderWidth: 1,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: `Threshold: ${velYResult.threshold.toFixed(2)}`,
+                                        enabled: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            // --- Calculation for Chart 11 (Restored) ---
+            const reCalcVelX = [];
+            const reCalcVelY = [];
+
+            for (let i = 0; i < data.length; i++) {
+                if (i === 0) {
+                    reCalcVelX.push(0);
+                    reCalcVelY.push(0);
+                } else {
+                    const dt = data[i].t - data[i - 1].t;
+                    if (dt > 0) {
+                        const vx = (data[i].x - data[i - 1].x) / dt;
+                        const vy = (data[i].y - data[i - 1].y) / dt;
+                        reCalcVelX.push(vx);
+                        reCalcVelY.push(vy);
+                    } else {
+                        reCalcVelX.push(0);
+                        reCalcVelY.push(0);
+                    }
+                }
+            }
+
+            // [REMOVED] Old Chart 10 (Recalculated Velocity) in favor of MAD Debug Chart
+
+            // --- Chart 11: Independent Return Sweep Detection & Visualization (Like Chart 3) ---
+            // UI Calculation for K value
+            let dynamicK = 1.5; // Default
+
+            // Function to Render Chart 11
+            function renderChart11(kVal) {
+                // Remove existing chart 11 from array if present
+                const existingIndex = algoCharts.findIndex(c => c.canvas.id === 'chart11');
+                if (existingIndex !== -1) {
+                    algoCharts[existingIndex].destroy();
+                    algoCharts.splice(existingIndex, 1);
+                }
+
+                // 1. Prepare samples using Recalculated VelX
+                // Use same logic as detectLinesMobile: Mask positive velocity to 0
+                const reCalcSamples = reCalcVelX.map((v, i) => ({
+                    ts_ms: data[i].t,
+                    velX: v < 0 ? v : 0
+                }));
+
+                // 2. Run Detection (Use Dynamic K)
+                const reCalcResult = detectVelXSpikes(reCalcSamples, { k: kVal, gapMs: 120, expandOneSample: true });
+
+                // 3. Identify Return Sweeps (Filter by Displacement > 100px)
+                const candidates = reCalcResult.spikeIntervals.filter(interval => {
+                    const sIdx = interval.startIndex;
+                    const eIdx = interval.endIndex;
+                    if (data[sIdx] && data[eIdx]) {
+                        const startX = data[sIdx].x !== null ? data[sIdx].x : 0;
+                        const endX = data[eIdx].x !== null ? data[eIdx].x : 0;
+                        const displacement = startX - endX;
+                        return displacement > 100;
+                    }
+                    return false;
+                });
+
+                // --- Advanced Validation (Algorithm 1 & 2) ---
+                // 0. Dynamic Threshold Calculation
+                let observedMinLineDur = Infinity;
+                let curLineIdxForDur = -1;
+                let curLineStartTForDur = -1;
+
+                for (let i = 0; i < data.length; i++) {
+                    const d = data[i];
+                    if (d.lineIndex !== null && d.lineIndex !== undefined && d.lineIndex !== "") {
+                        const idx = Number(d.lineIndex);
+                        if (idx !== curLineIdxForDur) {
+                            if (curLineIdxForDur !== -1) {
+                                const duration = d.t - curLineStartTForDur;
+                                if (duration > 50 && duration < observedMinLineDur) {
+                                    observedMinLineDur = duration;
+                                }
+                            }
+                            curLineIdxForDur = idx;
+                            curLineStartTForDur = d.t;
+                        }
+                    }
+                }
+                if (observedMinLineDur === Infinity) observedMinLineDur = 300;
+
+                const MIN_LINE_DURATION = observedMinLineDur * 0.5;
+                log(`[Chart11 Dynamic Threshold] MinObserved=${observedMinLineDur}ms -> Threshold=${MIN_LINE_DURATION}ms`);
+
+                const validSweeps = [];
+                let currentLineNum = 1;
+                let lastSweepEndTime = -Infinity;
+
+                for (const sweep of candidates) {
+                    const sweepData = data[sweep.startIndex];
+                    const sweepTime = sweepData.t;
+
+                    // Algo 2: Time Gap
+                    const timeSinceLast = sweepData.t - lastSweepEndTime;
+                    if (validSweeps.length > 0 && timeSinceLast < MIN_LINE_DURATION) {
+                        // log(`[Chart11 Reject] Rapid Fire: dt=${timeSinceLast}ms < ${MIN_LINE_DURATION}ms`);
+                        continue;
+                    }
+
+                    // Algo 1: LineNum Constraint
+                    // Note: carry-forward logic is assumed done in load or simple check
+                    let currentLineIndex = sweepData.lineIndex;
+                    if (currentLineIndex !== null && currentLineIndex !== undefined) {
+                        // Algorithm 1 Refined: Line Change Verification (Anti-Regression)
+                        // A valid Return Sweep must result in a Line Index increment.
+                        // We check a 200ms window after sweep end for system latency.
+
+                        /* 
+                        // TEMPORARILTY DISABLED to allow pure K-based visualization
+                        const startLineVal = Number(currentLineIndex);
+                        let lineIncreased = false;
+                        const toleranceWindow = 200; // ms
+                        const searchUntil = sweep.end_ms + toleranceWindow;
+
+                        // Check Post-Sweep Data
+                        for (let k = sweep.endIndex; k < data.length; k++) {
+                            const d = data[k];
+                            if (d.t > searchUntil) break;
+
+                            if (d.lineIndex !== null && d.lineIndex !== undefined) {
+                                // Must be strictly greater than start line
+                                if (Number(d.lineIndex) > startLineVal) {
+                                    lineIncreased = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!lineIncreased) {
+                            // console.log(`[Reject Sweep] Regression/Premature: LineIndex did not increase (${startLineVal} -> ?) within 200ms of Sweep End.`);
+                            continue;
+                        }
+                        */
+                    }
+
+                    validSweeps.push(sweep);
+                    lastSweepEndTime = sweep.end_ms;
+                    currentLineNum++;
+                }
+
+                // 4. Map to Visualization Data
+                const detectedSweepPoints = [];
+                const sweepIntervalsForShading = [];
+
+                validSweeps.forEach(sw => {
+                    sweepIntervalsForShading.push({ start: data[sw.startIndex].t, end: data[sw.endIndex].t });
+                    for (let k = sw.startIndex; k <= sw.endIndex; k++) {
+                        detectedSweepPoints.push({ x: data[k].t, y: data[k].x }); // Plot on X-graph
+                    }
+                });
+
+                const ctx11 = createCanvas('chart11', `Chart 11: Independent Return Sweep Detection (RawX + Recalc VelX) [K=${kVal}]`, true);
+
+                // Local Shading Plugin for this chart
+                const localShadingPlugin = {
+                    id: 'localReturnSweepShading',
+                    beforeDatasetsDraw(chart) {
+                        const { ctx, chartArea, scales } = chart;
+                        if (!chartArea) return;
+                        const x = scales.x;
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Green tint for NEW detection
+
+                        for (const it of sweepIntervalsForShading) {
+                            const x0 = x.getPixelForValue(it.start);
+                            const x1 = x.getPixelForValue(it.end);
+                            if (Number.isFinite(x0) && Number.isFinite(x1)) {
+                                ctx.fillRect(Math.min(x0, x1), chartArea.top, Math.abs(x1 - x0), chartArea.bottom - chartArea.top);
+                            }
+                        }
+                        ctx.restore();
+                    }
+                };
+
+                const chart11 = new Chart(ctx11, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'RawX',
+                                data: data.map(d => d.x),
+                                borderColor: '#888',
+                                borderWidth: 1,
+                                pointRadius: 0,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'LineIndex',
+                                data: data.map(d => d.lineIndex),
+                                borderColor: 'orange', // Orange for visibility
+                                backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                stepped: true,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: 'Detected RS Points',
+                                data: detectedSweepPoints,
+                                type: 'scatter',
+                                backgroundColor: 'lime', // Bright Green
+                                pointStyle: 'rectRot',
+                                radius: 4,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 20 } },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Raw X (px)' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                grid: {
+                                    drawOnChartArea: false, // only want the grid lines for one axis to show up
+                                },
+                                title: { display: true, text: 'Line Index' },
+                                min: 0,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    },
+                    plugins: [localShadingPlugin]
+                });
+                algoCharts.push(chart11);
+
+                // 5. Generate Simulated Replay Data (Based on Chart 11 Sweeps)
+                // [Logic Update] Dual-Threshold Strategy
+                // 1. Detected RS (User K) -> Shown as Magenta Diamonds
+                // 2. Broad RS (Lower K) -> Used to define 'Clean Reading Segments' for Replay Simulation
+
+                // A. Calculate Broad Sweeps for Segmentation (K=0.5 for wide coverage)
+                // Use the same samples as before
+                const broadResult = detectVelXSpikes(reCalcSamples, { k: 0.5, gapMs: 120, expandOneSample: true });
+                const broadCandidates = broadResult.spikeIntervals.filter(interval => {
+                    const sIdx = interval.startIndex;
+                    const eIdx = interval.endIndex;
+                    if (data[sIdx] && data[eIdx]) {
+                        const startX = data[sIdx].x !== null ? data[sIdx].x : 0;
+                        const endX = data[eIdx].x !== null ? data[eIdx].x : 0;
+                        return (startX - endX) > 100; // Same 100px threshold
+                    }
+                    return false;
+                });
+
+                // Use broad sweeps to define lines
+                const simLines = [];
+                let currentStartIdx = 0;
+                broadCandidates.sort((a, b) => a.startIndex - b.startIndex);
+
+                broadCandidates.forEach(sw => {
+                    // Line ends at Broad Sweep START
+                    const endIdx = sw.startIndex;
+                    if (endIdx > currentStartIdx) {
+                        simLines.push({ startIdx: currentStartIdx, endIdx: endIdx });
+                    }
+                    // Next line starts at Broad Sweep END (skipping the tail)
+                    currentStartIdx = sw.endIndex;
+                });
+                if (currentStartIdx < data.length) {
+                    simLines.push({ startIdx: currentStartIdx, endIdx: data.length - 1 });
+                }
+
+                // B. Calculate Min/Max and TargetY for each Sim Line using Clean Segments
+                const validTargetYs = [...new Set(data.map(d => d.targetY))].filter(y => y !== null && y !== "" && !isNaN(y)).sort((a, b) => a - b);
+
+                const simReplayX = new Array(data.length).fill(null);
+                const simReplayY = new Array(data.length).fill(null);
+                const simReturnSweepPoints = [];
+                // simReturnSweepPoints will be populated from the *User Detected* sweeps for correlation visualization
+                // But visualized at the 'jump' point.
+
+                // Context Logic
+                simLines.forEach((line, idx) => {
+                    // [Refinement] 10% Trim Logic (Use middle 80% of D-Section)
+                    // The segment 'line' represents the "Clean" (Non-Sweep) period.
+                    // We further restrict this to the middle 80% to avoid edge instability.
+                    const segmentLen = line.endIdx - line.startIdx;
+                    const trimAmt = Math.floor(segmentLen * 0.10); // 10%
+                    const safeStartIdx = line.startIdx + trimAmt;
+                    const safeEndIdx = line.endIdx - trimAmt;
+
+                    let minX = Infinity, maxX = -Infinity;
+                    // Find Min/Max within this SAFER segment
+                    for (let i = safeStartIdx; i <= safeEndIdx; i++) {
+                        const val = data[i].gx !== null ? data[i].gx : data[i].x;
+                        if (val !== null && typeof val === 'number') {
+                            if (val < minX) minX = val;
+                            if (val > maxX) maxX = val;
+                        }
+                    }
+
+                    // Determine TargetY (Majority Vote) - Scan full segment or safe segment? 
+                    // Safe segment is better representative.
+                    const successTargetYCounts = {};
+                    const allTargetYCounts = {};
+                    let modeSuccessY = null;
+                    let modeAllY = null;
+                    let maxSuccessCount = 0;
+                    let maxAllCount = 0;
+
+                    for (let i = safeStartIdx; i <= safeEndIdx; i++) {
+                        const d = data[i];
+                        const tY = d.targetY;
+                        if (tY !== null && tY !== "" && tY !== undefined) {
+                            allTargetYCounts[tY] = (allTargetYCounts[tY] || 0) + 1;
+                            if (allTargetYCounts[tY] > maxAllCount) { maxAllCount = allTargetYCounts[tY]; modeAllY = tY; }
+
+                            if (d.inkSuccess) {
+                                successTargetYCounts[tY] = (successTargetYCounts[tY] || 0) + 1;
+                                if (successTargetYCounts[tY] > maxSuccessCount) { maxSuccessCount = successTargetYCounts[tY]; modeSuccessY = tY; }
+                            }
+                        }
+                    }
+
+                    let majorityTargetY = (maxSuccessCount > 0) ? modeSuccessY : ((maxAllCount > 0) ? modeAllY : (200 + idx * 40));
+
+                    // Fill Replay Data (Only for Safe Region)
+                    for (let i = line.startIdx; i <= line.endIdx; i++) {
+                        if (i >= safeStartIdx && i <= safeEndIdx) {
+                            const val = data[i].gx !== null ? data[i].gx : data[i].x;
+                            if (val !== null && typeof val === 'number') {
+                                let norm = 0;
+                                if (maxX > minX) norm = (val - minX) / (maxX - minX);
+                                simReplayX[i] = norm * 350;
+                            }
+                            simReplayY[i] = majorityTargetY;
+                        } else {
+                            // Trimmed areas -> Null
+                            simReplayX[i] = null;
+                            simReplayY[i] = null;
+                        }
+                    }
+                });
+
+                // C. Render Chart 7 (Simulated)
+                // Remove existing chart 7
+                const existingIndex7 = algoCharts.findIndex(c => c.canvas.id === 'chart7');
+                if (existingIndex7 !== -1) {
+                    algoCharts[existingIndex7].destroy();
+                    algoCharts.splice(existingIndex7, 1);
+                }
+
+                // Prepare RS points for Chart 7 (Visualize the Jump)
+                validSweeps.forEach(sw => {
+                    // Start of sweep (Line End) -> End of sweep (Next Line Start)
+                    // Visualize a point at the sweep start time
+                    if (data[sw.startIndex]) {
+                        simReturnSweepPoints.push({ x: data[sw.startIndex].t, y: simReplayX[sw.startIndex] });
+                    }
+                });
+
+                const ctx7 = createCanvas('chart7', `Chart 7: Simulated Replay X/Y (Segmentation k=0.5, ReturnSweep k=${kVal})`, true);
+                const chart7 = new Chart(ctx7, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'ReplayX (Sim)', data: simReplayX, borderColor: '#00FFFF', borderWidth: 2, pointRadius: 0 }, // Cyan
+                            { label: 'ReplayY (Sim)', data: simReplayY, borderColor: '#9932CC', borderWidth: 2, pointRadius: 0 }, // Purple
+                            {
+                                label: 'Detected RS',
+                                data: detectedSweepPoints, // Reuse detected points from Chart 11
+                                type: 'scatter',
+                                backgroundColor: 'magenta',
+                                pointStyle: 'rectRot',
+                                radius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { x: { ticks: { maxTicksLimit: 20 } } },
+                        plugins: { legend: { labels: { usePointStyle: true } } }
+                    },
+                    plugins: [localShadingPlugin] // Reuse shading from Chart 11
+                });
+                algoCharts.push(chart7);
+
+                // Inject UI controls after chart is created
+                setTimeout(injectChart11Controls, 100);
+            }
+
+            // --- Chart 12: Actual Replay X/Y over Time (CSV Data) ---
+            // Visualizes Rx and Ry as time-series data
+
+            const ctx12 = createCanvas('chart12', "Chart 12: Actual Replay X/Y over Time (CSV Data)");
+            const chart12 = new Chart(ctx12, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual ReplayX (Rx)',
+                            data: data.map(d => d.rx), // Rx from CSV
+                            borderColor: '#00cc00', // Green
+                            backgroundColor: 'rgba(0, 204, 0, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 2, // Small points to show density
+                            pointHoverRadius: 5,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Actual ReplayY (Ry)',
+                            data: data.map(d => d.ry), // Ry from CSV
+                            borderColor: '#9932CC', // Purple
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            tension: 0
+                        },
+                        {
+                            label: 'TargetY_Px',
+                            data: data.map(d => d.targetY), // Actual Text Line Y
+                            borderColor: 'blue',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            borderDash: [5, 5],
+                            stepped: true // Draw as steps for clear line distinction
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: { maxTicksLimit: 20 },
+                            title: { display: true, text: 'Time (ms)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Pixel Value' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [shadingPlugin]
+            });
+            algoCharts.push(chart12);
+
+            // Initial Render
+            renderChart11(dynamicK);
+
+            // Expose update function globally or via event
+            window.updateChart11K = (newK) => {
+                dynamicK = parseFloat(newK);
+                if (!isNaN(dynamicK)) {
+                    log(`Updating Chart 11 with K=${dynamicK}`);
+                    renderChart11(dynamicK);
+                }
+            };
+        }
+
+        // --- 3. UI Events ---
+        // UI for Chart 11 (Inserted dynamically above Chart 11)
+        function injectChart11Controls() {
+            if (document.getElementById('chart11-controls')) return;
+
+            const chart11Canvas = document.getElementById('chart11');
+            if (!chart11Canvas) return; // Wait until chart is created
+
+            const wrapper = chart11Canvas.parentNode; // .chart-wrapper
+            const container = document.getElementById('charts-container');
+
+            const ctrlDiv = document.createElement('div');
+            ctrlDiv.id = 'chart11-controls';
+            ctrlDiv.style.margin = '10px 0';
+            ctrlDiv.style.padding = '10px';
+            ctrlDiv.style.background = '#eee';
+            ctrlDiv.style.borderRadius = '4px';
+            ctrlDiv.style.textAlign = 'center';
+            ctrlDiv.innerHTML = `
+                <label style="font-weight:bold; margin-right:10px;">Chart 11 Sensitivity (K):</label>
+                <input type="number" id="inputK" value="1.5" step="0.1" style="width:60px;padding:5px; margin-right:10px;">
+                <button class="btn" style="padding: 5px 15px;" onclick="window.updateChart11K(document.getElementById('inputK').value)">Update K</button>
+            `;
+
+            // Insert BEFORE the Chart 11 wrapper
+            container.insertBefore(ctrlDiv, wrapper);
+        }
+
+        // Hook into updateChart11K to ensure controls exist? No, create after initial render.
+        // We will call this at the end of renderCharts()
+        injectChart11Controls(); // Call after initial chart 11 render
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // Area click triggers input, but ignore if clicked on button (handled inline) or input itself
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON' && e.target !== fileInput) {
+                fileInput.click();
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#e6f7ff';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#fff';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#fff';
+            if (e.dataTransfer.files.length > 0) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+    </script>
+</body>
+
+</html>

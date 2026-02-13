@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Gaze Debug Viz</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            background: white;
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .upload-box:hover {
+            border-color: #007bff;
+            background: #eef6ff;
+        }
+
+        .upload-box.active {
+            border-color: #007bff;
+            background: #eef6ff;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #444;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        #logArea {
+            background: #222;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            height: 150px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>👁️ Simple Gaze Debugger</h1>
+            <p>Return Sweep (MAD Algorithm) & Trace Analysis</p>
+        </div>
+
+        <div class="upload-box" id="dropZone">
+            <h3>Drag & Drop CSV File Here</h3>
+            <p>or click to browse</p>
+            <input type="file" id="fileInput" accept=".csv" style="display:none">
+        </div>
+
+        <div id="logArea">Ready. Waiting for file...</div>
+
+        <div id="healthReport" class="card" style="display:none; border-left: 5px solid #ccc;"></div>
+
+        <div id="dashboard" style="display:none;">
+            <div class="card">
+                <h2>📉 Chart 1: Return Sweep Logic Analysis (MAD Algorithm)</h2>
+                <p style="font-size:0.9rem; color:#666;">
+                    Blue Line: Realtime Velocity (VX) | Red Dashed: Dynamic Threshold | ⭐ Gold Star: "팡" Triggered
+                </p>
+                <div class="chart-container">
+                    <canvas id="chartMAD"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🗺️ Chart 2: Spatial Gaze Path (Raw X/Y)</h2>
+                <div class="chart-container" style="height: 500px;">
+                    <canvas id="chartSpatial"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⏱️ Chart 3: Position & Line Index Over Time</h2>
+                <div class="chart-container">
+                    <canvas id="chartTime"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const logArea = document.getElementById('logArea');
+        let charts = [];
+
+        // --- Logger ---
+        function log(msg) {
+            const line = document.createElement('div');
+            line.textContent = `> ${msg}`;
+            logArea.appendChild(line);
+            logArea.scrollTop = logArea.scrollHeight;
+            console.log(msg);
+        }
+
+        // --- Drag & Drop ---
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+            log(`Loading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+
+            const reader = new FileReader();
+            reader.onload = e => parseCSV(e.target.result);
+            reader.readAsText(file);
+        }
+
+        // --- Robust CSV Parser ---
+        function parseCSV(content) {
+            log("Parsing CSV...");
+
+            // 1. Remove BOM
+            if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+
+            const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+            if (lines.length < 2) {
+                log("Error: File is empty or too short.");
+                return;
+            }
+
+            // 2. Head Detection
+            let headerLine = lines[0];
+            let delimiter = headerLine.includes('\t') ? '\t' : ',';
+            const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase());
+
+            log(`Detected Delimiter: "${delimiter === '\t' ? 'TAB' : 'COMMA'}"`);
+            log(`Headers: ${headers.join(', ')}`);
+
+            // 3. Map Columns
+            const findCol = (keywords) => headers.findIndex(h => keywords.some(k => h.includes(k)));
+
+            const colMap = {
+                t: findCol(['time', 'relative', 't']),
+                x: findCol(['rawx', 'x']),
+                y: findCol(['rawy', 'y']),
+                vx: findCol(['velx', 'vx']),
+                lineIdx: findCol(['lineindex']),
+                // Debug Cols
+                dbgVX: findCol(['debug_realtimevx', 'realtimevx', 'debugvx']),
+                dbgThresh: findCol(['debug_threshold', 'threshold']),
+                dbgMed: findCol(['debug_median', 'median']),
+                didFire: findCol(['didfire', 'fire']),
+                isArmed: findCol(['isarmed', 'armed'])
+            };
+
+            // Fallback for T if missing (assume idx 0)
+            if (colMap.t === -1) { colMap.t = 0; log("Warning: Time column not found, using index 0"); }
+
+            log(`Mapping: T=${colMap.t}, VX=${colMap.vx}, DbgVX=${colMap.dbgVX}, DbgThresh=${colMap.dbgThresh}, Fire=${colMap.didFire}`);
+
+            // 4. Parse Rows
+            const data = [];
+            let parseErrors = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(delimiter).map(s => s.trim());
+
+                // Basic validation
+                if (parts.length < headers.length - 2) { // Allow slightly shorter rows
+                    if (parseErrors++ < 3) log(`Skipping broken line ${i}: ${lines[i]}`);
+                    continue;
+                }
+
+                const getVal = (idx) => {
+                    if (idx === -1 || idx >= parts.length) return null;
+                    const v = parseFloat(parts[idx]);
+                    return isNaN(v) ? parts[idx] : v; // Return number or string
+                };
+
+                const row = {
+                    t: getVal(colMap.t),
+                    x: getVal(colMap.x),
+                    y: getVal(colMap.y),
+                    vx: getVal(colMap.vx),
+                    lineIdx: getVal(colMap.lineIdx),
+
+                    // Debug vars
+                    dbgVX: getVal(colMap.dbgVX),
+                    dbgThresh: getVal(colMap.dbgThresh),
+                    didFire: (String(getVal(colMap.didFire)).toLowerCase() === 'true'),
+                    isArmed: (String(getVal(colMap.isArmed)).toLowerCase() === 'true')
+                };
+
+                if (typeof row.t === 'number') data.push(row);
+            }
+
+            log(`Successfully parsed ${data.length} rows.`);
+            if (data.length > 0) {
+                const r0 = data[0];
+                log(`Sample Row[0]: T=${r0.t}, DbgVX=${r0.dbgVX}, Thresh=${r0.dbgThresh}, Fire=${r0.didFire}`);
+            }
+
+            analyzeDataHealth(data);
+            renderDashboard(data);
+        }
+
+        // --- Data Health Check ---
+        function analyzeDataHealth(data) {
+            if (data.length < 2) return;
+
+            let timeReversals = 0;
+            let largeGaps = 0;
+            let maxGap = 0;
+            let sumGap = 0;
+            let duplicatedTime = 0;
+            let zeroX = 0;
+            let zeroY = 0;
+
+            for (let i = 1; i < data.length; i++) {
+                const prev = data[i - 1];
+                const curr = data[i];
+                const dt = curr.t - prev.t;
+
+                if (dt < 0) timeReversals++;
+                if (dt === 0) duplicatedTime++;
+                if (dt > 100) largeGaps++; // Gap > 100ms
+                if (dt > maxGap) maxGap = dt;
+                sumGap += dt;
+
+                if (curr.x === 0) zeroX++;
+                if (curr.y === 0) zeroY++;
+            }
+
+            const avgGap = sumGap / (data.length - 1);
+            const estHz = avgGap > 0 ? (1000 / avgGap).toFixed(1) : 0;
+            const totalDuration = (data[data.length - 1].t - data[0].t) / 1000;
+
+            // Render Report
+            const reportDiv = document.getElementById('healthReport');
+            reportDiv.style.display = 'block';
+
+            // Status determination
+            let status = "GOOD";
+            let color = "#28a745"; // Green
+            if (timeReversals > 0 || largeGaps > data.length * 0.1) {
+                status = "WARNING";
+                color = "#ffc107"; // Yellow
+            }
+            if (avgGap > 100 || maxGap > 5000) {
+                status = "CRITICAL";
+                color = "#dc3545"; // Red
+            }
+
+            reportDiv.innerHTML = `
+                <h3 style="margin-top:0; border-bottom:2px solid ${color}; padding-bottom:5px; color:${color}">
+                    🩺 Data Health Status: ${status}
+                </h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; font-size:0.9rem;">
+                    <div>
+                        <strong>Sampling Rate:</strong> ${estHz} Hz<br>
+                        <strong>Total Duration:</strong> ${totalDuration.toFixed(1)} s<br>
+                        <strong>Total Samples:</strong> ${data.length}
+                    </div>
+                    <div>
+                        <strong>Time Reversals:</strong> <span style="color:${timeReversals > 0 ? 'red' : 'inherit'}">${timeReversals}</span><br>
+                        <strong>Duplicated Ts:</strong> ${duplicatedTime}<br>
+                        <strong>Avg Interval:</strong> ${avgGap.toFixed(1)} ms
+                    </div>
+                    <div>
+                        <strong>Large Gaps (>100ms):</strong> <span style="color:${largeGaps > 0 ? 'red' : 'inherit'}">${largeGaps}</span><br>
+                        <strong>Max Gap:</strong> ${maxGap.toFixed(0)} ms<br>
+                        <strong>Zero(0,0) Points:</strong> ${zeroX} / ${zeroY}
+                    </div>
+                </div>
+                ${timeReversals > 0 ? '<p style="color:red; margin:5px 0 0;">⚠️ Time Reversals detected! The data is out of order. Timestamps must be monotonic.</p>' : ''}
+                ${maxGap > 500 ? `<p style="color:orange; margin:5px 0 0;">⚠️ Large data loss detected (${maxGap.toFixed(0)}ms gap). This may cause detection misses.</p>` : ''}
+            `;
+        }
+
+        // --- Rendering ---
+        function renderDashboard(data) {
+            document.getElementById('dashboard').style.display = 'block';
+
+            // Destroy old charts
+            charts.forEach(c => c.destroy());
+            charts = [];
+
+            // Prepare Datasets
+            const labels = data.map(d => d.t);
+
+            // 1. MAD Analysis Chart
+            const madCtx = document.getElementById('chartMAD').getContext('2d');
+            charts.push(new Chart(madCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Realtime VX (Blue)',
+                            data: data.map(d => d.dbgVX !== null ? d.dbgVX : d.vx), // Fallback to raw VX if debug missing
+                            borderColor: '#007bff',
+                            borderWidth: 1.5,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Threshold (Red Dashed)',
+                            data: data.map(d => d.dbgThresh),
+                            borderColor: '#dc3545',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        },
+                        {
+                            label: "Triggered! (Star)",
+                            data: data.map(d => d.didFire ? (d.dbgVX || d.vx || -1) : null),
+                            type: 'scatter',
+                            backgroundColor: '#ffc107',
+                            pointStyle: 'star',
+                            radius: 10,
+                            order: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { title: { display: true, text: 'Velocity (px/ms)' } }
+                    }
+                }
+            }));
+
+            // 2. Spatial Path Chart
+            const spatialCtx = document.getElementById('chartSpatial').getContext('2d');
+            const spatialData = data.map(d => ({ x: d.x, y: d.y }));
+
+            // Highlight Return Sweeps
+            const sweepPoints = data.filter(d => d.didFire).map(d => ({ x: d.x, y: d.y }));
+
+            charts.push(new Chart(spatialCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Gaze Path',
+                            data: spatialData,
+                            borderColor: 'rgba(0,0,0,0.1)',
+                            backgroundColor: 'rgba(0,0,0,0.1)',
+                            pointRadius: 2,
+                            showLine: false
+                        },
+                        {
+                            label: 'Trigger Points',
+                            data: sweepPoints,
+                            backgroundColor: '#ffc107',
+                            pointStyle: 'star',
+                            radius: 10
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { position: 'top', title: { display: true, text: 'Raw X' } },
+                        y: { reverse: true, title: { display: true, text: 'Raw Y' } }
+                    }
+                }
+            }));
+
+            // 3. Time Series Chart
+            const timeCtx = document.getElementById('chartTime').getContext('2d');
+            charts.push(new Chart(timeCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Raw X',
+                            data: data.map(d => d.x),
+                            borderColor: '#28a745',
+                            borderWidth: 1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Line Index (Right Axis)',
+                            data: data.map(d => d.lineIdx),
+                            borderColor: '#fd7e14',
+                            borderWidth: 2,
+                            stepped: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { position: 'left', title: { display: true, text: 'Raw X px' } },
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Line Index' } }
+                    }
+                }
+            }));
+
+            log("Charts Rendered Successfully.");
+        }
+
+    </script>
+
+</body>
+
+</html>

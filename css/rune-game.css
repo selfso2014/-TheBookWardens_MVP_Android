@@ -1,0 +1,289 @@
+/* === Rune Mini-Game Styles === */
+
+/* Game Header */
+.game-header-mini {
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.game-stats {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: rgba(139, 47, 201, 0.2);
+    border: 1px solid rgba(139, 47, 201, 0.5);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.stat-label {
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    color: #f0c420;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-shadow: 0 0 8px rgba(240, 196, 32, 0.5);
+}
+
+/* Rune Container */
+.rune-container {
+    position: relative;
+    width: 90vw;
+    max-width: 800px;
+    height: 50vh;
+    min-height: 400px;
+    background: radial-gradient(circle at center, rgba(139, 47, 201, 0.1) 0%, transparent 70%);
+    border: 2px solid rgba(139, 47, 201, 0.3);
+    border-radius: 20px;
+    margin: 20px auto;
+    overflow: hidden;
+}
+
+/* Individual Rune */
+.rune {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.4;
+    filter: blur(1px);
+}
+
+/* Detection radius indicator */
+.rune::after {
+    content: '';
+    position: absolute;
+    width: 400px;
+    /* 200px radius * 2 */
+    height: 400px;
+    border: 2px solid rgba(0, 255, 0, 0.3);
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.rune.active {
+    opacity: 1;
+    filter: blur(0);
+    animation: runePulse 1.5s infinite;
+}
+
+.rune.target {
+    opacity: 1;
+    filter: blur(0);
+    animation: runeGlow 1s infinite;
+    transform: scale(1.2);
+}
+
+.rune.locked {
+    opacity: 0.3;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+
+.rune.success {
+    animation: runeSuccess 0.5s ease-out;
+}
+
+.rune-symbol {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(139, 47, 201, 0.8) 0%, rgba(139, 47, 201, 0.3) 70%);
+    border: 2px solid #8b2fc9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px rgba(139, 47, 201, 0.6);
+    position: relative;
+}
+
+.rune-symbol::before {
+    content: attr(data-symbol);
+    font-family: 'Cinzel', serif;
+    color: #f0c420;
+    text-shadow: 0 0 10px #f0c420;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Gaze indicator on rune */
+.rune.gazing .rune-symbol {
+    background: radial-gradient(circle, rgba(240, 196, 32, 0.9) 0%, rgba(139, 47, 201, 0.5) 70%);
+    border-color: #f0c420;
+    box-shadow: 0 0 30px rgba(240, 196, 32, 0.9);
+    transform: scale(1.1);
+}
+
+/* Owl - Centered and Larger */
+.owl-container-mini {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    z-index: 50;
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+/* Progress Bar */
+.rune-progress-container {
+    width: 90%;
+    max-width: 600px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(139, 47, 201, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px auto;
+}
+
+.rune-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8b2fc9, #f0c420);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(240, 196, 32, 0.8);
+}
+
+/* Game Message Overlay */
+.game-message {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.game-message.hidden {
+    display: none;
+}
+
+.message-content {
+    background: linear-gradient(135deg, #1a1625, #2e1045);
+    border: 3px solid #8b2fc9;
+    border-radius: 20px;
+    padding: 40px 60px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(139, 47, 201, 0.8);
+    animation: scaleIn 0.4s ease;
+}
+
+.message-content h3 {
+    font-family: 'Cinzel', serif;
+    color: #f0c420;
+    font-size: 2.5rem;
+    margin: 0 0 20px 0;
+    text-shadow: 0 0 20px #f0c420;
+}
+
+.message-content p {
+    color: #aaa;
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+/* Animations */
+@keyframes runePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+}
+
+@keyframes runeGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(240, 196, 32, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(240, 196, 32, 1);
+    }
+}
+
+@keyframes runeSuccess {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.5) rotate(180deg);
+    }
+
+    100% {
+        transform: scale(0) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .rune {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+
+    .game-stats {
+        gap: 15px;
+    }
+
+    .stat-item {
+        padding: 6px 12px;
+    }
+
+    .rune-container {
+        height: 40vh;
+        min-height: 300px;
+    }
+}

@@ -1,0 +1,28 @@
+/* --- Splash Screen --- */
+#screen-splash {
+    background: #000;
+    /* Deep black for cinematic feel */
+    cursor: pointer;
+}
+
+.start-prompt {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    animation: promptPulse 1.5s infinite alternate;
+    text-shadow: 0 0 15px var(--primary-accent);
+}
+
+@keyframes promptPulse {
+    0% {
+        opacity: 0.4;
+        transform: scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}

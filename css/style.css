@@ -1,0 +1,982 @@
+:root {
+  --bg-color: #0f0c15;
+  /* Deep dark purple/black */
+  --card-bg: #1a1625;
+  --primary-accent: #8b2fc9;
+  /* Neon Purple */
+  --secondary-accent: #2c9c91;
+  /* Teal for focus/success */
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0b0;
+  --rift-glow: 0 0 20px rgba(139, 47, 201, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  /* Modern game font */
+  overflow: hidden;
+  /* App style */
+  height: 100vh;
+  /* Fallback */
+  height: 100dvh;
+  /* Mobile viewport fix */
+  width: 100vw;
+}
+
+/* --- Eye Tracking Layers (Hidden by default or Debug) --- */
+#stage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  /* Behind game UI */
+  opacity: 0;
+  /* Hide camera feed by default */
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+#stage.visible {
+  opacity: 1;
+  z-index: 9999;
+  /* Bring to front for calibration */
+}
+
+#preview,
+#output {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#preview {
+  z-index: 1;
+  opacity: 0;
+  /* Hide camera feed (face) */
+}
+
+#output {
+  z-index: 10;
+}
+
+#stage.debug {
+  opacity: 0.3;
+}
+
+#hud {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  border-radius: 4px;
+  color: #0f0;
+  pointer-events: none;
+  display: none;
+  /* Hidden for default gameplay */
+}
+
+/* --- Game Container --- */
+#game-ui {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Navigation / Header --- */
+.game-header {
+  height: 60px;
+  flex-shrink: 0;
+  /* Prevent shrinking */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(15, 10, 25, 0.95);
+  /* Darker, slightly opaque bg */
+  border-bottom: 1px solid rgba(139, 47, 201, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  /* Ensure header stays on top */
+}
+
+/* New Resource Item Style (Compact) */
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  transition: transform 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+
+/* Stable Number Display (Prevent Jitter) */
+.resource-item span[id$="-count"],
+.resource-item span[id="wpm-display"] {
+  min-width: 24px;
+  /* Ensure space for 2-3 digits */
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  /* Monospace-like numbers */
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
+
+/* Mobile HUD Optimization */
+@media (max-width: 600px) {
+  .game-header {
+    padding: 0 10px;
+    /* Compress padding */
+    justify-content: center;
+    /* Center items */
+  }
+
+  /* Hide Rank text on mobile to save space */
+  .user-level {
+    display: none;
+  }
+
+  /* Make items compact */
+  .resource-item {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    gap: 3px;
+  }
+
+  .res-icon {
+    width: 22px;
+    /* Increased from 16px */
+    height: 22px;
+  }
+
+  /* WPM: Remove Bolt, Keep Text */
+  .wpm-badge span:first-child {
+    display: none;
+    /* Hide Bolt icon */
+  }
+
+  .wpm-badge small {
+    display: inline-block !important;
+    /* Force show WPM text */
+    font-size: 0.7rem;
+    color: #ffd700;
+    /* Gold color for emphasis */
+    margin-left: 2px;
+  }
+}
+
+.resource-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.02);
+}
+
+.res-icon {
+  width: 26px;
+  /* Increased from 18px for better visibility */
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+}
+
+/* Specific Badge Colors (Optional subtle hints) */
+.wpm-badge span#wpm-display {
+  color: #f0c420;
+  min-width: 30px;
+  text-align: right;
+  display: inline-block;
+}
+
+/* --- Screens State Manager --- */
+.screen {
+  display: none;
+  /* All screens hidden by default */
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  /* Changed from absolute for better flex behavior */
+  /* Reduced top/bottom padding to maximize reading space */
+  padding: 10px 20px;
+  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding-bottom: 80px;
+  /* Increased to avoid WPM overlap with safe margin */
+}
+
+.screen-owl {
+  background: radial-gradient(circle at center, #2e1045 0%, #0f0c15 70%);
+  text-align: center;
+  color: #f0c420;
+}
+
+.screen.active {
+  display: flex;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- 0. Home Screen --- */
+#screen-home {
+  text-align: center;
+  background: radial-gradient(circle at center, #2e1045 0%, #0f0c15 70%);
+}
+
+.title-logo {
+  font-size: 2.5rem;
+  color: var(--primary-accent);
+  text-shadow: var(--rift-glow);
+  margin-bottom: 10px;
+  font-family: 'Cinzel', serif;
+  /* Fantasy feeling */
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #6200ea, #b000df);
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  border-radius: 30px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(139, 47, 201, 0.5);
+  transition: transform 0.2s;
+  margin-bottom: 20px;
+  /* Space below button */
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+}
+
+#screen-owl .btn-primary {
+  position: relative;
+  z-index: 10001;
+  pointer-events: auto;
+}
+
+
+/* --- 1. Word Forge --- */
+.word-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.word-image-placeholder {
+  width: 100%;
+  height: 200px;
+  background: transparent;
+  /* Removed background for cleaner look */
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+}
+
+.word-title {
+  font-size: 2rem;
+  color: white;
+  margin: 10px 0;
+}
+
+.option-btn {
+  display: block;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option-btn:hover,
+.option-btn.selected {
+  background: rgba(139, 47, 201, 0.3);
+  border-color: var(--primary-accent);
+}
+
+/* --- 2. Reading Room (Rift) --- */
+#screen-read {
+  justify-content: flex-start;
+  /* Align text to top */
+  padding-top: 10px;
+  /* Reduced from 40px to start text higher */
+}
+
+.book-container {
+  max-width: 600px;
+  line-height: 2.7;
+  font-family: 'Georgia', serif;
+  font-size: 1.1rem;
+  color: #ccc;
+  position: relative;
+}
+
+.rift-text {
+  color: #ddd;
+  transition: color 0.3s;
+}
+
+/* The 'Reading' effect: when gaze hits text */
+.rift-text.read {
+  color: #fff;
+  text-shadow: 0 0 8px var(--primary-accent);
+}
+
+.highlight-word {
+  color: var(--secondary-accent);
+  font-weight: bold;
+}
+
+.rift-seal-bar {
+  position: fixed;
+  bottom: 20px;
+  width: 90%;
+  max-width: 600px;
+  height: 12px;
+  background: #333;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.rift-seal-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--secondary-accent), var(--primary-accent));
+  width: 0%;
+  transition: width 0.5s;
+}
+
+/* --- 3. Boss Battle --- */
+.boss-avatar {
+  width: 150px;
+  height: 150px;
+  background: #000;
+  border-radius: 50%;
+  border: 4px solid #f00;
+  box-shadow: 0 0 20px #f00;
+  margin-bottom: 20px;
+  background-image: url('https://via.placeholder.com/150/000000/FF0000?text=Ink+Shadow');
+  background-size: cover;
+}
+
+.boss-dialogue {
+  background: rgba(20, 10, 40, 0.9);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  border-left: 5px solid #8b2fc9;
+}
+
+/* --- In-App Browser Guide (Overlay) --- */
+#inappGuide {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #111;
+  color: #fff;
+  z-index: 20000;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* --- 1.5 Owl Screen --- */
+.owl-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+  /* Move up 250px to ensure it's visually above center */
+  transform: translateY(-250px);
+}
+
+.owl-head {
+  width: 100%;
+  height: 100%;
+  background: #4a3b2a;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.owl-face {
+  position: absolute;
+  top: 25%;
+  left: 10%;
+  width: 80%;
+  height: 60%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.owl-eye {
+  width: 70px;
+  height: 70px;
+  background: #ffeb3b;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: inset 0 0 10px #f57f17;
+  overflow: hidden;
+  border: 3px solid #3e2723;
+}
+
+.pupil {
+  width: 30px;
+  height: 30px;
+  background: #000;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Start Center */
+  /* Transition for subtle movement lag? User might want instant. */
+  transition: transform 0.05s ease-out;
+}
+
+/* Reflection in pupil */
+.pupil::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  top: 5px;
+  right: 5px;
+}
+
+.owl-beak {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 30px solid #f9a825;
+  filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Ears/Tufts - Simple */
+.owl-head::before,
+.owl-head::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-bottom: 40px solid #4a3b2a;
+}
+
+.owl-head::before {
+  left: 0;
+  transform: rotate(-20deg);
+}
+
+.owl-head::after {
+  right: 0;
+  transform: rotate(20deg);
+}
+
+/* --- Rift Effect --- */
+.rift-word {
+  color: transparent;
+  text-shadow: 0 0 10px #ff00ff, 0 0 5px #aa00aa;
+  filter: blur(4px);
+  background: rgba(20, 0, 20, 0.3);
+  border-radius: 4px;
+  cursor: help;
+  transition: all 0.5s ease;
+  user-select: none;
+  display: inline-block;
+}
+
+.rift-word.fixed {
+  color: inherit;
+  text-shadow: none;
+  filter: none;
+  background: transparent;
+  cursor: auto;
+  user-select: text;
+}
+
+/* --- Yellow Cursor for Snake Effect --- */
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.2em;
+  background-color: #ffd700;
+  /* Yellow */
+  vertical-align: sub;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  box-shadow: 0 0 5px #ffd700;
+  border-radius: 1px;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Highlight styles for debug */
+.glow-perfect {
+  background-color: #00ff00 !important;
+  box-shadow: 0 0 10px #00ff00 !important;
+}
+
+.glow-good {
+  background-color: #ffd700 !important;
+  box-shadow: 0 0 8px #ffd700 !important;
+}
+
+/* --- Chunk Fade Out Effect --- */
+#book-content span {
+  transition: opacity 1.0s ease-out;
+  /* Smooth fade */
+}
+
+.chunk-fade-out {
+  opacity: 0 !important;
+  visibility: hidden;
+  /* Ensure it's hidden from layout/rendering */
+  transition: opacity 1.0s ease-out, visibility 1.0s linear;
+  /* Match opacity duration */
+}
+
+/* --- TextRenderer Specialized Styles --- */
+.tr-word {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-block;
+  white-space: pre-wrap;
+  color: #fff;
+  /* Unified White */
+}
+
+/* Revealed State (Fade In + Slide Up) */
+.tr-word.revealed {
+  opacity: 1 !important;
+  transform: translateY(0);
+}
+
+/* Read State (Gaze Hit) - Minimal Feedback Only */
+.tr-word.read {
+  /* color: #fff !important; -- Already white */
+  /* text-shadow: 0 0 10px var(--primary-accent); -- Removed glow */
+  /* transform: scale(1.05); -- Optional: keep only subtle pop? Removing for uniformity if requested "same" */
+  z-index: 1;
+  position: relative;
+}
+
+/* Custom Cursor (for TextRenderer) */
+/* Custom Cursor (for TextRenderer) - HIDDEN (Guide Runner) */
+.tr-cursor {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background-color: transparent;
+  /* Hidden */
+  border-radius: 50%;
+  animation: none;
+  /* Remove blink animation */
+  box-shadow: none;
+  /* Remove glow */
+  position: absolute;
+  pointer-events: none;
+  transition: left 0.1s linear, top 0.1s linear;
+  z-index: 200000 !important;
+  transform: translate(0, -50%);
+  opacity: 0 !important;
+  /* Force invisible */
+}
+
+/* tr-blink animation removed */
+
+/* Impact Pulse for Return Sweep (Rhythm) */
+.tr-cursor.impact-pulse {
+  animation: cursor-landing-pulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes cursor-landing-pulse {
+  0% {
+    transform: translate(0, -50%) scale(1);
+    box-shadow: 0 0 10px #ff00ff;
+    background-color: #ff00ff;
+  }
+
+  30% {
+    transform: translate(0, -50%) scale(2.0);
+    box-shadow: 0 0 25px #00ffff;
+    /* Cyan Flash */
+    background-color: #ffffff;
+    /* White Core */
+  }
+
+  100% {
+    transform: translate(0, -50%) scale(1);
+    box-shadow: 0 0 10px #ff00ff;
+    background-color: #ff00ff;
+  }
+}
+
+/* Ink Reward Animation */
+.ink-drop {
+  pointer-events: none;
+  font-size: 1.5rem;
+  animation: ink-pop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  filter: drop-shadow(0 0 10px #00d4ff);
+  z-index: 2000;
+}
+
+@keyframes ink-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0) translateY(10px);
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1.5) translateY(0);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translateY(-20px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+
+/* Particle Effects (Re-use or New) */
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+
+  animation: particle-explode 0.8s ease-out forwards;
+}
+
+@keyframes particle-explode {
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0);
+    opacity: 0;
+  }
+}
+
+/* --- Override Fade Out (Placed at end for priority) --- */
+span.tr-word.chunk-fade-out {
+  opacity: 0 !important;
+  visibility: hidden;
+  /* FORCE RESET TRANSFORM: The default .tr-word has translateY(10px).
+     When we remove 'revealed' (translateY(0)), it reverts to 10px (down).
+     We must force it to stay at 0 to fade in place. */
+  transform: translateY(0) !important;
+  transition: opacity 1.0s ease-out, visibility 1.0s linear;
+}
+
+/* --- Villain Defeat Animation --- */
+@keyframes villain-defeat {
+  0% {
+    transform: scale(1) rotate(0deg);
+    filter: hue-rotate(280deg) drop-shadow(0 0 20px red);
+  }
+
+  20% {
+    transform: scale(1.1) rotate(-10deg);
+    filter: hue-rotate(0deg) invert(0.2);
+  }
+
+  40% {
+    transform: scale(1.1) rotate(10deg);
+    filter: hue-rotate(90deg) invert(0.5);
+  }
+
+  60% {
+    transform: scale(0.8) rotate(-10deg);
+    filter: hue-rotate(180deg) invert(0.8);
+  }
+
+  80% {
+    transform: scale(0.4) rotate(10deg);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.villain-defeated {
+  animation: villain-defeat 2.5s forwards ease-in-out;
+}
+
+/* --- Reward / Victory Screen Animations --- */
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  70% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+/* --- New Scene Stylings --- */
+.reward-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  max-width: 800px;
+  margin: 0 auto 40px auto;
+}
+
+@media (max-width: 600px) {
+  .score-grid {
+    grid-template-columns: 1fr;
+    /* Stack vertically on mobile */
+    gap: 10px;
+  }
+
+  .reward-box {
+    transform: scale(0.9);
+  }
+}
+
+/* CSS for SDK Loading Modal and Game Toast */
+
+/* 1. Modal Overlay (Centered, Dark, Blur) */
+#sdk-loading-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 30000;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(5px);
+  flex-direction: column;
+}
+
+/* 2. Modal Card */
+.sdk-loading-card {
+  background: #1a1a1a;
+  color: #f0f0f0;
+  width: 90%;
+  max-width: 400px;
+  padding: 30px;
+  border-radius: 12px;
+  border: 2px solid #00e5ff;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+  position: relative;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 3. Loading Header */
+.sdk-loading-title {
+  font-family: 'Cinzel', serif;
+  color: #00e5ff;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+/* 4. Progress Container */
+.sdk-progress-container {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  margin-bottom: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+}
+
+/* 5. Progress Bar */
+.sdk-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #00e5ff, #0091ea);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+/* 6. Status Text (Loading...) */
+.sdk-status-text {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+/* 7. Game Toast (Top-Center Notification) */
+#game-toast {
+  position: fixed;
+  top: 10px;
+  /* Moved up */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #00e5ff;
+  padding: 12px 24px;
+  border-radius: 30px;
+  border: 1px solid #00e5ff;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  z-index: 99999;
+  /* Max z-index */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#game-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(10px);
+}
+
+/* --- 120% Scale Override for HUD --- */
+@media (max-width: 600px) {
+  .resource-item {
+    padding: 6px 10px !important;
+    font-size: 1.0rem !important;
+    gap: 5px !important;
+  }
+
+  .res-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .wpm-badge small {
+    font-size: 0.85rem !important;
+  }
+}
+
+.res-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.wpm-badge span#wpm-display {
+  font-size: 1.2rem;
+}

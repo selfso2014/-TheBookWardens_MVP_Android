@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Live Eye Tracking Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="./js/firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        h1,
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            font-size: 1.1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            max-height: 400px;
+            width: 100%;
+        }
+
+        .health-good {
+            color: #28a745;
+        }
+
+        .health-warn {
+            color: #ffc107;
+        }
+
+        .health-crit {
+            color: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <h1>☁️ Live Eye Tracking Dashboard (Firebase)</h1>
+        <p>Enter the <b>Session ID</b> displayed on the mobile device to view data instantly.</p>
+
+        <div id="status">Waiting for connection...</div>
+
+        <div class="input-group">
+            <input type="text" id="sessionIdInput" placeholder="Enter Session ID (e.g. A1B2)">
+            <button onclick="connectSessionFromInput()">Connect</button>
+        </div>
+
+        <!-- Recent Sessions List -->
+        <div id="recentSessions" style="margin-bottom: 20px;">
+            <h3>🕒 Recent Sessions</h3>
+            <div id="sessionList" style="display:flex; gap:10px; flex-wrap:wrap;">Loading list...</div>
+        </div>
+    </div>
+
+    <!-- Health Report -->
+    <div id="healthReport" class="card" style="display:none; border-left: 5px solid #ccc;"></div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" style="display:none;">
+        <div class="card">
+            <h2>📉 Chart 1: Return Sweep Analysis (MAD)</h2>
+            <canvas id="chart1"></canvas>
+        </div>
+        <div class="card">
+            <h2>📊 Chart 4: Comprehensive Trigger Analysis</h2>
+            <p style="color:#666; font-size:0.9em;">
+                Green: Raw X (Pos) | Purple: Raw Y (Pos, Hidden) | Blue: Velocity X | Star: Trigger<br>
+                <em>Hover over stars to see details (Time, Raw Y, etc). Line Index cleaned.</em>
+            </p>
+            <canvas id="chart4"></canvas>
+        </div>
+        <div class="card">
+            <h2>🗺️ Chart 2: Spatial Path</h2>
+            <canvas id="chart2"></canvas>
+        </div>
+        <div class="card">
+            <h2>⏱️ Chart 3: Position & Line Index</h2>
+            <canvas id="chart3"></canvas>
+        </div>
+        <div class="card">
+            <h2>🎥 Chart 5: Replay Simulation</h2>
+            <p style="color:#666; font-size:0.9em;">
+                Green: Replay X | Red: Replay Y (Line Index) | Orange: Actual Line Index | Purple: GLI
+            </p>
+            <canvas id="chart5"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Chart Instances ---
+        let chart1, chart2, chart3, chart4, chart5, chart6;
+
+        // --- Init ---
+        window.onload = function () {
+            if (!window.firebase || !window.FIREBASE_CONFIG) {
+                alert("Firebase Config Missing!");
+                return;
+            }
+            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+
+            // Listen for Recent Sessions
+            const db = firebase.database();
+            const listRef = db.ref('sessions').orderByChild('meta/timestamp').limitToLast(10);
+
+            listRef.on('value', (snapshot) => {
+                const listEl = document.getElementById('sessionList');
+                listEl.innerHTML = "";
+
+                const sessions = [];
+                snapshot.forEach(child => {
+                    sessions.push({ key: child.key, val: child.val() });
+                });
+
+                // Reverse to show newest first
+                sessions.reverse().forEach(item => {
+                    const btn = document.createElement("button");
+                    const timeStr = item.val.meta ? new Date(item.val.meta.timestamp).toLocaleTimeString() : "???";
+                    const agent = item.val.meta && item.val.meta.userAgent ? getDeviceName(item.val.meta.userAgent) : "Unknown";
+
+                    btn.innerHTML = `<b>${item.key}</b><br><small>${timeStr}</small><br><span style='font-size:0.8em; color:#ddd'>${agent}</span>`;
+                    btn.style.cssText = "background:#555; text-align:left; line-height:1.2;";
+                    btn.onclick = () => loadSession(item.key);
+                    listEl.appendChild(btn);
+                });
+
+                if (sessions.length === 0) listEl.innerText = "No sessions found yet. Play the game to upload data.";
+            });
+        };
+
+        function getDeviceName(ua) {
+            if (/Android/i.test(ua)) return "📱 Android";
+            if (/iPhone/i.test(ua)) return "📱 iPhone";
+            if (/Windows/i.test(ua)) return "💻 PC";
+            return "Unknown Device";
+        }
+
+        function connectSessionFromInput() {
+            const id = document.getElementById('sessionIdInput').value.trim();
+            if (id) loadSession(id);
+        }
+
+        // --- Firebase Logic ---
+        // Global Accumulators for Incremental Data
+        let currentSessionData = [];
+        let currentSessionMeta = {};
+        let currentReplayData = [];
+
+        function loadSession(sessionId) {
+            // Update Input
+            document.getElementById('sessionIdInput').value = sessionId;
+
+            const db = firebase.database();
+            document.getElementById('status').innerText = `Connecting to [${sessionId}]...`;
+
+            // 1. Reset State
+            currentSessionData = [];
+            currentSessionMeta = {};
+            currentReplayData = [];
+
+            const ref = db.ref('sessions/' + sessionId);
+
+            // Detach previous listeners
+            ref.off();
+            ref.child('meta').off();
+            ref.child('chunks').off();
+            ref.child('replayData').off();
+
+            // 2. Listen for Metadata
+            ref.child('meta').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    currentSessionMeta = val;
+                    updateDashboardTitle();
+                    // Force refresh if we have data
+                    if (currentSessionData.length > 0) processData(currentSessionData, currentReplayData);
+                } else {
+                    // Check if it's an old format session (legacy support)
+                    ref.once('value', (snap) => {
+                        const fullVal = snap.val();
+                        if (fullVal && fullVal.data && !fullVal.chunks) {
+                            document.getElementById('status').innerText = "⚠️ Legacy Session Detected (Old Format)";
+                            processData(fullVal.data, fullVal.replayData);
+                        }
+                    });
+                }
+            });
+
+            // 3. Listen for Incremental Chunks
+            ref.child('chunks').on('child_added', (snapshot) => {
+                const chunk = snapshot.val();
+                if (Array.isArray(chunk)) {
+                    currentSessionData = currentSessionData.concat(chunk);
+                    updateDashboardTitle();
+                    processData(currentSessionData, currentReplayData);
+                }
+            });
+
+            // 4. Listen for Replay Data (Optional)
+            ref.child('replayData').on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    currentReplayData = val;
+                    if (currentSessionData.length > 0) processData(currentSessionData, currentReplayData);
+                }
+            });
+        }
+
+        function updateDashboardTitle() {
+            const timeStr = currentSessionMeta.timestamp ? new Date(currentSessionMeta.timestamp).toLocaleTimeString() : "Live";
+            document.getElementById('status').innerHTML = `✅ <b>Live Sync</b>: ${currentSessionData.length} samples. (Start: ${timeStr})`;
+        }
+
+        // --- Data Processing Setup ---
+        function processData(rawData, externalReplayData = []) {
+            if (!rawData || !Array.isArray(rawData)) return;
+
+            // 1. Simulation State
+            let simGazeLineIndex = 0;
+            let lastPosPeakTime = 0;
+            let lastTriggerTime = 0;
+
+            // Logic Helpers (Identical to GazeDataManager)
+            const getSmoothX = (idx) => {
+                if (idx < 0) return rawData[0].x;
+                if (idx >= rawData.length) return rawData[rawData.length - 1].x;
+                return rawData[idx].gx !== undefined ? rawData[idx].gx : rawData[idx].x;
+            };
+
+            // First pass: Prepare basic structure
+            const data = rawData.map((d) => ({
+                ...d,
+                t: Number(d.t),
+                x: Number(d.x),
+                y: Number(d.y),
+                vx: Number(d.vx),
+                lineIndex: d.lineIndex,
+                didFire: d.didFire,
+                simTrigger: false,
+                simGazeLineIndex: 0,
+                simPeak: null,
+                simValley: null
+            }));
+
+            // Second pass: Logic Simulation
+            // [NEW] Find Start of Actual Content to prevent pre-counting noise
+            let firstContentIndex = -1;
+            for (let k = 0; k < data.length; k++) {
+                if (typeof data[k].lineIndex === 'number' && data[k].lineIndex >= 0) {
+                    firstContentIndex = k;
+                    // Sync initial Sim Index with Actual to prevent offset
+                    simGazeLineIndex = data[k].lineIndex;
+                    break;
+                }
+            }
+
+            for (let i = 2; i < data.length; i++) {
+                const d0 = data[i];
+                // [NEW] Guard: If content hasn't started, don't run simulation
+                if (firstContentIndex !== -1 && i < firstContentIndex) {
+                    d0.simGazeLineIndex = 0; // Keep at 0 (or null)
+                    continue;
+                }
+
+                const d1 = data[i - 1];
+                const d2 = data[i - 2];
+                const now = d0.t;
+
+                // Prep Values
+                const sx0 = getSmoothX(i);
+                const sx1 = getSmoothX(i - 1);
+                const sx2 = getSmoothX(i - 2);
+
+                const v0 = d0.vx || 0;
+                const v1 = d1.vx || 0;
+                const v2 = d2.vx || 0;
+
+                // 1. Peak Detect
+                const isPosPeak = (sx1 >= sx2) && (sx1 > sx0);
+                const isVelZeroCrossDown = (v1 >= 0 && v0 < 0);
+
+                if (isPosPeak || isVelZeroCrossDown) {
+                    lastPosPeakTime = d1.t;
+                    d1.simPeak = sx1; // Mark Peak
+                }
+
+                // 2. Valley Detect
+                const isVelValley = (v2 > v1) && (v1 < v0);
+                const isDeepEnough = v1 < -0.4;
+
+                if (isVelValley && isDeepEnough) {
+                    d1.simValley = v1; // Mark Valley (Value is Velocity)
+
+                    // 3. Trigger Check
+                    const timeSincePeak = d1.t - lastPosPeakTime;
+                    // Cascade Check (600ms)
+                    if (Math.abs(timeSincePeak) < 600) {
+                        // Cooldown Check (Increased to 800ms to prevent double triggers)
+                        if (now - lastTriggerTime >= 800) {
+                            // Constraint: Cannot exceed Actual Line Index
+                            // "Cursor hasn't shown next line yet" -> Impossible to read ahead.
+                            if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
+                                if (simGazeLineIndex >= d0.lineIndex) {
+                                    // CASTLING FIX: Assign current value before continuing!
+                                    d0.simGazeLineIndex = simGazeLineIndex;
+                                    continue;
+                                }
+                            }
+
+                            // FIRE!
+                            d0.simTrigger = true;
+                            simGazeLineIndex++;
+                            lastTriggerTime = now;
+                            lastPosPeakTime = 0; // Reset Peak
+                        }
+                    }
+                }
+
+                // [NEW] Context Reset / Downward Sync
+                // If actual line index drops (e.g. New Level starts at 0), force GLI to reset down.
+                if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
+                    if (simGazeLineIndex > d0.lineIndex) {
+                        simGazeLineIndex = d0.lineIndex;
+                    }
+                }
+
+                d0.simGazeLineIndex = simGazeLineIndex;
+            }
+
+            analyzeDataHealth(data);
+            analyzeDataHealth(data);
+            renderCharts(data, externalReplayData);
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        // --- Health Check ---
+        function analyzeDataHealth(data) {
+            if (data.length < 2) return;
+            let timeReversals = 0, largeGaps = 0, maxGap = 0, sumGap = 0;
+
+            for (let i = 1; i < data.length; i++) {
+                const dt = data[i].t - data[i - 1].t;
+                if (dt < 0) timeReversals++;
+                if (dt > 100) largeGaps++;
+                if (dt > maxGap) maxGap = dt;
+                sumGap += dt;
+            }
+
+            const avgGap = sumGap / (data.length - 1);
+            const hz = avgGap > 0 ? (1000 / avgGap).toFixed(1) : 0;
+
+            let status = "GOOD", color = "#28a745";
+            if (timeReversals > 0 || largeGaps > data.length * 0.1) { status = "WARNING"; color = "#ffc107"; }
+            if (avgGap > 100) { status = "CRITICAL"; color = "#dc3545"; }
+
+            const report = document.getElementById('healthReport');
+            report.style.display = 'block';
+            report.style.borderLeftColor = color;
+            report.innerHTML = `
+            <h3 style="color:${color}; margin-top:0;">🩺 Health: ${status}</h3>
+            <div>Hz: <b>${hz}</b> | Max Gap: <b>${maxGap}ms</b> | Samples: <b>${data.length}</b></div>
+        `;
+        }
+
+        // --- Chart Rendering ---
+        function renderCharts(data, externalReplayData = []) {
+            if (window.ChartDataLabels) {
+                Chart.register(ChartDataLabels);
+                Chart.defaults.set('plugins.datalabels', { display: false });
+            }
+
+            if (chart1) chart1.destroy();
+            if (chart2) chart2.destroy();
+            if (chart3) chart3.destroy();
+            if (chart4) chart4.destroy();
+            if (chart5) chart5.destroy();
+
+            const labels = data.map(d => d.t);
+
+            // Chart 1: MAD Analysis (Kept Simple)
+            chart1 = new Chart(document.getElementById('chart1'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Realtime VX', data: data.map(d => d.vx), borderColor: '#36a2eb', borderWidth: 1, pointRadius: 0 },
+                        { label: 'Triggered', data: data.map(d => d.simTrigger ? d.vx : null), type: 'scatter', pointStyle: 'star', radius: 8, backgroundColor: 'gold' }
+                    ]
+                },
+                options: { animation: false }
+            });
+
+            // Chart 4: Comprehensive Trigger Analysis (Fully Updated)
+            chart4 = new Chart(document.getElementById('chart4'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        // 1. Raw X (Reference) - Light Green
+                        { label: 'Raw X', data: data.map(d => d.x), borderColor: 'rgba(75, 192, 192, 0.3)', borderWidth: 1, pointRadius: 0, yAxisID: 'yPos', order: 10 },
+
+                        // 2. Simulated GLD Index - PURPLE LINE (Solid)
+                        {
+                            label: 'Gaze Line Index (Sim)',
+                            data: data.map(d => d.simGazeLineIndex),
+                            borderColor: '#800080', // Purple
+                            backgroundColor: 'rgba(128, 0, 128, 0.1)',
+                            borderWidth: 3,
+                            stepped: true,
+                            pointRadius: 0,
+                            yAxisID: 'yLine',
+                            order: 2
+                        },
+
+                        // 3. Actual Line Index - ORANGE DASHED
+                        {
+                            label: 'Actual Line Index',
+                            data: data.map(d => d.lineIndex),
+                            borderColor: '#fd7e14', // Orange
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            stepped: true,
+                            pointRadius: 0,
+                            yAxisID: 'yLine',
+                            order: 3
+                        },
+
+                        // 4. Trigger Event - RED STAR (ACTUAL TRUTH)
+                        {
+                            label: 'Actual Trigger (Recorded)',
+                            // Check 'didFire' (True/False from Game) or 'rsState' (String)
+                            data: data.map(d => (d.didFire || d.rsState) ? (d.lineIndex > 0 ? d.lineIndex - 1 : 0) : null),
+                            type: 'scatter',
+                            pointStyle: 'star',
+                            radius: 12, // Slightly larger to emphasize TRUTH
+                            backgroundColor: 'red',
+                            borderColor: 'red',
+                            yAxisID: 'yLine',
+                            order: 1
+                        },
+
+                        // 5. Simulated Peak - ORANGE TRIANGLE (on SmoothX)
+                        {
+                            label: 'Peak (SmoothX)',
+                            data: data.map(d => d.simPeak),
+                            type: 'scatter',
+                            pointStyle: 'triangle',
+                            radius: 6,
+                            backgroundColor: 'rgba(255, 165, 0, 1)',
+                            borderColor: 'rgba(255, 165, 0, 1)',
+                            yAxisID: 'yPos',
+                            order: 4
+                        },
+
+                        // 6. Simulated Valley - GREEN INVERTED TRIANGLE (on Velocity)
+                        {
+                            label: 'Valley (VelX < -0.4)',
+                            data: data.map(d => d.simValley),
+                            type: 'scatter',
+                            pointStyle: 'triangle',
+                            rotation: 180,
+                            radius: 6,
+                            backgroundColor: 'rgba(0, 200, 0, 1)',
+                            borderColor: 'rgba(0, 200, 0, 1)',
+                            yAxisID: 'yVel',
+                            order: 5
+                        },
+
+                        // 7. Velocity X - Light Blue Fill (Background)
+                        { label: 'Velocity X', data: data.map(d => d.vx), borderColor: 'rgba(54, 162, 235, 0.3)', backgroundColor: 'rgba(54, 162, 235, 0.1)', borderWidth: 1, pointRadius: 0, fill: true, yAxisID: 'yVel', order: 20 }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 20 } },
+                        yPos: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Position (px)' } },
+                        yLine: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Line Index' }, min: 0 },
+                        yVel: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Velocity (px/ms)' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    if (context.dataset.label === 'Simulated Trigger') return `💥 Trigger!`;
+                                    return `${context.dataset.label}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Spatial
+            chart2 = new Chart(document.getElementById('chart2'), {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'Gaze Path', data: data.map(d => ({ x: d.x, y: d.y })), borderColor: '#ccc', borderWidth: 1, showLine: true, pointRadius: 1 },
+                        { label: 'Triggers', data: data.filter(d => d.simTrigger).map(d => ({ x: d.x, y: d.y })), backgroundColor: 'red', pointRadius: 5 }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: { reverse: true, min: 0, max: window.innerHeight },
+                        x: { min: 0, max: window.innerWidth }
+                    },
+                    animation: false
+                }
+            });
+
+            // Chart 5: Replay Data Verification
+            // Filter Data exactly like TextRenderer (Start after content, Hold Line Index)
+            let hasStarted = false;
+            let lastValidLine = 0;
+            const replayX = [];
+            const replayY_Index = [];
+
+            data.forEach(d => {
+                if (!hasStarted) {
+                    if (typeof d.lineIndex === 'number' && d.lineIndex >= 0) hasStarted = true;
+                }
+
+                if (hasStarted) {
+                    replayX.push(d.x);
+                    if (typeof d.lineIndex === 'number' && d.lineIndex >= 0) lastValidLine = d.lineIndex;
+                    replayY_Index.push(lastValidLine);
+                } else {
+                    replayX.push(null);
+                    replayY_Index.push(null);
+                }
+            });
+
+            chart5 = new Chart(document.getElementById('chart5'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Replay X', data: replayX, borderColor: 'green', borderWidth: 2, pointRadius: 0, order: 1, yAxisID: 'yPos' },
+                        { label: 'Replay Y (Index)', data: replayY_Index, borderColor: 'red', borderWidth: 2, stepped: true, pointRadius: 0, order: 2, yAxisID: 'yLine' },
+                        { label: 'Actual Index', data: data.map(d => d.lineIndex), borderColor: 'orange', borderDash: [5, 5], stepped: true, pointRadius: 0, order: 3, yAxisID: 'yLine' },
+                        { label: 'GLI (Sim)', data: data.map(d => d.simGazeLineIndex), borderColor: 'purple', borderWidth: 1, stepped: true, pointRadius: 0, order: 4, yAxisID: 'yLine' },
+                        { label: 'Raw X', data: data.map(d => d.x), borderColor: '#666', borderWidth: 1, pointRadius: 0, order: 10, yAxisID: 'yPos' }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        yPos: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'X Position' } },
+                        yLine: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Line Index' }, min: -1, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { title: { display: true, text: 'Chart 5: Replay Logic Verification' } }
+                }
+            });
+
+            // Chart 3: Simple Logic Check
+            chart3 = new Chart(document.getElementById('chart3'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Velocity', data: data.map(d => d.vx), borderColor: 'blue', borderWidth: 1 },
+                        { label: 'Gaze Line (Sim)', data: data.map(d => d.simGazeLineIndex), borderColor: 'purple', borderWidth: 2, stepped: true, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    scales: {
+                        y: { position: 'left' },
+                        y1: { position: 'right', min: 0 }
+                    }
+                }
+            });
+
+            // Chart 6: Real Replay Trajectory (Debug)
+            if (!document.getElementById('chart6')) {
+                const container = document.createElement('div');
+                container.className = 'chart-container';
+                container.style.marginTop = "20px";
+                const canvas = document.createElement('canvas');
+                canvas.id = 'chart6';
+                container.appendChild(canvas);
+                document.getElementById('dashboard').appendChild(container);
+            }
+
+            let realReplayData = externalReplayData || [];
+
+            // Fallback: Try window.opener if not provided
+            if (realReplayData.length === 0) {
+                try {
+                    if (window.opener && window.opener.dashboardReplayData) {
+                        realReplayData = window.opener.dashboardReplayData;
+                    }
+                } catch (e) { }
+            }
+
+            chart6 = new Chart(document.getElementById('chart6'), {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Real Replay X',
+                            data: realReplayData.map(d => ({ x: d.t, y: d.x })),
+                            borderColor: 'green', borderWidth: 2, pointRadius: 0, order: 1, yAxisID: 'yPos'
+                        },
+                        {
+                            label: 'Real Replay Y (Pixel)',
+                            data: realReplayData.map(d => ({ x: d.t, y: d.y })),
+                            borderColor: 'red', borderWidth: 2, pointRadius: 0, order: 2, yAxisID: 'yPos' // Use Pixel Axis
+                        },
+                        {
+                            label: 'Actual Line Index',
+                            data: data.map(d => ({ x: d.t, y: d.lineIndex })),
+                            borderColor: 'orange', borderDash: [5, 5], stepped: true, pointRadius: 0, order: 3, yAxisID: 'yLine'
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Time (ms)' } },
+                        yPos: {
+                            type: 'linear', display: true, position: 'left',
+                            title: { display: true, text: 'Pixel Position' },
+                            reverse: true // Y is top-down in screen coords
+                        },
+                        yLine: {
+                            type: 'linear', display: true, position: 'right',
+                            title: { display: true, text: 'Line Index' },
+                            min: -1, grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Chart 6: Real Replay Trajectory (From Game Engine)' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
