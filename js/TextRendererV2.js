@@ -8,6 +8,7 @@
  * 2. Coordinate Caching: Caches word positions once, eliminating DOM reads during gameplay.
  * 3. Hit-Testing: Provides O(n) or optimized lookups for gaze-to-word mapping without browser recalculations.
  */
+import { bus } from "./core/EventBus.js";
 
 class TextRenderer {
     constructor(containerId, options = {}) {
@@ -633,7 +634,6 @@ class TextRenderer {
             impact.style.opacity = "0";
         });
 
-        // [NEW] Record Validated Line for Replay
         if (this.validatedLines && typeof lineIndex === 'number' && lineIndex >= 0) {
             this.validatedLines.add(lineIndex);
         }

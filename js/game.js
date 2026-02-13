@@ -1,12 +1,16 @@
-/**
- * The Book Wardens: Game Logic (Algorithm V9.0 - Mean-Gaze Anchored Replay)
- */
+import { storyParagraphs } from './data/StoryContent.js';
+import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js';
+import { ScoreManager } from './js/managers/ScoreManager.js';
+import { SceneManager } from './js/managers/SceneManager.js';
+import { bus } from './js/core/EventBus.js';
+
 const Game = {
+    // Initialized in init()
+    scoreManager: null,
+    sceneManager: null,
+
     state: {
-        gems: 0,
-        runes: 0, // NEW: Runes Score
-        ink: 0,   // NEW: Ink Score (Pang Event)
-        wpmDisplay: 0, // NEW: Smoothed WPM for UI
+        // Renamed/Removed: gem/ink/rune to ScoreManager
         currentWordIndex: 0,
         vocabIndex: 0, // Track Word Forge progress
         readProgress: 0, // 0..100
@@ -20,101 +24,88 @@ const Game = {
         }
     },
 
-    // --- NEW: Score Management Methods ---
-    addInk(amount) {
-        this.state.ink = Math.max(0, (this.state.ink || 0) + amount);
-        this.updateUI();
+    // Bridge Methods (Proxies to ScoreManager)
+    addInk(amount) { if (this.scoreManager) this.scoreManager.addInk(amount); },
+    addRunes(amount) { if (this.scoreManager) this.scoreManager.addRunes(amount); },
+    addGems(amount) { if (this.scoreManager) this.scoreManager.addGems(amount); },
+
+    updateUI() {
+        if (this.scoreManager) this.scoreManager.updateUI();
     },
 
-    // --- Rift Intro Sequence ---
     // --- Rift Intro Sequence (Cinematic 20s) ---
     async startRiftIntro() {
         console.log("Starting Rift Intro Sequence...");
 
+        // Use Scene Manager
+        this.switchScreen("screen-rift-intro");
+        this.sceneManager.resetRiftIntro(); // Helper reset
+
         // Helper for delays
         const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Initial Delay for SDK Loading Message (2.0s)
-        // Initial Delay for SDK Loading Message (2.0s) - REMOVED per user request
-        // await wait(2000);
-
-        this.switchScreen("screen-rift-intro");
-
+        // Get elements via Manager helper? Or direct. 
+        // For now, let's keep references here but use Manager for actions.
         const introScreen = document.getElementById("screen-rift-intro");
         const villainContainer = document.getElementById("rift-villain-container");
         const textContainer = document.getElementById("rift-text-container");
         const meteorLayer = document.getElementById("meteor-layer");
-        // const riftText = document.getElementById("rift-intro-text"); // Removed for Image Only
-
-        // Reset State
-        introScreen.className = "screen active scene-peace"; // Start with Peace
-        textContainer.className = ""; // Reset basic
-        villainContainer.className = "";
-        meteorLayer.innerHTML = "";
-
-        // Restore original text
-        /* Removed Text Logic */
 
         // --- SCENE 1: PEACE (0s - 2.2s) ---
-        // Text fades in smoothly
         await wait(200);
         textContainer.style.opacity = 1;
         textContainer.style.transform = "translateY(0)";
 
-        this.showStoryText("Every story holds a world within.");
-        await wait(2000); // 1.5s reading time + 0.5s fade
+        this.sceneManager.showStoryText("Every story holds a world within.");
+        await wait(2000);
 
         // --- SCENE 2: WARNING (2.2s - 4.2s) ---
         introScreen.classList.remove("scene-peace");
         introScreen.classList.add("scene-warning");
 
-        this.showStoryText("But chaos seeks to consume it.");
-        // Villain fades in
+        this.sceneManager.showStoryText("But chaos seeks to consume it.");
+
         villainContainer.style.opacity = 0.6;
-        await wait(2000); // 1.5s reading time + 0.5s fade
+        await wait(2000);
 
         // --- SCENE 3: INVASION (4.2s - 5.7s) ---
         introScreen.classList.remove("scene-warning");
         introScreen.classList.add("scene-invasion");
 
-        this.showStoryText("The Rift opens!", "villain");
+        this.sceneManager.showStoryText("The Rift opens!", "villain");
         villainContainer.style.opacity = 1;
 
         // Start light meteors
         const lightMeteorLoop = setInterval(() => {
-            if (Math.random() > 0.7) this.spawnMeteor(meteorLayer);
+            if (Math.random() > 0.7) this.sceneManager.spawnMeteor(meteorLayer);
         }, 300);
 
-        await wait(1500); // 1.0s reading time (Short sentence)
+        await wait(1500);
         clearInterval(lightMeteorLoop);
 
         // --- SCENE 4: DESTRUCTION (5.7s - 9.5s) ---
         introScreen.classList.remove("scene-invasion");
         introScreen.classList.add("scene-destruction");
 
-        // CRITICAL MESSAGE - Extended Duration
-        this.showStoryText("The words are fading...<br>WARDEN, RESTORE THE STORY!");
+        this.sceneManager.showStoryText("The words are fading...<br>WARDEN, RESTORE THE STORY!");
         textContainer.classList.add("rift-damaged");
 
-        // Heavy meteors
         const heavyMeteorLoop = setInterval(() => {
-            this.spawnMeteor(meteorLayer);
-            this.spawnMeteor(meteorLayer); // Double spawn
+            this.sceneManager.spawnMeteor(meteorLayer);
+            this.sceneManager.spawnMeteor(meteorLayer);
         }, 100);
 
-        await wait(3000); // 2.5s reading time (Essential message)
+        await wait(3000);
 
-        // Corrupt text
-        /* Removed Text Logic */
-
-        await wait(800); // Short post-damage lingering
+        await wait(800);
         clearInterval(heavyMeteorLoop);
 
         // --- SCENE 5: TRANSITION ---
-        this.showStoryText("Initializing Word Forge...");
+        this.sceneManager.showStoryText("Initializing Word Forge...");
         await wait(1000);
 
         console.log("Rift Intro Done. Moving to Word Forge.");
+        // ... (rest logic same)
 
         // Show deferred connected message if already ready
         if (this.state.sdkLoading && this.state.sdkLoading.isReady) {
@@ -197,6 +188,24 @@ const Game = {
 
     init() {
         console.log("Game Init");
+
+        // [NEW] Instantiate Managers
+        this.scoreManager = new ScoreManager();
+        this.sceneManager = new SceneManager();
+
+        // [EVENT BUS] Subscribe to Game Events
+        bus.on('pang', () => {
+            this.scoreManager.addInk(10);
+        });
+
+        bus.on('gem_earned', (amount) => {
+            this.scoreManager.addGems(amount);
+        });
+
+        bus.on('rune_earned', (amount) => {
+            this.scoreManager.addRunes(amount);
+        });
+
         // [COORDINATION] Link Gaze Data Manager
         if (window.gazeDataManager) {
             this.gazeManager = window.gazeDataManager;
@@ -570,20 +579,8 @@ const Game = {
     },
 
     switchScreen(screenId) {
-        document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
-        const target = document.getElementById(screenId);
-        if (target) target.classList.add("active");
-
-        // [FIX] Ensure Cursor Visibility Logic
-        if (this.typewriter && this.typewriter.renderer && this.typewriter.renderer.cursor) {
-            if (screenId === "screen-read") {
-                this.typewriter.renderer.cursor.style.display = "block"; // Show cursor
-                this.typewriter.renderer.cursor.style.opacity = "1";
-            } else {
-                this.typewriter.renderer.cursor.style.display = "none"; // Hide completely
-                this.typewriter.renderer.cursor.style.opacity = "0";
-            }
-        }
+        if (!this.sceneManager) return;
+        this.sceneManager.show(screenId);
 
         if (screenId === "screen-read") {
             // Reset Context Latching for new session to avoid carrying over old data
@@ -595,86 +592,21 @@ const Game = {
     },
 
     updateUI() {
-        // 1. Gem
-        const gemEl = document.getElementById("gem-count");
-        if (gemEl) gemEl.textContent = this.state.gems || 0;
-
-        // 2. Ink
-        const inkEl = document.getElementById("ink-count");
-        if (inkEl) inkEl.textContent = this.state.ink || 0;
-
-        // 3. Rune
-        const runeEl = document.getElementById("rune-count");
-        if (runeEl) {
-            runeEl.textContent = this.state.runes || 0;
+        if (this.scoreManager) {
+            this.scoreManager.updateUI();
         }
+    },
 
-        // 4. WPM (Smoothed Low-Pass Filter)
-        const wpmEl = document.getElementById("wpm-display");
-        if (wpmEl) {
-            // Get Target WPM from GazeDataManager (or fallback)
-            let targetWPM = 0;
-            if (window.gazeDataManager && window.gazeDataManager.wpm > 0) {
-                targetWPM = window.gazeDataManager.wpm;
-            } else if (this.typewriter && this.typewriter.startTime && this.typewriter.chunkIndex > 0) {
-                // Simple Fallback calculation
-                const elapsedMin = (Date.now() - this.typewriter.startTime) / 60000;
-                if (elapsedMin > 0) targetWPM = (this.typewriter.chunkIndex * 3) / elapsedMin;
-            }
-
-            // Apply Low-Pass Filter (Simple Smoothing)
-            // current = prev + alpha * (target - prev)
-            // alpha = 0.05 (Very slow) to 0.2 (Fast). Let's use 0.1 for gentle smoothing.
-            const alpha = 0.1;
-            const currentWPM = this.state.wpmDisplay || 0;
-
-            // If difference is huge (e.g. init), jump directly
-            if (Math.abs(targetWPM - currentWPM) > 50 && currentWPM === 0) {
-                this.state.wpmDisplay = targetWPM;
-            } else {
-                this.state.wpmDisplay = currentWPM + alpha * (targetWPM - currentWPM);
-            }
-
-            wpmEl.textContent = Math.round(this.state.wpmDisplay);
+    // Bridge for WPM updates
+    updateWPM(targetWPM) {
+        if (this.scoreManager) {
+            this.scoreManager.updateWPM(targetWPM);
         }
     },
 
     // --- 1. Word Forge ---
-    vocabList: [
-        {
-            word: "Luminous",
-            sentence: '"The <b>luminous</b> mushroom lit up the dark cave."',
-            options: [
-                "A. Very heavy and dark",
-                "B. Full of light / Shining",
-                "C. Related to the moon"
-            ],
-            answer: 1,
-            image: "./rune_luminous.png"
-        },
-        {
-            word: "Peculiar",
-            sentence: '"Alice felt a very <b>peculiar</b> change in her size."',
-            options: [
-                "A. Strange or odd",
-                "B. Common and boring",
-                "C. Sudden and fast"
-            ],
-            answer: 0,
-            image: "./rune_peculiar.png"
-        },
-        {
-            word: "Vanish",
-            sentence: '"The cat began to <b>vanish</b> slowly, starting with its tail."',
-            options: [
-                "A. To appear suddenly",
-                "B. To disappear completely",
-                "C. To become brighter"
-            ],
-            answer: 1,
-            image: "./rune_vanish.png"
-        }
-    ],
+    // --- 1. Word Forge ---
+    vocabList: vocabList,
 
     loadVocab(index) {
         if (index >= this.vocabList.length) return;
@@ -1287,27 +1219,11 @@ Game.typewriter = {
     renderer: null,
 
     // Data (Content)
-    paragraphs: [
-        "Alice was beginning to / get very tired / of sitting by her sister / on the bank, / and of having nothing to do: / once or twice / she had peeped into the book / her sister was reading, / but it had no pictures / or conversations / in it, / “and what is the use of a book,” / thought Alice / “without pictures / or conversations?\"",
-        "So she was considering / in her own mind / (as well as she could, / for the hot day made her feel / very sleepy and stupid), / whether the pleasure / of making a daisy-chain / would be worth the trouble / of getting up and picking the daisies, / when suddenly / a White Rabbit with pink eyes / ran close by her.",
-        "There was nothing so VERY remarkable in that; / nor did Alice think it so VERY much out of the way / to hear the Rabbit say to itself, / “Oh dear! Oh dear! I shall be late!” / (when she thought it over afterwards, / it occurred to her that she ought to have wondered at this, / but at the time it all seemed quite natural); / but when the Rabbit actually TOOK A WATCH / OUT OF ITS WAISTCOAT-POCKET, / and looked at it, / and then hurried on, / Alice started to her feet."
-    ],
-    quizzes: [
-        { q: "Why was Alice bored?", o: ["It was raining.", "The book had no pictures.", "She was hungry."], a: 1 },
-        { q: "What animal ran by Alice?", o: ["A Black Cat", "A White Rabbit", "A Brown Dog"], a: 1 },
-        { q: "What did the Rabbit take out of its pocket?", o: ["A Watch", "A Carrot", "A Map"], a: 0 }
-    ],
+    paragraphs: storyParagraphs,
+    quizzes: midBossQuizzes,
 
     // --- FINAL BOSS DATA ---
-    finalQuiz: {
-        q: "Based on the text, what made the Rabbit's behavior truly remarkable to Alice?",
-        o: [
-            "It was wearing a waistcoat and had a watch.",
-            "It was speaking in French.",
-            "It was eating a jam tart while running."
-        ],
-        a: 0
-    },
+    finalQuiz: finalBossQuiz,
 
     // State
     currentParaIndex: 0,
@@ -1416,6 +1332,11 @@ Game.typewriter = {
         this.renderer.prepare(text);
         this.chunkIndex = 0;
         this.lineStats.clear(); // Reset reading stats for new page
+
+        // [FIX] Register Cursor with SceneManager (Cursor is recreated directly in prepare())
+        if (Game.sceneManager && this.renderer.cursor) {
+            Game.sceneManager.setCursorReference(this.renderer.cursor);
+        }
 
         // 2. Lock Layout (Next Frame to allow DOM render)
         requestAnimationFrame(() => {
@@ -1739,27 +1660,25 @@ Game.typewriter = {
 
 
     updateWPM() {
-        const disp = document.getElementById("wpm-display");
-        if (!disp) return;
-
         // Check if currently reading (screen-read is active)
         const isReading = document.getElementById("screen-read")?.classList.contains("active");
         if (!isReading || this.isPaused) return;
 
+        let targetWPM = 0;
         // Priority 1: GazeDataManager (Accurate)
         if (window.gazeDataManager && window.gazeDataManager.wpm > 0) {
-            disp.textContent = Math.round(window.gazeDataManager.wpm);
-            return;
+            targetWPM = window.gazeDataManager.wpm;
         }
-
         // Priority 2: Simple estimation (Fallback)
-        if (this.startTime && this.chunkIndex > 0) {
+        else if (this.startTime && this.chunkIndex > 0) {
             const elapsedMin = (Date.now() - this.startTime) / 60000;
             if (elapsedMin > 0) {
-                const wpm = Math.round((this.chunkIndex * 3) / elapsedMin);
-                disp.textContent = wpm; // Fix: Only number, no suffix
+                targetWPM = (this.chunkIndex * 3) / elapsedMin;
             }
         }
+
+        // Bridge to Manager
+        Game.updateWPM(targetWPM);
     },
 
     startBossBattle() {

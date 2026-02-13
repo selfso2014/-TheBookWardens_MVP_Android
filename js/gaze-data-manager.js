@@ -3,6 +3,7 @@
  * Stores and processes raw gaze data into structured format with Gaussian smoothing and velocity calculation.
  */
 import { detectVelXSpikes } from "./velx-spike-detector.js";
+import { bus } from "./core/EventBus.js"; // Import Event Bus
 
 export class GazeDataManager {
     constructor() {
@@ -708,9 +709,10 @@ export class GazeDataManager {
             }
         }
 
-        // 2. Game Reward (New: Ink +10)
-        if (window.Game && typeof window.Game.addInk === 'function') {
-            window.Game.addInk(10);
+        // 2. Game Reward (New: Ink +10) via Event Bus
+        // DECOUPLED: No direct Game.addInk call.
+        if (bus) {
+            bus.emit('pang');
         }
 
         // --- 3. GAZE-BASED WPM CALCULATION (User Spec) ---
