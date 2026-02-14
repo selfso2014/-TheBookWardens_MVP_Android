@@ -1419,17 +1419,41 @@ Game.typewriter = {
 
             Promise.race([revealPromise, timeoutPromise]).then(() => {
                 // Animation Done (or timed out). Now wait for the "Reading Pause" delay.
+
+                // [WPM COMPENSATION LOGIC]
+                // 1. Check if the *current* chunk (this.chunkIndex) had a line break.
+                // The renderer adds +450ms internally if a word starts a new line.
+                // We must SUBTRACT this from our game loop delay to avoid double waiting.
+                let hadLineBreak = false;
+                if (this.renderer && this.renderer.chunks && this.renderer.lines) {
+                    const currentChunkIndices = this.renderer.chunks[this.chunkIndex];
+                    if (currentChunkIndices) {
+                        // Check if any word in this chunk is a start of a line (excluding the very first word of text)
+                        hadLineBreak = currentChunkIndices.some(wordIdx => {
+                            return wordIdx > 0 && this.renderer.lines.some(line => line.startIndex === wordIdx);
+                        });
+                    }
+                }
+
                 this.chunkIndex++;
 
                 // Calculate Delay (Pause AFTER valid reading)
                 // Use the precise calculated delay from WPM settings
                 // Default to 1000ms if not set (fallback)
-                let delay = (Game.wpmParams && Game.wpmParams.delay) ? Game.wpmParams.delay : 1000;
+                let baseDelay = (Game.wpmParams && Game.wpmParams.delay) ? Game.wpmParams.delay : 1000;
+
+                // Apply Compensation
+                let finalDelay = baseDelay;
+                if (hadLineBreak) {
+                    // Renderer paused 450ms, so we pause 450ms less.
+                    finalDelay = Math.max(0, baseDelay - 450);
+                    // console.log(`[WPM Sync] Line Break Detected in Chunk ${this.chunkIndex-1}. Compensating: ${baseDelay} -> ${finalDelay}ms`);
+                }
 
                 this.timer = setTimeout(() => {
                     this.timer = null;
                     this.tick();
-                }, delay);
+                }, finalDelay);
             });
 
         } else {
