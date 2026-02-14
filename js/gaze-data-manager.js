@@ -39,6 +39,9 @@ export class GazeDataManager {
 
         // [NEW] WPM Log for Dashboard
         this.wpmData = [];
+
+        // [FIX] Search Boundary for WPM Calculation
+        this.searchStartIndex = 0;
     }
 
     /**
@@ -276,6 +279,10 @@ export class GazeDataManager {
         this.lastRSLine = -1;
 
         console.log("[GazeDataManager] Triggers Reset (New Content Started).");
+
+        // [FIX] Set Search Boundary for WPM Calculation
+        // Prevents referencing old paragraph data (e.g. Line 0 of prev para)
+        this.searchStartIndex = this.data ? this.data.length : 0;
     }
 
     // NEW: Retrieve Pang Logs for Replay
@@ -759,8 +766,8 @@ export class GazeDataManager {
                 else {
                     // Find "First Char Time" -> Backward Search in Data for start of this line
                     let startTime = now;
-                    // Look back up to 20 seconds
-                    const limit = Math.max(0, this.data.length - 1500);
+                    // Look back up to 20 seconds, but NOT beyond current paragraph start
+                    const limit = Math.max(this.searchStartIndex || 0, this.data.length - 1500);
                     for (let i = this.data.length - 1; i >= limit; i--) {
                         if (this.data[i].lineIndex === targetLine) {
                             startTime = this.data[i].t;
