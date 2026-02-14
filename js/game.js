@@ -1452,11 +1452,12 @@ Game.typewriter = {
             const revealPromise = this.renderer.revealChunk(this.chunkIndex, Game.wpmParams.interval);
 
             // Total time this chunk *should* occupy
-            // [TUNING] 1.2x Multiplier for "Reading/Pause" buffer.
-            // A human reader needs a micro-pause between chunks to process meaning.
-            // If we strictly follow msPerWord, it feels "rushed" because there's no gap.
-            // (e.g. 200WPM = 300ms/word. 3 words = 900ms. BUT we need +200ms pause)
-            const targetDuration = (msPerWord * chunkLen) * 1.2;
+            // [TUNING] Dynamic Multiplier for "Reading/Pause" buffer.
+            let buffer = 1.2; // Default (200 WPM)
+            if (wpm <= 100) buffer = 1.15; // [100 WPM] Increased chunk size, so reduce buffer slightly.
+            else if (wpm >= 300) buffer = 1.05; // [300 WPM] Needs to be faster. Reduce gap.
+
+            const targetDuration = (msPerWord * chunkLen) * buffer;
 
             // Safety timeout
             const timeoutPromise = new Promise(resolve => setTimeout(resolve, targetDuration + 1000));
