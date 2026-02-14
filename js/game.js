@@ -960,8 +960,9 @@ const Game = {
         // 2. Line Break Average Overhead (450ms / 3 chunks approx = 150ms)
         const LINE_BREAK_AVG = 150;
 
-        // D. Initial Settings
-        let interval = 150; // Visual preference for "typing" speed
+        // D. Snappy Interval Strategy (Top-Down)
+        // Instead of calculating interval from time, we FIX interval to be fast (50ms).
+        let interval = 50;
 
         // E. Calculate Required Wait Time (Delay)
         // Total = (Interval * Count) + Buffer + LineBreak + Delay
@@ -969,13 +970,11 @@ const Game = {
         let delay = targetChunkTotalTime - (interval * chunkSize) - SYSTEM_BUFFER - LINE_BREAK_AVG;
 
         // F. Adaptive Logic (High Speed Handling)
-        // If calculated delay is too short (< 200ms), it feels rushed.
-        // We must increase typing speed (reduce interval) to buy more pause time.
-        if (delay < 200) {
-            delay = 200; // Floor the pause
+        // If calculated delay is too short (< 150ms), we have no choice but to speed up interval further.
+        if (delay < 150) {
+            delay = 150; // Minimum pause for cognition
             // Solve for Interval:
-            // interval * chunkSize = Total - Buffer - LineBreak - 200
-            const availableRenderTime = targetChunkTotalTime - SYSTEM_BUFFER - LINE_BREAK_AVG - 200;
+            const availableRenderTime = targetChunkTotalTime - SYSTEM_BUFFER - LINE_BREAK_AVG - 150;
             interval = Math.floor(availableRenderTime / chunkSize);
 
             // Safety: Min interval 20ms (browser constraints)
