@@ -744,6 +744,7 @@
             <table style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em;">
                 <thead>
                     <tr style="background:#f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding:8px; text-align:center;">Para #</th>
                         <th style="padding:8px; text-align:left;">Line #</th>
                         <th style="padding:8px; text-align:right;">Start (ms)</th>
                         <th style="padding:8px; text-align:right;">End (ms)</th>
@@ -756,16 +757,32 @@
                 <tbody>
             `;
 
+            let lastPara = -1;
+
             wpmData.forEach(row => {
                 const instWPM = Math.round(row.words / (row.duration / 60000)) || 0;
+
+                // Visual Separator for new Paragraph
+                if (lastPara !== -1 && row.paraIndex !== lastPara) {
+                    html += `<tr style="background:#e9ecef;"><td colspan="8" style="height:4px; padding:0;"></td></tr>`;
+                }
+                lastPara = row.paraIndex;
+
+                // Highlight Line 0 as Excluded/Warm-up
+                const isLineZero = row.lineIndex === 0;
+                const rowStyle = isLineZero ? "background-color: #f1f1f1; color: #888;" : "border-bottom: 1px solid #eee;";
+                const durationText = isLineZero ? `<i>${row.duration}ms</i>` : `<b>${row.duration}ms</b>`;
+                const wpmText = isLineZero ? `<i>${instWPM}</i>` : instWPM;
+
                 html += `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding:8px;">${row.lineIndex}</td>
-                        <td style="padding:8px; text-align:right; color:#666;">${row.startTime}</td>
-                        <td style="padding:8px; text-align:right; color:#666;">${row.endTime}</td>
-                        <td style="padding:8px; text-align:right; font-weight:bold;">${row.duration}ms</td>
+                    <tr style="${rowStyle}">
+                        <td style="padding:8px; text-align:center; font-weight:bold; color:#555;">${row.paraIndex >= 0 ? row.paraIndex + 1 : '-'}</td>
+                        <td style="padding:8px;">${row.lineIndex}${isLineZero ? ' (Warm-up)' : ''}</td>
+                        <td style="padding:8px; text-align:right;">${row.startTime}</td>
+                        <td style="padding:8px; text-align:right;">${row.endTime}</td>
+                        <td style="padding:8px; text-align:right;">${durationText}</td>
                         <td style="padding:8px; text-align:right;">${row.words}</td>
-                        <td style="padding:8px; text-align:right; color:#666;">${instWPM}</td>
+                        <td style="padding:8px; text-align:right;">${wpmText}</td>
                         <td style="padding:8px; text-align:right; color:#007bff; font-weight:bold;">${row.wpm}</td>
                     </tr>
                 `;

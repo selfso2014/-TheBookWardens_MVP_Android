@@ -788,26 +788,33 @@ export class GazeDataManager {
 
                 // Sanity Check: Ignore impossibly short lines (< 100ms) to prevent noise
                 if (duration > 100 && wordCount > 0) {
-                    this.validTimeSum += duration;
-                    this.validWordSum += wordCount;
 
-                    // 4. Calculate WPM
+                    // [FIX] Exclude Line 0 (Warm-up Line) from Cumulative WPM Calculation
+                    // Line 0 includes cognitive delay and fade-in time, lowering the average artificially.
+                    // We log it, but don't count it for the user's score.
+                    if (targetLine > 0) {
+                        this.validTimeSum += duration;
+                        this.validWordSum += wordCount;
+                    }
+
+                    // 4. Calculate WPM (Only if we have valid lines > 0)
                     const minutes = this.validTimeSum / 60000;
-                    if (minutes > 0) {
+                    if (minutes > 0 && this.validWordSum > 0) {
                         this.wpm = Math.round(this.validWordSum / minutes);
 
                         // [NEW] WPM Data Logging
                         if (!this.wpmData) this.wpmData = [];
                         this.wpmData.push({
+                            paraIndex: (this.context && this.context.paraIndex !== undefined) ? this.context.paraIndex : -1, // [NEW] Tag Paragraph
                             lineIndex: targetLine,
-                            startTime: Math.round(now - duration),
+                            startTime: Math.round(now - duration), // Keep raw data in log
                             endTime: now,
                             duration: duration,
                             words: wordCount,
-                            wpm: this.wpm
+                            wpm: this.wpm // This will be the cumulative WPM (unchanged for Line 0)
                         });
 
-                        console.log(`[WPM] Updated: ${this.wpm} (Words: ${this.validWordSum}, Time: ${this.validTimeSum}ms)`);
+                        console.log(`[WPM] Updated: ${this.wpm} (Line: ${targetLine}, Words: ${this.validWordSum}, Time: ${this.validTimeSum}ms)`);
                     }
 
                     // Update State
