@@ -983,22 +983,22 @@ span.tr-word.chunk-fade-out {
 
 /* --- RGT (Responsive Words) Styles --- */
 .rune-word {
-  border-bottom: 2px dashed rgba(255, 215, 0, 0.4);
-  transition: all 0.3s ease;
+  /* [FEEDBACK] No Underline initially. Just regular text until triggered? */
+  /* Or maybe a very subtle indication? Let's keep it clean as requested. */
+  /* border-bottom: 2px dashed rgba(255, 215, 0, 0.4); REMOVED */
+  transition: color 0.2s ease, transform 0.2s ease;
   cursor: help;
-  /* Indicate interactability */
 }
 
 /* Active State (Triggered by Gaze) */
 .rune-word.active-rune {
   color: #ffd700 !important;
-  text-shadow: 0 0 10px gold;
-  border-bottom: 2px solid gold;
-  font-weight: bold;
-  transform: scale(1.1) !important;
+  /* Pure Gold */
+  font-weight: 800 !important;
+  /* Extra Bold */
+  /* text-shadow: 0 0 10px gold; REMOVED per feedback (too blurry?) */
+  /* border-bottom: 2px solid gold; REMOVED per feedback */
+  transform: scale(1.1);
   /* Subtle Pop */
-  z-index: 10;
-  position: relative;
   display: inline-block;
-  /* Ensure transform works */
 }

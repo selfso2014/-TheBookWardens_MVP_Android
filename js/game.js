@@ -1441,13 +1441,35 @@ Game.typewriter = {
             this.renderer.scheduleFadeOut(this.chunkIndex, 3000); // 3 seconds lifetime
 
             // Wait for Animation to Finish (Promise-based) with Timeout Safety
+            const chunkLen = this.renderer.chunks[this.chunkIndex].length;
+            const wpm = Game.wpm || 200;
+            const msPerWord = 60000 / wpm; // e.g. 200wpm -> 300ms
+
+            // The renderer's revealChunk animation takes (length * interval) ms.
+            // Game.wpmParams.interval is usually very fast (e.g. 50ms) for 'snappy' reveal.
+            // We need to wait for the visual reveal, THEN wait for the remaining time to match WPM.
+
             const revealPromise = this.renderer.revealChunk(this.chunkIndex, Game.wpmParams.interval);
 
-            // Safety timeout: If animation gets stuck, proceed anyway after 2s
-            const timeoutPromise = new Promise(resolve => setTimeout(resolve, 2000));
+            // Total time this chunk *should* occupy
+            const targetDuration = msPerWord * chunkLen;
+
+            // Safety timeout
+            const timeoutPromise = new Promise(resolve => setTimeout(resolve, targetDuration + 1000));
+
+            const startTime = Date.now();
 
             Promise.race([revealPromise, timeoutPromise]).then(() => {
-                // Animation Done (or timed out). Now wait for the "Reading Pause" delay.
+                const elapsed = Date.now() - startTime;
+
+                // Calculate remaining wait time
+                // We want total time (reveal + pause) = targetDuration
+                let remainingWait = targetDuration - elapsed;
+
+                // If reveal was instant or fast, we wait longer.
+                // If reveal took long (e.g. line break pause inside renderer?), we wait less.
+
+                if (remainingWait < 0) remainingWait = 0;
 
                 // [WPM COMPENSATION LOGIC]
                 // 1. Check if the *current* chunk (this.chunkIndex) had a line break.
@@ -1467,9 +1489,8 @@ Game.typewriter = {
                 this.chunkIndex++;
 
                 // Calculate Delay (Pause AFTER valid reading)
-                // Use the precise calculated delay from WPM settings
-                // Default to 1000ms if not set (fallback)
-                let baseDelay = (Game.wpmParams && Game.wpmParams.delay) ? Game.wpmParams.delay : 1000;
+                // We use the remainingWait calculated above to ensure WPM adherence.
+                let baseDelay = remainingWait;
 
                 // Apply Compensation
                 let finalDelay = baseDelay;
@@ -1590,10 +1611,27 @@ Game.typewriter = {
             if (this.renderer && this.renderer.cursor) this.renderer.cursor.style.opacity = "0";
 
             if (this.renderer && typeof this.renderer.playGazeReplay === 'function') {
+                // [FEEDBACK] Reset Rune Words for Replay Cleanliness
+                // We want to remove the 'active-rune' class so the user sees a raw replay.
+                // Or maybe keep them? Feedback says: "Just Yellow Bold is enough" for active.
+                // But during replay, if they are ALREADY yellow/bold, it might be distracting?
+                // The feedback: "3. 지문 다 읽고 리플레이할때, 반응형 단어가 노란색에 밑줄까지 있는데, 보기가 안 좋음."
+                // Since we removed underline from CSS, we just need to ensure they look clean.
+                // Let's RESET them to normal so the replay shows the gaze "re-triggering" them?
+                // No, TextRenderer.playGazeReplay just draws lines/dots. It doesn't re-simulate triggers.
+                // So let's stripped the 'active-rune' class to make the text look "fresh" for the replay canvas overlay.
+
+                this.renderer.words.forEach(w => {
+                    if (w.element) w.element.classList.remove('active-rune'); // Clean slate
+                });
+
                 this.renderer.playGazeReplay(sessionData, () => {
                     console.log("[triggerGazeReplay] Replay Done.");
                     // Restore cursor opacity just in case (though screen switch follows)
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
+
+                    // Optional: Restore active state? 
+                    // No need, we are moving to the next screen (Boss Battle).
                     resolve();
                 });
             } else {

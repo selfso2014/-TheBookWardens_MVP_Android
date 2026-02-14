@@ -10,7 +10,7 @@ export class TextChunker {
     static process(tokens, wpm, highlights = []) {
         const chunks = [];
         let currentChunk = [];
-        let targetSpan = Math.max(1, Math.round(wpm / 75));
+        let targetSpan = Math.max(1, Math.round(wpm / 100)); // [ADJUSTED] Smaller chunks: 100 divisor (was 75)
 
         // Safety constraint: Don't let chunks get too massive even at high speeds
         const MAX_CHUNK_SIZE = 15;
