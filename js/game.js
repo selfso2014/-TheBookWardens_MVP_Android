@@ -1012,9 +1012,6 @@ const Game = {
         console.log(`[Game] WPM Selected: ${wpm}`);
         console.log(`[Game Logic] Params: Interval=${this.wpmParams.interval}ms, Delay=${this.wpmParams.delay}ms, Chunk=${this.wpmParams.chunkSize}`);
 
-        console.log(`[Game] WPM Selected: ${wpm}`);
-        console.log(`[Game Logic] Target Chunk Size: ${targetChunkSize}, Pause: ${Math.round(calibratedPause)}ms`);
-
         // Wait a bit then proceed
         setTimeout(async () => {
             // Check SDK Status (Optional guard)
