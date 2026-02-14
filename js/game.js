@@ -955,29 +955,27 @@ const Game = {
         const targetChunkTotalTime = (msPerMinute / wpm) * chunkSize;
 
         // C. System Constants (Overhead)
-        // 1. TextRenderer buffer (100ms fixed in V2)
-        const SYSTEM_BUFFER = 100;
-        // 2. Line Break Average Overhead (450ms / 3 chunks approx = 150ms)
-        const LINE_BREAK_AVG = 150;
+        // 1. TextRenderer & EventLoop overhead (approx 200~250ms per chunk fixed cost)
+        const SYSTEM_BUFFER = 250;
 
         // D. Snappy Interval Strategy (Top-Down)
         // Instead of calculating interval from time, we FIX interval to be fast (50ms).
         let interval = 50;
 
         // E. Calculate Required Wait Time (Delay)
-        // Total = (Interval * Count) + Buffer + LineBreak + Delay
-        // Delay = Total - (Interval * Count) - Buffer - LineBreak
-        let delay = targetChunkTotalTime - (interval * chunkSize) - SYSTEM_BUFFER - LINE_BREAK_AVG;
+        // Total = (Interval * Count) + Buffer + Delay
+        // Note: LINE_BREAK_AVG is removed because we handle it DYNAMICALLY in the tick() loop now.
+        let delay = targetChunkTotalTime - (interval * chunkSize) - SYSTEM_BUFFER;
 
         // F. Adaptive Logic (High Speed Handling)
         // If calculated delay is too short (< 150ms), we have no choice but to speed up interval further.
         if (delay < 150) {
             delay = 150; // Minimum pause for cognition
             // Solve for Interval:
-            const availableRenderTime = targetChunkTotalTime - SYSTEM_BUFFER - LINE_BREAK_AVG - 150;
+            const availableRenderTime = targetChunkTotalTime - SYSTEM_BUFFER - 150;
             interval = Math.floor(availableRenderTime / chunkSize);
 
-            // Safety: Min interval 20ms (browser constraints)
+            // Safety: Min interval 20ms
             if (interval < 20) interval = 20;
         }
 
