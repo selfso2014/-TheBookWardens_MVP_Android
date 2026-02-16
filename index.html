@@ -1058,7 +1058,7 @@
 
   <!-- SCREEN: Alice Battlefield (Reordered Conflict) -->
   <div id="screen-alice-battle" class="screen"
-    style="display:none; flex-direction: column; overflow: hidden; background: #000;">
+    style="display:none; flex-direction: column; overflow: hidden; background: #000; width: 100vw; height: 100vh;">
     <canvas id="alice-canvas"
       style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;"></canvas>
 
@@ -1067,12 +1067,12 @@
 
       <!-- Top Entity Area (RED DRAGON VILLAIN BACKGROUND) -->
       <div class="entity-area villain"
-        style="position: relative; width: 100%; height: 45%; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;">
+        style="position: relative; width: 100%; height: 45vh; min-height: 300px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;">
 
         <!-- Villain Background Image -->
         <div id="villain-visual-container"
           style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;">
-          <img id="villain-bg-img" src="./finalredvillain.png" alt="Red Villain"
+          <img id="villain-bg-img" src="finalredvillain.png" alt="Red Villain"
             style="width: 100%; height: 100%; object-fit: cover; object-position: center top; mask-image: linear-gradient(to bottom, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%); opacity: 0.8;">
         </div>
 

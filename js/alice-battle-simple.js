@@ -170,10 +170,9 @@
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
 
-        // DEBUG: VISUAL HEARTBEAT (Red Box)
-        // If you see this, Canvas & Loop are WORKING.
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(width / 2 - 25, height / 2 - 25, 50, 50);
+        // DEBUG: VISUAL HEARTBEAT REMOVED
+        // ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        // ctx.fillRect(width / 2 - 25, height / 2 - 25, 50, 50);
 
         ctx.save();
         // Simple Blend Mode
