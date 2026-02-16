@@ -172,8 +172,8 @@
 
         // DEBUG: VISUAL HEARTBEAT (Red Box)
         // If you see this, Canvas & Loop are WORKING.
-        // ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        // ctx.fillRect(width/2 - 25, height/2 - 25, 50, 50);
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillRect(width / 2 - 25, height / 2 - 25, 50, 50);
 
         ctx.save();
         // Simple Blend Mode
@@ -279,9 +279,9 @@
 
             let color = '#00ffff', damage = 10, count = 1;
 
-            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 25; ui.log.innerText = "Ink Splash Attack!"; }
-            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 15; ui.log.innerText = "Rune Cast!"; }
-            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 20; ui.log.innerText = "Gemlight Burst!"; }
+            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 25; ui.log.innerText = `Ink Splash! (L:${lightnings.length + 1})`; }
+            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 15; ui.log.innerText = `Rune Cast! (L:${lightnings.length + 1})`; }
+            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 20; ui.log.innerText = `Gemlight! (L:${lightnings.length + 1})`; }
 
             cardValues[type] = Math.max(0, cardValues[type] - decreaseAmount[type]);
             updateCardDisplay();
