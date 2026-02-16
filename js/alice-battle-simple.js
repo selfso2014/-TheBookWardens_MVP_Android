@@ -40,8 +40,9 @@
             this.depth = depth;
             this.color = color;
 
-            const originalBaseWidth = isBranch ? (3 - depth) : (color === '#ff0055' ? 10 : 8);
-            this.baseWidth = originalBaseWidth * 0.6;
+            // Make it Thinner! (Original: 3-depth or 8-10. New: 1.5-depth or 4)
+            const originalBaseWidth = isBranch ? (1.5 - depth * 0.5) : (color === '#ff0055' ? 4 : 3);
+            this.baseWidth = Math.max(0.5, originalBaseWidth * 0.5); // Much thinner
             this.generateSegments();
         }
 
@@ -70,16 +71,16 @@
         draw() {
             if (!ctx) return;
             ctx.save();
-            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalCompositeOperation = 'screen'; // Use Screen for better glow
             ctx.strokeStyle = this.color;
             ctx.globalAlpha = this.opacity;
-            ctx.lineWidth = this.baseWidth * 4;
-            ctx.shadowBlur = 15;
+            ctx.lineWidth = this.baseWidth * 2; // Thinner glow stroke
+            ctx.shadowBlur = 10; // Reduced blur size
             ctx.shadowColor = this.color;
             this.renderPath();
             ctx.strokeStyle = '#ffffff';
             ctx.globalAlpha = this.opacity;
-            ctx.lineWidth = this.baseWidth * 0.6;
+            ctx.lineWidth = this.baseWidth * 0.8; // Correct Core width
             this.renderPath();
             ctx.restore();
             this.opacity -= 0.08;
@@ -273,36 +274,57 @@
 
             if (!sourceEl || !targetEl) return;
 
-            let wBox = sourceEl.getBoundingClientRect();
-            let vBox = targetEl.getBoundingClientRect();
+            // Visual Feedback: Glow Border
+            let originalBorder = sourceEl.style.borderColor;
+            let originalShadow = sourceEl.style.boxShadow;
 
-            // Fallback
-            if (wBox.width === 0) wBox = { left: window.innerWidth * 0.5, top: window.innerHeight * 0.8, width: 50, height: 50, bottom: window.innerHeight * 0.9 };
-            if (vBox.width === 0) vBox = { left: window.innerWidth * 0.5, top: window.innerHeight * 0.1, width: 200, height: 200, bottom: window.innerHeight * 0.4 };
+            let color = '#00ffff', damage = 10;
 
-            let color = '#00ffff', damage = 10, count = 1;
+            // Updated Single Attack Logic & Thinner Colors
+            if (type === 'ink') {
+                color = '#b300ff'; damage = 5; ui.log.innerText = `Ink Splash!`;
+                sourceEl.style.boxShadow = `0 0 20px 5px ${color}`;
+                sourceEl.style.borderColor = color;
+            }
+            if (type === 'rune') {
+                color = '#00f2ff'; damage = 6; ui.log.innerText = `Rune Cast!`;
+                sourceEl.style.boxShadow = `0 0 20px 5px ${color}`;
+                sourceEl.style.borderColor = color;
+            }
+            if (type === 'gem') {
+                color = '#ffffff'; damage = 12; ui.log.innerText = `Gemlight!`;
+                sourceEl.style.boxShadow = `0 0 20px 5px ${color}`;
+                sourceEl.style.borderColor = color;
+            }
 
-            // Updated Nerfed Damage
-            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 5; ui.log.innerText = `Ink Splash!`; } // 25 -> 5
-            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 3; ui.log.innerText = `Rune Cast!`; } // 15 -> 3
-            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 4; ui.log.innerText = `Gemlight!`; } // 20 -> 4
+            // Reset glow after short delay
+            setTimeout(() => {
+                sourceEl.style.boxShadow = originalShadow || 'none';
+                sourceEl.style.borderColor = originalBorder || '#555';
+            }, 300);
 
             cardValues[type] = Math.max(0, cardValues[type] - decreaseAmount[type]);
             updateCardDisplay();
 
-            for (let i = 0; i < count; i++) {
-                setTimeout(() => {
-                    if (gameState !== 'playing' || villainHP <= 0) return;
-                    // Target specific parts of the villain image for variety? Keep it simple: Center to Center-ish
-                    const targetX = vBox.left + vBox.width / 2 + (Math.random() - 0.5) * 100;
-                    const targetY = vBox.top + vBox.height * 0.4 + (Math.random() - 0.5) * 50; // Aim a bit higher up
+            let wBox = sourceEl.getBoundingClientRect();
+            let vBox = targetEl.getBoundingClientRect();
 
-                    lightnings.push(new Lightning(wBox.left + wBox.width / 2, wBox.top, targetX, targetY, false, 0, color));
+            // PRECISE COORDINATES: Card Top Center -> Villain Bottom Center
+            const startX = wBox.left + wBox.width / 2;
+            const startY = wBox.top;
 
-                    flashOpacity = 0.2; shakeTime = 8; dealDamage('villain', damage / count);
-                }, i * 140);
-            }
-            setTimeout(() => { if (gameState === 'playing' && villainHP > 0) this.villainCounter(); }, 900);
+            const targetX = vBox.left + vBox.width / 2;
+            const targetY = vBox.bottom - vBox.height * 0.2;
+
+            lightnings.push(new Lightning(startX, startY, targetX, targetY, false, 0, color));
+
+            // Single Hit Damage
+            setTimeout(() => {
+                if (gameState !== 'playing' || villainHP <= 0) return;
+                flashOpacity = 0.2; shakeTime = 8; dealDamage('villain', damage);
+            }, 100);
+
+            setTimeout(() => { if (gameState === 'playing' && villainHP > 0) this.villainCounter(); }, 800);
         },
 
         villainCounter: function () {
@@ -331,14 +353,30 @@
             if (chosenKey === 'king') damage = 8;
             if (chosenKey === 'joker') damage = 5;
 
+            // Visual Feedback for Villain Card
+            const vCardEl = document.getElementById(`v-card-${chosenKey}`);
+            if (vCardEl) {
+                let color = '#ff0044';
+                vCardEl.style.boxShadow = `0 0 20px 5px ${color}`;
+                vCardEl.style.borderColor = color;
+                setTimeout(() => {
+                    vCardEl.style.boxShadow = 'none';
+                    vCardEl.style.borderColor = '#ff4444';
+                }, 400);
+            }
+
             vCardValues[chosenKey] = Math.max(0, vCardValues[chosenKey] - vDecreaseAmount[chosenKey]);
             updateCardDisplay();
 
             setTimeout(() => {
+                // PRECISE COORDINATES: Villain Image Bottom -> Warden Top
                 const startX = vBox.left + vBox.width / 2;
-                const startY = vBox.top + vBox.height * 0.5; // Start from middle of villain image
+                const startY = vBox.bottom - vBox.height * 0.1;
 
-                lightnings.push(new Lightning(startX, startY, wBox.left + wBox.width / 2, wBox.top + 20, false, 0, '#ff0044'));
+                const targetX = wBox.left + wBox.width / 2;
+                const targetY = wBox.top;
+
+                lightnings.push(new Lightning(startX, startY, targetX, targetY, false, 0, '#ff0044'));
                 flashOpacity = 0.25; shakeTime = 12; dealDamage('warden', damage);
             }, 50);
         }
