@@ -1949,19 +1949,81 @@ Game.typewriter = {
                 }
 
 
-                // Force Event Binding (Safety Net)
+                // Force Event Binding (Safety Net & Standalone Lightning)
                 const cards = screen.querySelectorAll('.warden .card');
                 console.log(`[Battle] Found ${cards.length} cards in REAL screen.`);
 
                 cards.forEach(card => {
-                    // Force interactive styles
                     card.style.cursor = 'pointer';
-                    card.style.pointerEvents = 'auto'; // CRITICAL: Override parent's potential 'none'
+                    card.style.pointerEvents = 'auto';
 
-                    // We don't necessarily need to overwrite onclick if the module handles it,
-                    // but ensuring pointer-events is auto is crucial.
-                    // If the module's startBattle() attaches listeners or if HTML has onclick, we are good.
+                    // Standalone Lightning Logic (No Module Dependency)
+                    card.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const text = card.innerText.toLowerCase();
+                        let action = '';
+                        if (text.includes('ink')) action = 'ink';
+                        else if (text.includes('rune')) action = 'rune';
+                        else if (text.includes('gem')) action = 'gem';
+
+                        if (action) {
+                            // 1. Game Logic
+                            if (window.AliceBattleRef) window.AliceBattleRef.triggerAttack(action);
+                            else if (window.Game && window.Game.handleBattleAction) window.Game.handleBattleAction(action);
+
+                            // 2. Visual Effect (Standalone)
+                            const canvas = document.getElementById('alice-canvas');
+                            if (canvas) {
+                                const ctx = canvas.getContext('2d');
+                                canvas.style.display = 'block';
+                                canvas.style.zIndex = '50'; // Higher than UI
+                                canvas.width = window.innerWidth;
+                                canvas.height = window.innerHeight;
+                                canvas.style.pointerEvents = 'none';
+
+                                const startEl = document.getElementById('warden-avatar');
+                                const endEl = document.getElementById('villain-avatar');
+
+                                if (startEl && endEl) {
+                                    const startRect = startEl.getBoundingClientRect();
+                                    const endRect = endEl.getBoundingClientRect();
+
+                                    const startX = startRect.left + startRect.width / 2;
+                                    const startY = startRect.top;
+                                    const endX = endRect.left + endRect.width / 2;
+                                    const endY = endRect.bottom;
+
+                                    // Simple Flash
+                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                                    // Draw Lightning Line
+                                    ctx.beginPath();
+                                    ctx.strokeStyle = '#00ffff';
+                                    ctx.lineWidth = 5;
+                                    ctx.shadowBlur = 20;
+                                    ctx.shadowColor = '#00ffff';
+                                    ctx.moveTo(startX, startY);
+
+                                    // Random control points
+                                    const midX = (startX + endX) / 2 + (Math.random() - 0.5) * 100;
+                                    const midY = (startY + endY) / 2 + (Math.random() - 0.5) * 100;
+
+                                    ctx.lineTo(midX, midY);
+                                    ctx.lineTo(endX, endY);
+                                    ctx.stroke();
+
+                                    // Clear after short delay
+                                    setTimeout(() => ctx.clearRect(0, 0, canvas.width, canvas.height), 150);
+                                }
+                            }
+                        }
+                    };
+                    card.ontouchstart = card.onclick;
                 });
+
 
                 // Ensure the UI container allows clicks
                 const uiContainer = document.getElementById('alice-game-ui');
