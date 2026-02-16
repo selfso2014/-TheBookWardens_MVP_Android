@@ -1880,55 +1880,83 @@ Game.typewriter = {
     },
 
     triggerFinalBossBattle() {
-        console.log("[Game] Alice Battle Mode Started (Global Capture V3).");
+        console.log("[Game] Alice Battle Mode Started (Delayed Bind & No Move).");
 
-        // 1. Disable Specific Blocking Overlays
-        const blockers = ['hud-top', 'output', 'preview', 'calibration-overlay'];
+        // 1. Remove Blockers
+        const blockers = ['output', 'preview', 'calibration-overlay'];
         blockers.forEach(id => {
             const el = document.getElementById(id);
-            if (el) {
-                el.style.display = 'none'; // Hide visual
-                el.style.setProperty('pointer-events', 'none', 'important'); // Pass clicks FORCE
-            }
+            if (el) el.remove();
         });
 
-        // Safety Net: Force pointer-events:none on ALL canvases
-        document.querySelectorAll('canvas').forEach(c => {
-            c.style.setProperty('pointer-events', 'none', 'important');
-        });
+        const hud = document.getElementById('hud-top');
+        if (hud) hud.style.display = 'none';
 
-        // 2. Explicit Screen Switch
+        // 2. Screen Switch
         const allScreens = document.querySelectorAll('.screen');
         allScreens.forEach(s => s.style.display = 'none');
 
         const screen = document.getElementById("screen-final-boss");
         if (screen) {
+            // DO NOT MOVE DOM. Keep it where it is to preserve CSS.
             screen.style.display = 'flex';
             screen.classList.add('alice-battle-mode');
             screen.style.opacity = '1';
             screen.style.visibility = 'visible';
             screen.style.backgroundColor = '#111';
-            screen.style.zIndex = '2147483647'; // MAX INT Z-Index
+            screen.style.zIndex = '2147483647';
 
-            if (screen.parentElement && screen.parentElement.tagName !== 'BODY') {
-                screen.parentElement.style.display = 'block';
-            }
+            // 3. Delayed Binding (Give browser a frame to render)
+            setTimeout(() => {
+                const cards = screen.querySelectorAll('.warden .card');
+                console.log(`[Battle] Found ${cards.length} cards to bind.`);
+
+                cards.forEach(card => {
+                    card.onclick = null;
+                    card.ontouchstart = null;
+
+                    const handler = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const text = card.innerText.toLowerCase();
+                        let action = '';
+                        if (text.includes('ink')) action = 'ink';
+                        else if (text.includes('rune')) action = 'rune';
+                        else if (text.includes('gem')) action = 'gem';
+
+                        if (action) {
+                            if (window.Game && window.Game.handleBattleAction) {
+                                window.Game.handleBattleAction(action);
+                            }
+                        }
+                    };
+
+                    card.onclick = handler;
+                    card.ontouchstart = handler;
+
+                    // Force styles
+                    card.style.cursor = 'pointer';
+                    card.style.pointerEvents = 'auto';
+                    card.style.userSelect = 'none';
+                    card.style.webkitUserSelect = 'none';
+                });
+            }, 100); // 100ms delay
+
         } else {
             console.error("[Game] CRITICAL: #screen-final-boss not found!");
             return;
         }
 
-        // 3. Reset State & UI
+        // 4. Reset State & UI
         this.aliceBattleState.playerHp = 100;
         this.aliceBattleState.villainHp = 100;
         this.aliceBattleState.isPlayerTurn = true;
         this.updateBattleUI();
 
-        // 4. Remove Dummy Overlay if exists
+        // 5. Remove Dummy
         const dummy = document.querySelector("#screen-final-boss > div[onclick='Game.endFinalBossDummy()']");
         if (dummy) dummy.remove();
-
-        // Note: Event Listeners are handled globally by 'handleBattleClick' below
     },
 
     updateBattleUI() {
@@ -2006,48 +2034,8 @@ document.addEventListener("DOMContentLoaded", () => {
     Game.init();
 });
 
-// --- GLOBAL BATTLE INTERACTION HANDLER (CAPTURE PHASE) ---
-// This ensures clicks work even if obscured by transparent overlays or if event bubbling is stopped.
-const handleBattleClick = (e) => {
-    // 1. Active Check
-    const screen = document.getElementById('screen-final-boss');
-    // Check if visible (flex or block) and has the mode class
-    const style = screen ? window.getComputedStyle(screen) : null;
-    const isBattleActive = screen &&
-        style.display !== 'none' &&
-        screen.classList.contains('alice-battle-mode');
 
-    if (!isBattleActive) return;
+// End of file
 
-    // 2. Target Check (Is it a card?)
-    const card = e.target.closest('.warden .card');
-    if (!card) return;
-
-    // 3. Prevent Default Behaviors (Zoom, Highlight, Bubbling)
-    // Only if it's a valid card click in battle mode
-    e.preventDefault();
-    e.stopPropagation();
-
-    // 4. Extract Action
-    const text = card.innerText.toLowerCase();
-    let action = '';
-    if (text.includes('ink')) action = 'ink';
-    else if (text.includes('rune')) action = 'rune';
-    else if (text.includes('gem')) action = 'gem';
-
-    // 5. Execute Game Logic
-    if (action && window.Game && typeof window.Game.handleBattleAction === 'function') {
-        // Debounce slightly to prevent double-fire from touch+click
-        if (window.Game._lastBattleClick && (Date.now() - window.Game._lastBattleClick < 300)) return;
-        window.Game._lastBattleClick = Date.now();
-
-        console.log(`[Battle] Global Handler: Action ${action}`);
-        window.Game.handleBattleAction(action);
-    }
-};
-
-// Bind to Capture Phase (true) to intercept events before they reach targets
-document.addEventListener('click', handleBattleClick, true);
-document.addEventListener('touchstart', handleBattleClick, { passive: false, capture: true });
 
 
