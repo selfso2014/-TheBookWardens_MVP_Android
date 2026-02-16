@@ -1058,7 +1058,7 @@
 
   <!-- SCREEN: Alice Battlefield (Reordered Conflict) -->
   <div id="screen-alice-battle" class="screen"
-    style="display:none; flex-direction: column; overflow: hidden; background: #000; width: 100%; height: 100vh;">
+    style="display:none; flex-direction: column; overflow: hidden; background: #000; width: 100%; height: 100vh; align-items: center; justify-content: space-between;">
     <canvas id="alice-canvas"
       style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;"></canvas>
 
@@ -1067,18 +1067,19 @@
 
       <!-- Top Entity Area (RED DRAGON VILLAIN BACKGROUND) -->
       <div class="entity-area villain"
-        style="position: relative; width: 100%; height: 45vh; min-height: 300px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;">
+        style="position: relative; width: 100%; height: 38vh; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;">
 
         <!-- Villain Background Image -->
         <div id="villain-visual-container"
-          style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; display: flex; justify-content: center; align-items: flex-end;">
+          style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 2vh;">
           <img id="villain-bg-img" src="finalredvillain.png" alt="Red Villain"
-            style="width: auto; height: 85%; max-width: 90%; object-fit: contain; object-position: center bottom; mask-image: linear-gradient(to bottom, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%); opacity: 0.85;">
+            style="width: auto; height: 95%; max-width: 95%; object-fit: contain; object-position: center 15%; mask-image: linear-gradient(to bottom, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%); opacity: 0.9;">
         </div>
+
 
         <!-- Villain Cards Overlay -->
         <div class="card-container"
-          style="position: relative; z-index: 2; margin-bottom: 20px; display: flex; gap: 10px;">
+          style="position: relative; z-index: 2; margin-top: 10vh; display: flex; gap: 10px; justify-content: center;">
           <div id="v-card-queen" class="card" style="border-color: #ff4444; background: rgba(40, 0, 0, 0.8);">
             <i style="color:red;">♥️</i><span>QUEEN</span>
             <div class="power-val" id="v-val-queen">100</div>
@@ -1123,7 +1124,7 @@
 
       <!-- Bottom Entity Area (WARDEN CONTROLS) -->
       <div class="entity-area warden"
-        style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 20px; height: 35%;">
+        style="width: 100%; height: 35vh; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 30px; background: linear-gradient(to top, rgba(0,0,20,0.8), transparent);">
 
         <div class="battle-log" id="al-log"
           style="text-align: center; color: #888; font-size: 0.8rem; margin-bottom: 5px; min-height: 1.2em;">
