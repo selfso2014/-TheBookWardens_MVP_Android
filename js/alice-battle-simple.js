@@ -200,6 +200,17 @@
 
                 canvas = document.getElementById('alice-canvas');
                 if (!canvas) { console.error("Canvas missing"); return; }
+
+                // FORCE ESSENTIAL STYLES (Safety Net)
+                canvas.style.display = 'block';
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0';
+                canvas.style.left = '0';
+                canvas.style.width = '100vw'; // Explicit Width
+                canvas.style.height = '100vh'; // Explicit Height
+                canvas.style.zIndex = '100'; // Highest priority
+                canvas.style.pointerEvents = 'none'; // Pass clicks
+
                 ctx = canvas.getContext('2d');
 
                 ui.gameUi = document.getElementById('alice-game-ui');
