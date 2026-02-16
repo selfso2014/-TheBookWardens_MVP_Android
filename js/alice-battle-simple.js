@@ -466,15 +466,27 @@
 
             // 4. Launch Lightnings
             const sBox = sourceEl.getBoundingClientRect();
-            const startX = sBox.left + sBox.width / 2;
-            const startY = sBox.top;
+            let startX = sBox.left + sBox.width / 2;
+            let startY = sBox.top;
+
+            // FALLBACK FOR SOURCE
+            if (sBox.width === 0 && sBox.height === 0) {
+                startX = window.innerWidth / 2;
+                startY = window.innerHeight - 100; // Bottom Center fallback
+            }
 
             targetChars.forEach((charEl, idx) => {
                 setTimeout(() => {
                     const tBox = charEl.getBoundingClientRect();
                     // Add some randomness to target center
-                    const targetX = tBox.left + tBox.width / 2;
-                    const targetY = tBox.top + tBox.height / 2;
+                    let targetX = tBox.left + tBox.width / 2;
+                    let targetY = tBox.top + tBox.height / 2;
+
+                    // FALLBACK FOR TARGET
+                    if (tBox.width === 0 && tBox.height === 0) {
+                        targetX = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+                        targetY = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                    }
 
                     lightnings.push(new Lightning(startX, startY, targetX, targetY, false, 0, color));
 
@@ -513,14 +525,25 @@
             ui.log.innerText = `Red Queen uses ${type.toUpperCase()}!`;
 
             const sBox = sourceEl.getBoundingClientRect();
-            const startX = sBox.left + sBox.width / 2;
-            const startY = sBox.bottom - 50;
+            let startX = sBox.left + sBox.width / 2;
+            let startY = sBox.bottom - 50;
+
+            // FALLBACK FOR VILLAIN SOURCE
+            if (sBox.width === 0 && sBox.height === 0) {
+                startX = window.innerWidth / 2;
+                startY = 100; // Top Center fallback
+            }
 
             // If no letters to corrupt, attack warden directly
             if (targetChars.length === 0) {
                 const wEl = document.getElementById('warden-hp');
                 const wBox = wEl.getBoundingClientRect();
-                lightnings.push(new Lightning(startX, startY, wBox.left + wBox.width / 2, wBox.top, false, 0, color));
+                let wX = wBox.left + wBox.width / 2;
+                let wY = wBox.top;
+
+                if (wBox.width === 0) { wX = window.innerWidth / 2; wY = window.innerHeight - 50; }
+
+                lightnings.push(new Lightning(startX, startY, wX, wY, false, 0, color));
                 setTimeout(() => {
                     wardenHP = Math.max(0, wardenHP - damage);
                     if (ui.wardenHp) ui.wardenHp.style.width = wardenHP + '%';
@@ -534,8 +557,14 @@
             targetChars.forEach((charEl, idx) => {
                 setTimeout(() => {
                     const tBox = charEl.getBoundingClientRect();
-                    const targetX = tBox.left + tBox.width / 2;
-                    const targetY = tBox.top + tBox.height / 2;
+                    let targetX = tBox.left + tBox.width / 2;
+                    let targetY = tBox.top + tBox.height / 2;
+
+                    // FALLBACK FOR TARGET
+                    if (tBox.width === 0 && tBox.height === 0) {
+                        targetX = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+                        targetY = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                    }
 
                     lightnings.push(new Lightning(startX, startY, targetX, targetY, false, 0, color));
 
