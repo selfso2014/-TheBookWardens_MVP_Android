@@ -1917,7 +1917,7 @@ Game.typewriter = {
                 // Initialize Battle Module Logic
                 if (window.AliceBattleRef) {
                     console.log("[Battle] Initializing AliceBattle Module...");
-                    window.AliceBattleRef.startBattle();
+                    window.AliceBattleRef.init();
                 } else {
                     console.warn("[Battle] AliceBattleRef not found! Fallback to manual binding.");
                 }

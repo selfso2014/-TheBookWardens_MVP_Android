@@ -1061,6 +1061,7 @@
 
   <!-- SCREEN: Alice Battlefield (Reordered Conflict) -->
   <div id="screen-alice-battle" class="screen" style="display:none;">
+    <canvas id="alice-canvas"></canvas>
     <div id="alice-game-ui">
       <!-- Top Entity Area (RED QUEEN) -->
       <div class="entity-area villain">
@@ -1121,15 +1122,15 @@
 
   <!-- Scripts -->
   <!-- 1. Eye Tracking Core -->
-  <script type="module" src="./js/app.js?v=260216_2255"></script>
+  <script type="module" src="./js/app.js?v=260216_2302_LIGHTNING"></script>
   <script type="module">
-    import { AliceBattle } from './js/alice-battle.js?v=5.20_DELAY_BIND';
+    import { AliceBattle } from './js/alice-battle.js?v=5.22_LIGHTNING';
     window.AliceBattleRef = AliceBattle;
-    console.log("AliceBattle Module Loaded (v5.20)");
+    console.log("AliceBattle Module Loaded (v5.22)");
   </script>
   <!-- 2. Game Logic -->
-  <script src="./js/calibration.js?v=260216_2255"></script>
-  <script type="module" src="./js/game.js?v=260216_2255"></script>
+  <script src="./js/calibration.js?v=260216_2302_LIGHTNING"></script>
+  <script type="module" src="./js/game.js?v=260216_2302_LIGHTNING"></script>
 
   <!-- 3. Explicit Event Binding for Debug Button (With STANDALONE BATTLE LOGIC) -->
   <script>
