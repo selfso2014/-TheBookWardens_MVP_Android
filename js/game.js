@@ -1941,6 +1941,27 @@ Game.typewriter = {
                     }
 
                     window.AliceBattleRef.init();
+
+                    // RE-APPLY POINTER EVENTS (Critical Fix)
+                    setTimeout(() => {
+                        const canvas = document.getElementById('alice-canvas');
+                        if (canvas) canvas.style.pointerEvents = 'none';
+
+                        const cards = screen.querySelectorAll('.warden .card');
+                        cards.forEach(c => {
+                            c.style.cursor = 'pointer';
+                            c.style.pointerEvents = 'auto';
+                        });
+
+                        // Ensure UI Container allows pass-through, but children take clicks
+                        const uiContainer = document.getElementById('alice-game-ui');
+                        if (uiContainer) {
+                            uiContainer.style.pointerEvents = 'none';
+                            const areas = uiContainer.querySelectorAll('.entity-area');
+                            areas.forEach(a => a.style.pointerEvents = 'auto');
+                        }
+                    }, 50);
+
                 } else {
                     console.warn("[Battle] window.AliceBattleRef not found.");
                 }
