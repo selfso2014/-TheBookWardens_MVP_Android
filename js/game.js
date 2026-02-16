@@ -1932,6 +1932,12 @@ Game.typewriter = {
                         canvas.width = window.innerWidth;
                         canvas.height = window.innerHeight;
                         canvas.style.pointerEvents = 'none'; // Click-through
+
+                        // DIRECT DRAW TEST
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = 'rgba(255, 0, 255, 0.5)';
+                        ctx.fillRect(100, 100, 300, 300);
+                        console.log("[Battle] Drew TEST RECT on canvas at (100,100).");
                     } else {
                         console.error("[Battle] CRITICAL: #alice-canvas NOT FOUND in game.js check.");
                     }
