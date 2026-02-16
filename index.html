@@ -1057,64 +1057,123 @@
   </div>
 
   <!-- SCREEN: Alice Battlefield (Reordered Conflict) -->
-  <div id="screen-alice-battle" class="screen" style="display:none;">
-    <canvas id="alice-canvas"></canvas>
-    <div id="alice-game-ui">
-      <!-- Top Entity Area (RED QUEEN) -->
-      <div class="entity-area villain">
-        <div class="avatar" id="villain-avatar">👑</div>
-        <div class="card-container">
-          <div id="v-card-queen" class="card"><i>♥️</i><span>QUEEN</span>
+  <div id="screen-alice-battle" class="screen"
+    style="display:none; flex-direction: column; overflow: hidden; background: #000;">
+    <canvas id="alice-canvas"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;"></canvas>
+
+    <div id="alice-game-ui"
+      style="position: relative; z-index: 10; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+
+      <!-- Top Entity Area (RED DRAGON VILLAIN BACKGROUND) -->
+      <div class="entity-area villain"
+        style="position: relative; width: 100%; height: 45%; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;">
+
+        <!-- Villain Background Image -->
+        <div id="villain-visual-container"
+          style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;">
+          <img id="villain-bg-img" src="./finalredvillain.png" alt="Red Villain"
+            style="width: 100%; height: 100%; object-fit: cover; object-position: center top; mask-image: linear-gradient(to bottom, black 70%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%); opacity: 0.8;">
+        </div>
+
+        <!-- Villain Cards Overlay -->
+        <div class="card-container"
+          style="position: relative; z-index: 2; margin-bottom: 20px; display: flex; gap: 10px;">
+          <div id="v-card-queen" class="card" style="border-color: #ff4444; background: rgba(40, 0, 0, 0.8);">
+            <i style="color:red;">♥️</i><span>QUEEN</span>
             <div class="power-val" id="v-val-queen">100</div>
           </div>
-          <div id="v-card-king" class="card"><i>♠️</i><span>KING</span>
+          <div id="v-card-king" class="card" style="border-color: #ff4444; background: rgba(40, 0, 0, 0.8);">
+            <i style="color:red;">♠️</i><span>KING</span>
             <div class="power-val" id="v-val-king">60</div>
           </div>
-          <div id="v-card-joker" class="card"><i>♣️</i><span>JOKER</span>
+          <div id="v-card-joker" class="card" style="border-color: #ff4444; background: rgba(40, 0, 0, 0.8);">
+            <i style="color:red;">♣️</i><span>JOKER</span>
             <div class="power-val" id="v-val-joker">40</div>
           </div>
         </div>
-        <div class="status-bar">
-          <div class="hp" id="villain-hp"></div>
+
+        <!-- Villain HP Bar Overlay -->
+        <div class="status-bar"
+          style="position: absolute; bottom: 10px; width: 60%; height: 6px; background: #333; border: 1px solid #555; z-index: 2;">
+          <div class="hp" id="villain-hp" style="background: #ff4d4d; width: 100%; height: 100%;"></div>
         </div>
-        <div class="entity-name" style="color: #ff4d4d;">RED QUEEN</div>
       </div>
 
-      <div class="middle-text" id="alice-text">
-        "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once
-        or twice she had peeped into the book her sister was reading..."
+      <!-- Middle Area: Rift Textfield -->
+      <div id="rift-textfield-container"
+        style="flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 10px; position: relative;">
+
+        <div class="rift-textfield"
+          style="border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(0, 0, 0, 0.4); padding: 15px; border-radius: 6px; max-width: 600px; width: 90%; max-height: 140px; overflow: hidden; position: relative; backdrop-filter: blur(2px);">
+
+          <div
+            style="position: absolute; top: -10px; left: 10px; background: #000; padding: 0 5px; font-size: 0.7rem; color: #777; border: 1px solid #333; border-radius: 4px;">
+            Rift Textfield
+          </div>
+
+          <div class="middle-text" id="alice-text"
+            style="text-align: center; color: #ccc; font-family: 'Crimson Text', serif; font-size: 1.1rem; line-height: 1.5; font-style: italic;">
+            "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do:
+            once or twice she had peeped into the book her sister was reading..."
+          </div>
+        </div>
       </div>
 
-      <!-- Bottom Entity Area (WARDEN ALICE) -->
-      <div class="entity-area warden">
-        <div class="entity-name" style="color: #4da6ff;">WARDEN ALICE</div>
-        <div class="status-bar">
-          <div class="hp" id="warden-hp"></div>
+      <!-- Bottom Entity Area (WARDEN CONTROLS) -->
+      <div class="entity-area warden"
+        style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 20px; height: 35%;">
+
+        <div class="battle-log" id="al-log"
+          style="text-align: center; color: #888; font-size: 0.8rem; margin-bottom: 5px; min-height: 1.2em;">
+          Battle started...
         </div>
-        <div class="card-container">
-          <div id="card-ink" class="card" onclick="Game.AliceBattle.triggerAttack('ink')"><i>✒️</i><span>INK</span>
+
+        <!-- Warden HP -->
+        <div class="status-bar"
+          style="width: 200px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-bottom: 15px; border: 1px solid #444;">
+          <div class="hp" id="warden-hp" style="background: #4da6ff; width: 100%; height: 100%;"></div>
+        </div>
+
+        <!-- Warden Cards (No Avatar) -->
+        <div class="card-container" style="display: flex; gap: 15px; justify-content: center;">
+          <div id="card-ink" class="card" onclick="window.AliceBattleRef.triggerAttack('ink')" style="cursor: pointer;">
+            <img src="./ink.png"
+              style="width: 30px; height: 30px; margin-bottom: 5px; filter: drop-shadow(0 0 5px cyan);">
+            <span>INK</span>
             <div class="power-val" id="val-ink">190</div>
           </div>
-          <div id="card-rune" class="card" onclick="Game.AliceBattle.triggerAttack('rune')"><i>🌀</i><span>RUNE</span>
+          <div id="card-rune" class="card" onclick="window.AliceBattleRef.triggerAttack('rune')"
+            style="cursor: pointer;">
+            <img src="./rune.png"
+              style="width: 30px; height: 30px; margin-bottom: 5px; filter: drop-shadow(0 0 5px cyan);">
+            <span>RUNE</span>
             <div class="power-val" id="val-rune">30</div>
           </div>
-          <div id="card-gem" class="card" onclick="Game.AliceBattle.triggerAttack('gem')"><i>💎</i><span>GEM</span>
+          <div id="card-gem" class="card" onclick="window.AliceBattleRef.triggerAttack('gem')" style="cursor: pointer;">
+            <img src="./gem.png"
+              style="width: 30px; height: 30px; margin-bottom: 5px; filter: drop-shadow(0 0 5px cyan);">
+            <span>GEM</span>
             <div class="power-val" id="val-gem">50</div>
           </div>
         </div>
-        <div class="avatar" id="warden-avatar">👧</div>
       </div>
 
-      <div class="battle-log" id="al-log">Battle started...</div>
     </div>
 
-    <div id="alice-final-screen">
-      <div id="result-header" class="result-header">RESULT</div>
-      <div id="story-display" class="story-container"></div>
-      <button id="alice-restart-btn" onclick="Game.AliceBattle.resetGame()">Try Again</button>
+    <!-- Final Result Overlay -->
+    <div id="alice-final-screen"
+      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 1s;">
+      <div id="result-header" class="result-header"
+        style="font-family: 'Cinzel', serif; font-size: 3rem; margin-bottom: 20px;">RESULT</div>
+      <div id="story-display" class="story-container"
+        style="max-width: 600px; text-align: center; color: #ddd; font-family: serif; font-size: 1.2rem; line-height: 1.6; padding: 20px;">
+      </div>
+      <button id="alice-restart-btn" onclick="window.AliceBattleRef.init()"
+        style="margin-top: 30px; padding: 10px 25px; background: transparent; border: 1px solid #555; color: #fff; cursor: pointer; transition: all 0.3s; font-family: 'Cinzel', serif;">
+        Play Again
+      </button>
     </div>
-
-    <canvas id="alice-canvas"></canvas>
   </div>
 
   <!-- Scripts -->

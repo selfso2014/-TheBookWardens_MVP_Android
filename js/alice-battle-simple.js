@@ -266,22 +266,27 @@
 
         triggerAttack: function (type) {
             if (gameState !== 'playing' || cardValues[type] <= 0) return;
-            const wAvatar = document.getElementById('warden-avatar');
-            const vAvatar = document.getElementById('villain-avatar');
-            if (!wAvatar || !vAvatar) return;
 
-            let wBox = wAvatar.getBoundingClientRect();
-            let vBox = vAvatar.getBoundingClientRect();
+            // New Source: The clicked card itself
+            const sourceEl = document.getElementById('card-' + type);
+            // New Target: Villain Image or Container
+            const targetEl = document.getElementById('villain-visual-container') || document.querySelector('.entity-area.villain');
+
+            if (!sourceEl || !targetEl) return;
+
+            let wBox = sourceEl.getBoundingClientRect();
+            let vBox = targetEl.getBoundingClientRect();
 
             // Fallback
-            if (wBox.width === 0) wBox = { left: window.innerWidth * 0.2, top: window.innerHeight * 0.6, width: 100, height: 100, bottom: window.innerHeight * 0.6 + 100 };
-            if (vBox.width === 0) vBox = { left: window.innerWidth * 0.8, top: window.innerHeight * 0.2, width: 100, height: 100, bottom: window.innerHeight * 0.2 + 100 };
+            if (wBox.width === 0) wBox = { left: window.innerWidth * 0.5, top: window.innerHeight * 0.8, width: 50, height: 50, bottom: window.innerHeight * 0.9 };
+            if (vBox.width === 0) vBox = { left: window.innerWidth * 0.5, top: window.innerHeight * 0.1, width: 200, height: 200, bottom: window.innerHeight * 0.4 };
 
             let color = '#00ffff', damage = 10, count = 1;
 
-            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 25; ui.log.innerText = `Ink Splash! (L:${lightnings.length + 1})`; }
-            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 15; ui.log.innerText = `Rune Cast! (L:${lightnings.length + 1})`; }
-            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 20; ui.log.innerText = `Gemlight! (L:${lightnings.length + 1})`; }
+            // Updated Nerfed Damage
+            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 5; ui.log.innerText = `Ink Splash!`; } // 25 -> 5
+            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 3; ui.log.innerText = `Rune Cast!`; } // 15 -> 3
+            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 4; ui.log.innerText = `Gemlight!`; } // 20 -> 4
 
             cardValues[type] = Math.max(0, cardValues[type] - decreaseAmount[type]);
             updateCardDisplay();
@@ -289,7 +294,12 @@
             for (let i = 0; i < count; i++) {
                 setTimeout(() => {
                     if (gameState !== 'playing' || villainHP <= 0) return;
-                    lightnings.push(new Lightning(wBox.left + wBox.width / 2, wBox.top, vBox.left + vBox.width / 2, vBox.bottom, false, 0, color));
+                    // Target specific parts of the villain image for variety? Keep it simple: Center to Center-ish
+                    const targetX = vBox.left + vBox.width / 2 + (Math.random() - 0.5) * 100;
+                    const targetY = vBox.top + vBox.height * 0.4 + (Math.random() - 0.5) * 50; // Aim a bit higher up
+
+                    lightnings.push(new Lightning(wBox.left + wBox.width / 2, wBox.top, targetX, targetY, false, 0, color));
+
                     flashOpacity = 0.2; shakeTime = 8; dealDamage('villain', damage / count);
                 }, i * 140);
             }
@@ -298,31 +308,38 @@
 
         villainCounter: function () {
             if (gameState !== 'playing') return;
-            const wAvatar = document.getElementById('warden-avatar');
-            const vAvatar = document.getElementById('villain-avatar');
-            if (!wAvatar || !vAvatar) return;
 
-            const wBox = wAvatar.getBoundingClientRect();
-            const vBox = vAvatar.getBoundingClientRect();
+            const sourceEl = document.getElementById('villain-visual-container') || document.querySelector('.entity-area.villain');
+            const targetEl = document.querySelector('.entity-area.warden') || document.getElementById('warden-hp'); // Aim at warden area
+
+            if (!sourceEl || !targetEl) return;
+
+            const vBox = sourceEl.getBoundingClientRect();
+            const wBox = targetEl.getBoundingClientRect();
+
             const availableCards = Object.keys(vCardValues).filter(key => vCardValues[key] > 0);
 
             if (availableCards.length === 0) {
                 ui.log.innerText = "Red Queen is fading...";
-                lightnings.push(new Lightning(vBox.left + vBox.width / 2, vBox.bottom, wBox.left + wBox.width / 2, wBox.top, false, 0, '#664444'));
-                dealDamage('warden', 3);
+                lightnings.push(new Lightning(vBox.left + vBox.width / 2, vBox.bottom - 50, wBox.left + wBox.width / 2, wBox.top, false, 0, '#664444'));
+                dealDamage('warden', 1); // Nerfed villain desperate attack too? Keeping low.
                 return;
             }
 
             const chosenKey = availableCards[Math.floor(Math.random() * availableCards.length)];
-            let damage = 10;
-            if (chosenKey === 'queen') damage = 20;
-            if (chosenKey === 'king') damage = 15;
-            if (chosenKey === 'joker') damage = 10;
+            let damage = 5; // Reduced Base
+            if (chosenKey === 'queen') damage = 10;
+            if (chosenKey === 'king') damage = 8;
+            if (chosenKey === 'joker') damage = 5;
+
             vCardValues[chosenKey] = Math.max(0, vCardValues[chosenKey] - vDecreaseAmount[chosenKey]);
             updateCardDisplay();
 
             setTimeout(() => {
-                lightnings.push(new Lightning(vBox.left + vBox.width / 2, vBox.bottom, wBox.left + wBox.width / 2, wBox.top, false, 0, '#ff0044'));
+                const startX = vBox.left + vBox.width / 2;
+                const startY = vBox.top + vBox.height * 0.5; // Start from middle of villain image
+
+                lightnings.push(new Lightning(startX, startY, wBox.left + wBox.width / 2, wBox.top + 20, false, 0, '#ff0044'));
                 flashOpacity = 0.25; shakeTime = 12; dealDamage('warden', damage);
             }, 50);
         }
