@@ -169,7 +169,16 @@
     function animateLoop() {
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
+
+        // DEBUG: VISUAL HEARTBEAT (Red Box)
+        // If you see this, Canvas & Loop are WORKING.
+        // ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        // ctx.fillRect(width/2 - 25, height/2 - 25, 50, 50);
+
         ctx.save();
+        // Simple Blend Mode
+        ctx.globalCompositeOperation = 'source-over';
+
         if (flashOpacity > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
             ctx.fillRect(0, 0, width, height);
@@ -179,9 +188,23 @@
             ctx.translate((Math.random() - 0.5) * shakeTime, (Math.random() - 0.5) * shakeTime);
             shakeTime--;
         }
+
         for (let i = lightnings.length - 1; i >= 0; i--) {
-            lightnings[i].draw();
-            if (lightnings[i].opacity <= 0) lightnings.splice(i, 1);
+            // DIRECT DRAWING (Skip method call overhead risk)
+            const l = lightnings[i];
+
+            ctx.beginPath();
+            ctx.strokeStyle = l.color;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = l.opacity;
+            l.segments.forEach((s, idx) => {
+                if (idx === 0) ctx.moveTo(s.x, s.y);
+                else ctx.lineTo(s.nextX, s.nextY);
+            });
+            ctx.stroke();
+
+            l.opacity -= 0.05; // Slower fade
+            if (l.opacity <= 0) lightnings.splice(i, 1);
         }
         ctx.restore();
         animFrameId = requestAnimationFrame(animateLoop);
