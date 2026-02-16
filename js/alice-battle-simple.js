@@ -1,9 +1,8 @@
 
 // alice-battle-simple.js (No Modules, Pure Global Script)
-// Refactored to match friend code exactly + Global Scope Fix
 
 (function () {
-    console.log("Loading AliceBattle Simple Script (FINAL)...");
+    console.log("Loading AliceBattle Simple Script...");
 
     // Private Variables
     let canvas, ctx, width, height;
@@ -71,14 +70,14 @@
         draw() {
             if (!ctx) return;
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter'; // Glow Effect Restored
+            ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = this.color;
-            ctx.globalAlpha = this.opacity * 0.4;
+            ctx.globalAlpha = this.opacity;
             ctx.lineWidth = this.baseWidth * 4;
             ctx.shadowBlur = 15;
             ctx.shadowColor = this.color;
             this.renderPath();
-            ctx.strokeStyle = '#ffffff'; // White Core
+            ctx.strokeStyle = '#ffffff';
             ctx.globalAlpha = this.opacity;
             ctx.lineWidth = this.baseWidth * 0.6;
             this.renderPath();
@@ -171,7 +170,15 @@
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
 
+        // DEBUG: VISUAL HEARTBEAT (Red Box)
+        // If you see this, Canvas & Loop are WORKING.
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillRect(width / 2 - 25, height / 2 - 25, 50, 50);
+
         ctx.save();
+        // Simple Blend Mode
+        ctx.globalCompositeOperation = 'source-over';
+
         if (flashOpacity > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
             ctx.fillRect(0, 0, width, height);
@@ -183,9 +190,21 @@
         }
 
         for (let i = lightnings.length - 1; i >= 0; i--) {
-            // Restore Glow Rendering
-            lightnings[i].draw();
-            if (lightnings[i].opacity <= 0) lightnings.splice(i, 1);
+            // DIRECT DRAWING (Skip method call overhead risk)
+            const l = lightnings[i];
+
+            ctx.beginPath();
+            ctx.strokeStyle = l.color;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = l.opacity;
+            l.segments.forEach((s, idx) => {
+                if (idx === 0) ctx.moveTo(s.x, s.y);
+                else ctx.lineTo(s.nextX, s.nextY);
+            });
+            ctx.stroke();
+
+            l.opacity -= 0.05; // Slower fade
+            if (l.opacity <= 0) lightnings.splice(i, 1);
         }
         ctx.restore();
         animFrameId = requestAnimationFrame(animateLoop);
@@ -205,15 +224,15 @@
                 canvas = document.getElementById('alice-canvas');
                 if (!canvas) { console.error("Canvas missing"); return; }
 
-                // Force Essential Styles (Proven to work)
+                // FORCE ESSENTIAL STYLES (Safety Net)
                 canvas.style.display = 'block';
                 canvas.style.position = 'absolute';
                 canvas.style.top = '0';
                 canvas.style.left = '0';
-                canvas.style.width = '100vw';
-                canvas.style.height = '100vh';
-                canvas.style.zIndex = '100';
-                canvas.style.pointerEvents = 'none';
+                canvas.style.width = '100vw'; // Explicit Width
+                canvas.style.height = '100vh'; // Explicit Height
+                canvas.style.zIndex = '100'; // Highest priority
+                canvas.style.pointerEvents = 'none'; // Pass clicks
 
                 ctx = canvas.getContext('2d');
 
@@ -242,7 +261,6 @@
 
                 if (animFrameId) cancelAnimationFrame(animFrameId);
                 animateLoop();
-
             } catch (e) { console.error(e); }
         },
 
@@ -261,9 +279,9 @@
 
             let color = '#00ffff', damage = 10, count = 1;
 
-            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 25; ui.log.innerText = "Ink Splash Attack!"; }
-            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 15; ui.log.innerText = "Rune Cast!"; }
-            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 20; ui.log.innerText = "Gemlight Burst!"; }
+            if (type === 'ink') { color = '#b300ff'; count = 1; damage = 25; ui.log.innerText = `Ink Splash! (L:${lightnings.length + 1})`; }
+            if (type === 'rune') { color = '#00f2ff'; count = 2; damage = 15; ui.log.innerText = `Rune Cast! (L:${lightnings.length + 1})`; }
+            if (type === 'gem') { color = '#ffffff'; count = 3; damage = 20; ui.log.innerText = `Gemlight! (L:${lightnings.length + 1})`; }
 
             cardValues[type] = Math.max(0, cardValues[type] - decreaseAmount[type]);
             updateCardDisplay();
@@ -320,6 +338,17 @@
                 window.Game.AliceBattle = window.AliceBattleRef;
                 console.log("Auto-Linked Game.AliceBattle");
             }
+        }
+
+        // BIND DEBUG BUTTON (Keep trying until found)
+        const debugBtn = document.getElementById('btn-debug-alice');
+        if (debugBtn && !debugBtn.onclick) {
+            debugBtn.onclick = function () {
+                console.log("Direct Debug Button Clicked");
+                window.AliceBattleRef.init();
+            };
+            debugBtn.style.border = '2px solid #00ff00'; // Visual confirmation
+            debugBtn.innerText = "Direct - Alice Battle (READY)";
         }
     }, 1000);
 
