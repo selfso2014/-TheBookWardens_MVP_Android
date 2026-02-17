@@ -959,16 +959,26 @@ Game.typewriter = {
                     // FORCE HIDE MID BOSS SCREEN
                     const vs = document.getElementById("screen-boss");
                     if (vs) {
-                        vs.style.display = "none";
+                        vs.style.display = "none"; // Hide completely
                         vs.classList.remove("active");
                         vs.style.pointerEvents = "auto";
                     }
-                    if (window.AliceBattleRef) {
-                        // alert("AliceRef Found! Triggering...");
-                        this.triggerFinalBossBattle();
-                    } else {
-                        alert("ERROR: window.AliceBattleRef is MISSING!\nCheck console for script errors.");
-                        console.error("AliceBattleRef missing. Cannot start final boss.");
+
+                    // Diagnostic
+                    alert("Calling Final Boss Trigger... (v14.1.29)");
+
+                    try {
+                        if (this.gameLogic && typeof this.gameLogic.triggerFinalBossBattle === 'function') {
+                            this.gameLogic.triggerFinalBossBattle();
+                        } else {
+                            alert("FATAL: GameLogic or triggerFinalBossBattle Missing!");
+                            // Fallback: Try wrapper if logic missing??
+                            if (typeof this.triggerFinalBossBattle === 'function') {
+                                this.triggerFinalBossBattle();
+                            }
+                        }
+                    } catch (e) {
+                        alert("Exception in triggerFinalBossBattle: " + e.message);
                     }
                 }, 1000);
             } else {
