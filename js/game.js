@@ -953,10 +953,16 @@ Game.typewriter = {
             // Check if this was the Last Paragraph
             if (this.currentParaIndex >= this.paragraphs.length - 1) {
                 // [CHANGED] Instead of Victory, go to FINAL BOSS
+                // [CHANGED] Direct call to GameLogic to bypass potential 'this' issues
                 console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
                 setTimeout(() => {
-                    this.triggerFinalBossBattle();
-                }, 1500);
+                    if (this.gameLogic) {
+                        this.gameLogic.triggerFinalBossBattle();
+                    } else {
+                        console.error("[Game] GameLogic missing! Forcing screen switch.");
+                        Game.switchScreen("screen-alice-battle");
+                    }
+                }, 1000);
             } else {
                 // GO TO NEXT PARAGRAPH
                 // Force hide villain modal if exists
