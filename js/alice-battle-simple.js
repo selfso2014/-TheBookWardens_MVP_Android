@@ -428,25 +428,38 @@
 
         btn.onclick = (e) => {
             if (e) e.stopPropagation();
-            console.log("[Defeat] Click!");
+            console.log("[Defeat] Click! Scorched Earth Engaged.");
 
+            // 1. Kill Zombies (Stop Background Loops)
+            let id = window.requestAnimationFrame(function () { });
+            while (id--) {
+                window.cancelAnimationFrame(id);
+            }
+            if (window.loop) window.loop = () => { };
+
+            // 2. Hide Container Forcefully
+            container.style.display = 'none';
+            container.setAttribute('style', 'display: none !important');
+
+            // 3. Try Clean Navigation & Reset
             if (window.Game && typeof window.Game.switchScreen === 'function') {
-                // Reset Word Forge
                 if (window.Game.state) window.Game.state.vocabIndex = 0;
                 if (typeof window.Game.loadVocab === 'function') window.Game.loadVocab(0);
                 window.Game.switchScreen('screen-word');
-            } else {
-                console.warn("[Defeat] Game.switchScreen missing. Using Force DOM Navigation.");
-                // FORCE DOM NAVIGATION (Fallback)
-                container.style.display = 'none';
+            }
+
+            // 4. Force Visual Update (Direct DOM)
+            setTimeout(() => {
                 const wordScreen = document.getElementById('screen-word');
                 if (wordScreen) {
                     wordScreen.style.display = 'flex';
+                    wordScreen.style.opacity = '1';
+                    wordScreen.style.zIndex = '99999999';
                 } else {
-                    alert("Error: Word Screen DOM missing.");
+                    alert("Critical: Word Screen Missing. Reloading.");
                     location.reload();
                 }
-            }
+            }, 100);
         };
 
         content.appendChild(btn);
