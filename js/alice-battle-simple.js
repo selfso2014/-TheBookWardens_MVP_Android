@@ -654,12 +654,12 @@
                     tfParent.style.display = 'flex';
                     tfParent.style.justifyContent = 'center';
 
-                    // Box Styles - REDUCED HEIGHT (5 lines approx)
+                    // Box Styles - REDUCED HEIGHT (~3 lines)
                     ui.textField.style.width = '94vw';
                     ui.textField.style.marginLeft = '0';
-                    ui.textField.style.height = '110px';
-                    ui.textField.style.minHeight = '110px';
-                    ui.textField.style.maxHeight = '110px';
+                    ui.textField.style.height = '80px';
+                    ui.textField.style.minHeight = '80px';
+                    ui.textField.style.maxHeight = '80px';
                     ui.textField.style.overflowY = 'auto';
                 }
 
@@ -681,20 +681,22 @@
 
                 cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
 
-                // Compact Villain Cards (PUSH DOWN)
+                // Compact Villain Cards (PUSH DOWN MORE)
                 const vCards = container.querySelector('.villain-cards') || container.querySelector('.entity-area.villain .card-container');
                 if (vCards) {
                     vCards.style.transform = 'scale(0.8)';
                     vCards.style.transformOrigin = 'top center';
-                    vCards.style.marginTop = '15vh'; // Corrected position to reveal face
+                    vCards.style.marginTop = '25vh'; // Significantly lower for face visibility
                 }
 
-                // BIGGER WARDEN CARDS
+                // BIGGER WARDEN CARDS (TOP LAYER)
                 const wCards = container.querySelector('.entity-area.warden .card-container');
                 if (wCards) {
-                    wCards.style.transform = 'scale(1.2)'; // BIGGER
+                    wCards.style.transform = 'scale(1.2)';
                     wCards.style.transformOrigin = 'bottom center';
                     wCards.style.marginBottom = '30px';
+                    wCards.style.position = 'relative';
+                    wCards.style.zIndex = '10000'; // Force on top
                 }
 
 
