@@ -2109,49 +2109,63 @@ Game.typewriter = {
         if (wpm >= 250) { rankText = 'Master'; rankColor = 'gold'; }
         else if (wpm >= 150) { rankText = 'Apprentice'; rankColor = '#00ff00'; }
 
-        // 3. Helper: Animate Value
-        const animateValue = (id, start, end, duration, prefix = "", suffix = "") => {
+        // 3. Helper: Animate Value with Delay
+        const animateValue = (id, start, end, duration, prefix = "", suffix = "", startDelay = 0) => {
             const obj = document.getElementById(id);
             if (!obj) return;
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const current = Math.floor(progress * (end - start) + start);
-                obj.innerText = prefix + current.toLocaleString() + suffix;
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                }
-            };
-            window.requestAnimationFrame(step);
+
+            setTimeout(() => {
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    // Easing (EaseOutQuad) for fun pop
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.floor(ease * (end - start) + start);
+
+                    obj.innerText = prefix + current.toLocaleString() + suffix;
+
+                    // Color shift effect for high scores
+                    if (progress > 0.8 && end > 0) {
+                        obj.style.textShadow = `0 0 10px ${rankColor}`;
+                    }
+
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            }, startDelay);
         };
 
-        // 4. Trigger Animations
+        // 4. Trigger Animations (Staggered for Fun)
         animateValue("report-wpm", 0, wpm, 1500);
 
         const rankEl = document.getElementById('report-rank-text');
         if (rankEl) {
             rankEl.innerText = rankText;
             rankEl.style.color = rankColor;
-            // Simple pulse animation for rank
-            rankEl.style.transition = "transform 0.3s";
-            rankEl.style.transform = "scale(0.5)";
-            setTimeout(() => { rankEl.style.transform = "scale(1.2)"; }, 1200);
-            setTimeout(() => { rankEl.style.transform = "scale(1.0)"; }, 1400);
+            // Delay Rank pop
+            setTimeout(() => {
+                rankEl.style.transition = "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                rankEl.style.transform = "scale(1.3)";
+            }, 800);
+            setTimeout(() => { rankEl.style.transform = "scale(1.0)"; }, 1200);
         }
 
-        // Resources (Count Up)
+        // Resources (Parallel Start)
         animateValue("report-ink-count", 0, ink, 1000, "", "");
         animateValue("report-ink-score", 0, ink * 10, 1500, "+", "");
 
-        animateValue("report-rune-count", 0, rune, 1000, "", "");
-        animateValue("report-rune-score", 0, rune * 100, 1500, "+", "");
+        animateValue("report-rune-count", 0, rune, 1000, "", "", 200);
+        animateValue("report-rune-score", 0, rune * 100, 1500, "+", "", 200);
 
-        animateValue("report-gem-count", 0, gem, 1000, "", "");
-        animateValue("report-gem-score", 0, gem * 500, 1500, "+", "");
+        animateValue("report-gem-count", 0, gem, 1000, "", "", 400);
+        animateValue("report-gem-score", 0, gem * 500, 1500, "+", "", 400);
 
-        // Boss Bonus
-        animateValue("report-boss-score", 0, 10000, 2000, "+", "");
+        // Boss Bonus (Grand Finale)
+        // 10,000 pts is huge, so make it dramatic
+        animateValue("report-boss-score", 0, 10000, 2000, "+", "", 1200);
     },
 
     bindKeyAndUnlock() {

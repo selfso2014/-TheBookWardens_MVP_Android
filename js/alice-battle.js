@@ -137,13 +137,17 @@ function endGame(result) {
         if (ui.finalScreen) ui.finalScreen.classList.add('active');
 
         if (result === 'victory') {
-            // [NEW] Push Battle Results to Score Manager
+            // [NEW] Push Battle Results to Score Manager (Source of Truth: HUD DOM)
             if (window.Game && window.Game.scoreManager) {
-                console.log("[AliceBattle] Victory! Saving resources...", cardValues);
-                window.Game.scoreManager.ink = cardValues.ink;
-                window.Game.scoreManager.runes = cardValues.rune;
-                window.Game.scoreManager.gems = cardValues.gem;
-                // Save Bonus (e.g. Health Bonus?) - Optional
+                const inkVal = parseInt(document.getElementById('val-ink').innerText) || 0;
+                const runeVal = parseInt(document.getElementById('val-rune').innerText) || 0;
+                const gemVal = parseInt(document.getElementById('val-gem').innerText) || 0;
+
+                console.log(`[AliceBattle] Victory! Saving resources from HUD: Ink=${inkVal}, Rune=${runeVal}, Gem=${gemVal}`);
+
+                window.Game.scoreManager.ink = inkVal;
+                window.Game.scoreManager.runes = runeVal;
+                window.Game.scoreManager.gems = gemVal;
             }
 
             if (ui.resultHeader) {
