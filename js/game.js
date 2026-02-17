@@ -132,6 +132,18 @@ const Game = {
 
     switchScreen(screenId) {
         this.uiManager.switchScreen(screenId);
+
+        // [FIX] HUD Visibility Control
+        const topHud = document.querySelector(".hud-container");
+        if (topHud) {
+            if (screenId === "screen-new-score" || screenId === "screen-home") {
+                topHud.style.opacity = "0";
+                topHud.style.pointerEvents = "none";
+            } else {
+                topHud.style.opacity = "1";
+                topHud.style.pointerEvents = "auto";
+            }
+        }
     },
 
     updateUI() {
@@ -341,7 +353,6 @@ const Game = {
     },
     goToNewScore(scoreData) {
         console.log("Showing Score Screen with Data:", scoreData);
-        this.switchScreen("screen-new-score");
 
         // 1. Extract Data (Prioritize passed data, fallback to state)
         const finalInk = (scoreData && scoreData.ink !== undefined) ? scoreData.ink : this.state.ink;
@@ -352,14 +363,30 @@ const Game = {
         // Sanity Check for WPM
         if (finalWPM < 50) finalWPM = 150 + Math.floor(Math.random() * 100);
 
+        // Update Game State to match final results
+        this.state.ink = finalInk;
+        this.state.rune = finalRune;
+        this.state.gems = finalGem;
+        this.state.wpmDisplay = finalWPM;
+
+        this.switchScreen("screen-new-score");
+
         // 2. Update UI Elements directly
         const elInk = document.getElementById('report-ink-score');
         const elRune = document.getElementById('report-rune-score');
         const elGem = document.getElementById('report-gem-score');
+        const elInkCount = document.getElementById('report-ink-count');
+        const elRuneCount = document.getElementById('report-rune-count');
+        const elGemCount = document.getElementById('report-gem-count');
 
         if (elInk) elInk.innerText = "+" + finalInk;
         if (elRune) elRune.innerText = "+" + finalRune;
         if (elGem) elGem.innerText = "+" + finalGem;
+
+        // Show totals
+        if (elInkCount) elInkCount.innerText = "Current: " + finalInk;
+        if (elRuneCount) elRuneCount.innerText = "Current: " + finalRune;
+        if (elGemCount) elGemCount.innerText = "Current: " + finalGem;
 
         // 3. Animate WPM
         this.animateValue("report-wpm", 0, finalWPM, 1500);
@@ -373,6 +400,33 @@ const Game = {
 
         const elRank = document.getElementById('report-rank-text');
         if (elRank) elRank.innerText = rank;
+
+        // [FIX] Bind Claim Reward Button logic
+        const btnClaim = document.getElementById("btn-claim-reward");
+        const emailInput = document.getElementById("warden-email");
+        if (btnClaim) {
+            // Remove old listeners (clone node trick)
+            const newBtn = btnClaim.cloneNode(true);
+            if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
+
+            newBtn.onclick = () => {
+                const email = emailInput ? emailInput.value : "";
+                if (!email || !email.includes("@")) {
+                    alert("Please enter a valid email address.");
+                    return;
+                }
+
+                // Simulate API Call
+                newBtn.innerText = "Sending...";
+                newBtn.disabled = true;
+
+                setTimeout(() => {
+                    alert("Reward Claimed! Check your email.");
+                    // Go to Share Screen
+                    Game.switchScreen("screen-new-share");
+                }, 1500);
+            };
+        }
     },
 
     goToNewSignup() {
