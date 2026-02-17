@@ -587,7 +587,7 @@
 
                     // FIXED POSITIONING (BREAKOUT STRATEGY)
                     parentBar.style.position = 'fixed';
-                    parentBar.style.top = '42vh';
+                    parentBar.style.top = '35vh'; // Moved Way Up (42 -> 35)
                     parentBar.style.left = '50%';
                     parentBar.style.transform = 'translateX(-50%)';
                     parentBar.style.width = '90%';
@@ -633,7 +633,7 @@
                     villainArea.style.overflow = 'visible';
                     // PUSH VILLAIN CARDS DOWN 
                     villainArea.style.justifyContent = 'flex-start';
-                    villainArea.style.paddingTop = '0'; // Use margin on cards instead
+                    villainArea.style.paddingTop = '0';
                 }
 
                 // Text Field Adjustments (Fixed Position)
@@ -645,7 +645,7 @@
                     const tfParent = ui.textField.parentElement;
                     // Reset standard positioning
                     tfParent.style.position = 'fixed';
-                    tfParent.style.top = '49vh';
+                    tfParent.style.top = '42vh'; // Below HP Bar (35vh + bar)
                     tfParent.style.left = '0';
                     tfParent.style.width = '100%';
                     tfParent.style.marginTop = '0';
@@ -681,12 +681,12 @@
 
                 cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
 
-                // Compact Villain Cards (PUSH DOWN MORE)
+                // Compact Villain Cards (PUSH UP SLIGHTLY from previous)
                 const vCards = container.querySelector('.villain-cards') || container.querySelector('.entity-area.villain .card-container');
                 if (vCards) {
                     vCards.style.transform = 'scale(0.8)';
                     vCards.style.transformOrigin = 'top center';
-                    vCards.style.marginTop = '25vh'; // Significantly lower for face visibility
+                    vCards.style.marginTop = '18vh'; // Raised up (25 -> 18)
                 }
 
                 // BIGGER WARDEN CARDS (TOP LAYER)
@@ -696,7 +696,7 @@
                     wCards.style.transformOrigin = 'bottom center';
                     wCards.style.marginBottom = '30px';
                     wCards.style.position = 'relative';
-                    wCards.style.zIndex = '10000'; // Force on top
+                    wCards.style.zIndex = '10000';
                 }
 
 
