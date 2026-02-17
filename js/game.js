@@ -162,8 +162,22 @@ const Game = {
     // --- [NEW] Flying Resource Effect (Passage 123 Style) ---
     spawnFlyingResource(startX, startY, amount, type = 'gem') {
         const targetId = type === 'ink' ? 'ink-count' : 'gem-count';
-        const targetEl = document.getElementById(targetId);
-        if (!targetEl) return;
+        let targetEl = document.getElementById(targetId);
+
+        // Safety Fallback if HUD element missing
+        if (!targetEl) {
+            console.warn(`[Game] spawnFlyingResource target '${targetId}' not found. Using fallback position.`);
+            // Create dummy target at top-right or top-center
+            targetEl = {
+                getBoundingClientRect: () => ({
+                    left: window.innerWidth - 100,
+                    top: 20,
+                    width: 0,
+                    height: 0
+                }),
+                parentElement: null
+            };
+        }
 
         const targetRect = (targetEl.parentElement || targetEl).getBoundingClientRect();
         const targetX = targetRect.left + targetRect.width / 2;
@@ -176,7 +190,7 @@ const Game = {
         // Create Element
         const p = document.createElement('div');
         p.className = 'flying-resource';
-        p.innerText = `+${amount}`;
+        p.innerText = type === 'ink' ? `+${amount} Ink` : `+${amount} Gems`;
         p.style.position = 'fixed';
         p.style.left = startX + 'px';
         p.style.top = startY + 'px';
@@ -189,6 +203,11 @@ const Game = {
         p.style.textShadow = `0 0 10px ${p.style.color}`;
         p.style.transition = 'opacity 0.2s';
 
+        // Add Icon
+        const icon = document.createElement('span');
+        icon.innerText = type === 'ink' ? ' ✒️' : ' 💎';
+        p.appendChild(icon);
+
         document.body.appendChild(p);
 
         // Animation Loop (Quadratic Bezier)
@@ -198,36 +217,6 @@ const Game = {
         const animate = (timestamp) => {
             if (!startTime) startTime = timestamp;
             const progress = (timestamp - startTime) / duration;
-
-            if (progress >= 1) {
-                if (p.parentNode) p.remove();
-
-                // Add Score & Pulse HUD
-                if (type === 'gem') this.addGems(amount);
-                else if (type === 'ink') this.addInk(amount);
-
-                // Pulse UI
-                const hudIcon = targetEl.parentElement || targetEl;
-                hudIcon.style.transition = "transform 0.1s";
-                hudIcon.style.transform = "scale(1.5)";
-                hudIcon.style.filter = "brightness(2)";
-                setTimeout(() => {
-                    hudIcon.style.transform = "scale(1)";
-                    hudIcon.style.filter = "brightness(1)";
-                }, 200);
-                return;
-            }
-
-            // Ease-In-Out
-            const t = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-            const invT = 1 - t;
-
-            // Bezier
-            const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
-            const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
-
-            p.style.left = currentX + 'px';
-            p.style.top = currentY + 'px';
             p.style.transform = `translate(-50%, -50%) scale(${1 + Math.sin(progress * Math.PI) * 0.5})`;
 
             requestAnimationFrame(animate);
@@ -938,7 +927,7 @@ Game.typewriter = {
             }
 
             // Hide Boss UI immediately (Force)
-            const villainScreen = document.getElementById("villain-screen");
+            const villainScreen = document.getElementById("screen-boss");
             if (villainScreen) {
                 villainScreen.classList.remove("active");
                 villainScreen.style.display = "none"; // Hard hide to prevent loop
