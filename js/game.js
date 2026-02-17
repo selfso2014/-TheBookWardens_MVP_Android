@@ -956,30 +956,39 @@ Game.typewriter = {
                 // [CHANGED] Instead of Victory, go to FINAL BOSS
                 console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
                 setTimeout(() => {
-                    // FORCE HIDE MID BOSS SCREEN
+                    // 1. FORCE HIDE MID BOSS SCREEN
                     const vs = document.getElementById("screen-boss");
                     if (vs) {
-                        vs.style.display = "none"; // Hide completely
+                        vs.style.display = "none";
                         vs.classList.remove("active");
                         vs.style.pointerEvents = "auto";
                     }
 
-                    // Diagnostic
-                    alert("Calling Final Boss Trigger... (v14.1.29)");
+                    // 2. Diagnostic
+                    alert("Direct Trigger Final Boss (v14.1.30)! Skip GameLogic.");
 
-                    try {
-                        if (this.gameLogic && typeof this.gameLogic.triggerFinalBossBattle === 'function') {
-                            this.gameLogic.triggerFinalBossBattle();
-                        } else {
-                            alert("FATAL: GameLogic or triggerFinalBossBattle Missing!");
-                            // Fallback: Try wrapper if logic missing??
-                            if (typeof this.triggerFinalBossBattle === 'function') {
-                                this.triggerFinalBossBattle();
-                            }
-                        }
-                    } catch (e) {
-                        alert("Exception in triggerFinalBossBattle: " + e.message);
+                    // 3. FORCE SWITCH SCREEN (Manual)
+                    const aliceScreen = document.getElementById("screen-alice-battle");
+                    if (aliceScreen) {
+                        // Hide all screens
+                        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+                        // Show Alice Screen
+                        aliceScreen.classList.add('active');
+                        aliceScreen.style.display = "flex";
+                        // Ensure blockers are hidden (output, preview, etc? leave them for now)
+                    } else {
+                        alert("ERROR: screen-alice-battle element missing!");
                     }
+
+                    // 4. INIT ALICE BATTLE
+                    setTimeout(() => {
+                        if (window.AliceBattleRef) {
+                            window.AliceBattleRef.init();
+                        } else {
+                            alert("FATAL: AliceBattleRef NOT FOUND! Check alice-battle.js loading.");
+                        }
+                    }, 100);
+
                 }, 1000);
             } else {
                 // GO TO NEXT PARAGRAPH
