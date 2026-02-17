@@ -29,7 +29,9 @@ export class IntroManager {
                         return;
                     }
 
-                    // 2. Fullscreen Request
+                    /* 
+                    // 2. Fullscreen Request (REMOVED per user preference)
+                    // Restoration of original behavior: Do not force fullscreen.
                     try {
                         if (document.documentElement.requestFullscreen) {
                             await document.documentElement.requestFullscreen();
@@ -37,6 +39,7 @@ export class IntroManager {
                     } catch (e) {
                         console.warn("Fullscreen deferred: " + e.message);
                     }
+                    */
 
                     // 3. Initialize Eye Tracking SDK
                     try {
