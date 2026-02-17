@@ -864,47 +864,97 @@
 
 
 
-    <!-- NEW SCENE 2: TODAY'S SCORE (Report Card) -->
+    <!-- NEW SCENE 2: MISSION ACCOMPLISHED (Golden Key Funnel) -->
     <section id="screen-new-score" class="screen"
-      style="text-align: center; background: radial-gradient(circle at center, #1a103c 0%, #000 80%);">
+      style="text-align: center; background: radial-gradient(circle at center, #1a103c 0%, #000 90%); overflow-y: auto;">
 
       <h1
-        style="color: #ffd700; margin-bottom: 10px; font-family: 'Cinzel', serif; font-size: 3rem; text-shadow: 0 0 20px gold;">
-        READING REPORT</h1>
-      <p style="color: #aaa; margin-bottom: 40px;">Daily Mission Complete</p>
+        style="color: #ffd700; margin-bottom: 5px; font-family: 'Cinzel', serif; font-size: 2.5rem; text-shadow: 0 0 20px gold;">
+        MISSION ACCOMPLISHED</h1>
+      <p style="color: #aaa; margin-bottom: 20px;">The Rift has been sealed.</p>
 
+      <!-- 1. Performance Stats -->
       <div class="score-grid"
-        style="grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; max-width: 100%; margin: 0 auto 30px auto;">
+        style="grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; max-width: 100%; margin: 0 auto 20px auto;">
 
-        <!-- CARD 1: WPM -->
+        <!-- WPM -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 2rem; margin-bottom: 5px;">⚡</div>
-          <div id="report-wpm" style="font-size: 1.6rem; font-weight: bold; color: #00e5ff; line-height: 1.2;">0</div>
-          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">AVG. WPM</div>
+          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(0, 229, 255, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 1.5rem; margin-bottom: 2px;">⚡</div>
+          <div id="report-wpm" style="font-size: 1.4rem; font-weight: bold; color: #00e5ff; line-height: 1.2;">0</div>
+          <div style="color: #888; font-size: 0.6rem; margin-top: 2px;">SPEED (WPM)</div>
         </div>
 
-        <!-- CARD 2: ACCURACY -->
+        <!-- RANK (Center Stage) -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 2rem; margin-bottom: 5px;">🎯</div>
-          <div id="report-acc" style="font-size: 1.6rem; font-weight: bold; color: #00ff00; line-height: 1.2;">94%</div>
-          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">ACCURACY</div>
+          style="background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(0,0,0,0.3) 100%); padding: 10px; border-radius: 10px; border: 1px solid gold; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: scale(1.05); z-index: 2;">
+          <div style="font-size: 1.8rem; margin-bottom: 2px;">🏆</div>
+          <div id="report-rank"
+            style="font-size: 1.8rem; font-weight: bold; color: gold; line-height: 1.2; text-shadow: 0 0 10px gold;">S
+          </div>
+          <div id="report-title" style="color: #ffd700; font-size: 0.6rem; margin-top: 2px; text-transform: uppercase;">
+            Grand Warden</div>
         </div>
 
-        <!-- CARD 3: RANK -->
+        <!-- ACCURACY -->
         <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <div style="font-size: 2rem; margin-bottom: 5px;">🏆</div>
-          <div style="font-size: 1.6rem; font-weight: bold; color: gold; line-height: 1.2;">S</div>
-          <div style="color: #888; font-size: 0.7rem; margin-top: 5px;">RANK</div>
+          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(0, 255, 0, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 1.5rem; margin-bottom: 2px;">🎯</div>
+          <div id="report-acc" style="font-size: 1.4rem; font-weight: bold; color: #00ff00; line-height: 1.2;">98%</div>
+          <div style="color: #888; font-size: 0.6rem; margin-top: 2px;">ACCURACY</div>
         </div>
 
       </div>
 
-      <button class="btn-primary" onclick="Game.goToNewSignup()">
-        Join the Wardens
-      </button>
+      <!-- 2. Contribution Score (Gamified Sum) -->
+      <div
+        style="background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; justify-content: space-around; align-items: center;">
+        <div style="font-size: 0.8rem; color: #bbb;">Contribution Points:</div>
+        <div id="report-total-score" style="font-family: 'Cinzel', serif; font-size: 1.2rem; color: #fff;">15,420</div>
+      </div>
+
+      <!-- 3. REWARD: THE GOLDEN KEY (The Hook) -->
+      <div id="reward-section"
+        style="background: linear-gradient(to bottom, rgba(255,215,0,0.05), rgba(0,0,0,0.8)); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,215,0,0.3); margin-bottom: 20px; position: relative; overflow: hidden;">
+
+        <!-- Glow Effect -->
+        <div
+          style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,215,0,0.1) 0%, transparent 60%); animation: rotate 10s linear infinite;">
+        </div>
+
+        <div style="font-size: 4rem; margin-bottom: 10px; animation: float 3s ease-in-out infinite;">🗝️</div>
+        <h2 style="font-family: 'Cinzel', serif; color: #fff; font-size: 1.5rem; margin-bottom: 5px;">GOLDEN KEY FOUND
+        </h2>
+        <p style="color: #ffd700; font-size: 0.9rem; margin-bottom: 15px;">Unlocks <strong>Chapter 1: The Rabbit
+            Hole</strong></p>
+
+        <!-- Friction / Warning -->
+        <div
+          style="background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.3); padding: 8px; border-radius: 5px; margin-bottom: 20px; display: inline-block;">
+          <span style="color: #ff4d4d; font-size: 0.8rem;">⚠️ STATUS: <strong>UNBOUND</strong> (Will Vanish)</span>
+        </div>
+
+        <!-- 4. Conversion Form (Soul Bind) -->
+        <div id="bind-form" style="max-width: 350px; margin: 0 auto; position: relative; z-index: 5;">
+          <p style="color: #bbb; font-size: 0.8rem; margin-bottom: 10px; text-align: left;">Enter Warden ID (Email) to
+            bind this key:</p>
+          <input type="email" id="warden-email" placeholder="official@warden.com"
+            style="width: 100%; padding: 12px; margin-bottom: 15px; background: rgba(0,0,0,0.6); border: 1px solid #555; color: #fff; border-radius: 6px; font-size: 1rem; outline: none; transition: border 0.3s;"
+            onfocus="this.style.borderColor='#ffd700'" onblur="this.style.borderColor='#555'">
+
+          <button class="btn-primary" onclick="Game.bindKeyAndUnlock()"
+            style="width: 100%; background: linear-gradient(90deg, #ffd700, #ffa500); color: #000; font-weight: bold; font-family: 'Cinzel', serif; border: none; box-shadow: 0 0 15px rgba(255,215,0,0.4);">
+            BIND KEY & UNLOCK
+          </button>
+
+          <button onclick="location.reload()"
+            style="margin-top: 15px; background: transparent; border: none; color: #666; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">
+            Abandon Key & Return to Lobby
+          </button>
+        </div>
+
+      </div>
+
     </section>
 
     <!-- NEW SCENE 3: SIGN UP (Lead Gen) -->

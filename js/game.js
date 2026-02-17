@@ -2077,42 +2077,94 @@ Game.typewriter = {
         console.log("[Game] Transitioning to Score Report...");
         this.switchScreen('screen-new-score');
 
-        // Fetch Data or Default
-        // WPM (Use stored or random MVP juice)
-        let wpm = this.scoreManager.wpm || Math.floor(Math.random() * 70 + 180);
+        // 1. Fetch Data
+        const score = this.scoreManager || {};
+        let wpm = score.wpm || Math.floor(Math.random() * 50 + 200); // MVP Juice
+        let acc = score.accuracy || Math.floor(Math.random() * 5 + 95);
+        let ink = score.ink || 0;
+        let rune = score.runes || 0;
+        let gem = score.gems || 0;
 
-        // Accuracy (Use stored or high random)
-        let acc = this.scoreManager.accuracy || Math.floor(Math.random() * 10 + 90);
-
-        // Rank Calculation
+        // 2. Determine Rank & Title
         let rank = 'B';
         let rankColor = '#aaa';
-        if (acc >= 95) { rank = 'S'; rankColor = 'gold'; }
-        else if (acc >= 90) { rank = 'A'; rankColor = '#00e5ff'; }
-        else if (acc >= 80) { rank = 'B'; rankColor = '#00ff00'; }
-        else { rank = 'C'; rankColor = '#fff'; }
+        let title = 'Scribe';
 
-        // Update UI
+        if (acc >= 98) {
+            rank = 'S+'; rankColor = 'gold'; title = 'Grand Warden';
+        } else if (acc >= 95) {
+            rank = 'S'; rankColor = 'gold'; title = 'Master Warden';
+        } else if (acc >= 90) {
+            rank = 'A'; rankColor = '#00e5ff'; title = 'Librarian';
+        } else if (acc >= 80) {
+            rank = 'B'; rankColor = '#00ff00'; title = 'Apprentice';
+        } else {
+            rank = 'C'; rankColor = '#fff'; title = 'Novice';
+        }
+
+        // 3. Calculate Total Contribution
+        // Formula: (Ink * 10) + (Rune * 100) + (Gem * 500)
+        let totalScore = (ink * 10) + (rune * 100) + (gem * 500);
+        if (totalScore === 0) totalScore = 15420; // Default Juice for MVP if no gameplay
+
+        // 4. Update UI
         const wpmEl = document.getElementById('report-wpm');
         if (wpmEl) wpmEl.innerText = wpm;
 
         const accEl = document.getElementById('report-acc');
         if (accEl) accEl.innerText = acc + '%';
 
-        // Rank Element (Finding by structure since ID is missing)
-        // It's the 3rd card in score-grid
-        const grid = document.querySelector('#screen-new-score .score-grid');
-        if (grid) {
-            const rankCard = grid.children[2];
-            if (rankCard) {
-                const rankText = rankCard.children[1]; // The big letter
-                if (rankText) {
-                    rankText.innerText = rank;
-                    rankText.style.color = rankColor;
-                    rankText.style.textShadow = `0 0 20px ${rankColor}`;
-                }
-            }
+        const rankEl = document.getElementById('report-rank');
+        if (rankEl) {
+            rankEl.innerText = rank;
+            rankEl.style.color = rankColor;
+            rankEl.style.textShadow = `0 0 20px ${rankColor}`;
         }
+
+        const titleEl = document.getElementById('report-title');
+        if (titleEl) {
+            titleEl.innerText = title;
+            titleEl.style.color = rankColor;
+        }
+
+        const totalEl = document.getElementById('report-total-score');
+        if (totalEl) totalEl.innerText = totalScore.toLocaleString();
+    },
+
+    bindKeyAndUnlock() {
+        const emailInput = document.getElementById('warden-email');
+        const email = emailInput ? emailInput.value : '';
+
+        if (!email || !email.includes('@')) {
+            alert("⚠️ Soul Binding Failed: Invalid Warden ID (Email).\nPlease invoke a valid identity.");
+            if (emailInput) {
+                emailInput.style.borderColor = 'red';
+                emailInput.focus();
+            }
+            return;
+        }
+
+        // --- SUCCESS SEQUENCE ---
+        console.log(`[Warden] Binding Key to: ${email}`);
+
+        // 1. Visual Feedback
+        const btn = document.querySelector('#bind-form button.btn-primary');
+        if (btn) {
+            btn.innerText = "✨ SOUL BOUND ✨";
+            btn.style.background = "#fff";
+            btn.disabled = true;
+        }
+
+        // 2. Store Data (Mock)
+        localStorage.setItem('warden_email', email);
+        localStorage.setItem('chapter_1_unlocked', 'true');
+
+        // 3. Transition
+        setTimeout(() => {
+            alert(`Golden Key Bound!\n\nChapter 1 'The Rabbit Hole' is now accessible.\nWelcome, Warden.`);
+            // In a real app, redirect to chapter selection or lobby with unlocked state
+            location.reload();
+        }, 1500);
     },
 
     goToNewSignup() {
