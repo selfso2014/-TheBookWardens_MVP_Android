@@ -2193,6 +2193,7 @@ Game.typewriter = {
     },
 
     bindKeyAndUnlock() {
+        alert("[DEBUG] Bind Function Called"); // Entry Check
         const emailInput = document.getElementById('warden-email');
         let email = emailInput ? emailInput.value : '';
 
@@ -2219,9 +2220,19 @@ Game.typewriter = {
 
         // 2. Transition FAST (Don't wait for DB)
         setTimeout(() => {
+            alert("[DEBUG] Attempting Transition to Share Screen...");
+
+            // Try 'this' context first
             if (typeof this.switchScreen === 'function') {
                 this.switchScreen('screen-new-share');
-            } else {
+            }
+            // Fallback to global Game object
+            else if (window.Game && typeof window.Game.switchScreen === 'function') {
+                window.Game.switchScreen('screen-new-share');
+            }
+            // Manual Fallback
+            else {
+                alert("[ERROR] switchScreen not found!");
                 const shareScreen = document.getElementById('screen-new-share');
                 if (shareScreen) {
                     shareScreen.classList.add('active');
@@ -2229,6 +2240,10 @@ Game.typewriter = {
                     // Force overlay z-index
                     shareScreen.style.zIndex = "100000";
                     shareScreen.style.pointerEvents = "auto";
+
+                    // Hide previous screen if possible manually
+                    const oldScreen = document.getElementById('screen-new-score');
+                    if (oldScreen) oldScreen.style.display = 'none';
                 }
             }
         }, 500);
