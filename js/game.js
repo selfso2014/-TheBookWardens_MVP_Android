@@ -2077,6 +2077,10 @@ Game.typewriter = {
         console.log("[Game] Transitioning to Score Report...");
         this.switchScreen('screen-new-score');
 
+        // Scroll to Top Reset
+        const screen = document.getElementById('screen-new-score');
+        if (screen) screen.scrollTop = 0;
+
         // 1. Fetch Data
         const score = this.scoreManager || {};
         let wpm = score.wpm || Math.floor(Math.random() * 50 + 200); // MVP Juice
