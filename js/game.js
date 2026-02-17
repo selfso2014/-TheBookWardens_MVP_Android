@@ -918,6 +918,8 @@ Game.typewriter = {
 
     checkBossAnswer(optionIndex) {
         const currentIndex = this.currentParaIndex;
+        alert(`CheckBossAnswer: Index=${currentIndex}, Total=${this.paragraphs.length}`);
+        // Debugging
         const quiz = this.quizzes[currentIndex];
 
         // Correct Answer Check
