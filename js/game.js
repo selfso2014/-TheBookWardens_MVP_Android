@@ -2086,20 +2086,24 @@ Game.typewriter = {
             screen.style.justifyContent = 'space-between';
         }
 
-        // 1. Fetch Data
-        // 1. Fetch Data
+        // 1. Fetch Data (Direct Source: HUD Elements for Resources)
         const score = this.scoreManager || {};
 
-        // Use Actual Data (fallback to 0)
         let wpm = score.wpm || 0;
-        let ink = score.ink || 0;
-        let rune = score.runes || 0;
-        let gem = score.gems || 0;
 
-        // Demo Fallback ONLY if absolutely empty (e.g. direct url access)
+        // Read directly from HUD (The User's Reality)
+        const hudInk = document.getElementById('val-ink');
+        const hudRune = document.getElementById('val-rune');
+        const hudGem = document.getElementById('val-gem');
+
+        let ink = hudInk ? parseInt(hudInk.innerText) : (score.ink || 0);
+        let rune = hudRune ? parseInt(hudRune.innerText) : (score.runes || 0);
+        let gem = hudGem ? parseInt(hudGem.innerText) : (score.gems || 0);
+
+        // Demo Fallback (If HUD is empty or 0, maybe demo mode)
         if (wpm === 0 && ink === 0 && rune === 0 && gem === 0) {
             wpm = Math.floor(Math.random() * 50 + 150);
-            ink = 120; rune = 15; gem = 30; // Random demo values
+            ink = 120; rune = 15; gem = 30;
         }
 
         // 2. Determine Rank
