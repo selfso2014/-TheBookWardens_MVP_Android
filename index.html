@@ -941,8 +941,7 @@
           <input type="email" id="warden-email" placeholder="Enter Email to Claim Reward"
             style="width: 100%; padding: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.05); border: 1px solid #555; color: #fff; border-radius: 5px; text-align: center; font-size: 1rem;">
 
-          <button
-            onclick="if(window.WardenManager) new window.WardenManager(window.Game).bindWarden(); else alert('Critical: WardenManager script failed to load.');"
+          <button onclick="if(window.WardenManager) new window.WardenManager(window.Game).bindWarden();"
             style="width:100%; height: 50px; background:#ffd700; border:none; border-radius:5px; font-weight:bold; cursor:pointer; font-size: 1.1rem; box-shadow: 0 0 15px rgba(255,215,0,0.5); transition: transform 0.1s;">
             CLAIM REWARD
           </button>
@@ -1240,8 +1239,8 @@
   </script>
   <!-- 2. Game Logic -->
   <script src="./js/calibration.js?v=DEBUG_FORCE_INIT"></script>
-  <script src="./js/managers/WardenManager.js?v=GLOBAL_WARDEN_V1"></script>
-  <script type="module" src="./js/game.js?v=V71_FORCE"></script>
+  <script src="./js/managers/WardenManager.js?v=GLOBAL_WARDEN_V2"></script>
+  <script type="module" src="./js/game.js?v=GLOBAL_WARDEN_V2"></script>
 
   <!-- 3. Explicit Event Binding for Debug Button (With STANDALONE BATTLE LOGIC) -->
 </body>
