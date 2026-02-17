@@ -2084,6 +2084,28 @@ Game.typewriter = {
             screen.style.display = 'flex';
             screen.style.flexDirection = 'column';
             screen.style.justifyContent = 'space-between';
+
+            // [FIX] Ensure Score Screen is Clickable & On Top
+            screen.style.zIndex = "100000";
+            screen.style.pointerEvents = "auto";
+            screen.style.position = "absolute"; // or relative, depending on layout
+            screen.style.top = "0";
+            screen.style.left = "0";
+            screen.style.width = "100%";
+            screen.style.height = "100%";
+
+            // Force Input & Button interactive
+            const input = document.getElementById('warden-email');
+            if (input) {
+                input.style.pointerEvents = "auto";
+                input.style.zIndex = "100001";
+            }
+            const btn = document.querySelector('#bind-form button');
+            if (btn) {
+                btn.style.pointerEvents = "auto";
+                btn.style.zIndex = "100001";
+                btn.style.position = "relative";
+            }
         }
 
         // 1. Fetch Data (Direct Source: HUD Elements for Resources)
