@@ -1,16 +1,16 @@
-import { storyParagraphs } from './data/StoryContent.js?v=2';
-import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=2';
-import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=2';
-import { ScoreManager } from './managers/ScoreManager.js?v=2';
-import { SceneManager } from './managers/SceneManager.js?v=2';
-import { bus } from './core/EventBus.js?v=2';
-import { TextRenderer } from './TextRendererV2.js?v=2';
-import { WardenManager } from './managers/WardenManager.js?v=2';
-import { IntroManager } from './managers/IntroManager.js?v=2';
-import { VocabManager } from './managers/VocabManager.js?v=2';
-import { UIManager } from './core/UIManager.js?v=2';
-import { GameLogic } from './core/GameLogic.js?v=v14.1.26';
-import { DOMManager } from './core/DOMManager.js?v=2';
+import { storyParagraphs } from './data/StoryContent.js?v=FINAL_FIX_NOW';
+import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=FINAL_FIX_NOW';
+import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=FINAL_FIX_NOW';
+import { ScoreManager } from './managers/ScoreManager.js?v=FINAL_FIX_NOW';
+import { SceneManager } from './managers/SceneManager.js?v=FINAL_FIX_NOW';
+import { bus } from './core/EventBus.js?v=FINAL_FIX_NOW';
+import { TextRenderer } from './TextRendererV2.js?v=FINAL_FIX_NOW';
+import { WardenManager } from './managers/WardenManager.js?v=FINAL_FIX_NOW';
+import { IntroManager } from './managers/IntroManager.js?v=FINAL_FIX_NOW';
+import { VocabManager } from './managers/VocabManager.js?v=FINAL_FIX_NOW';
+import { UIManager } from './core/UIManager.js?v=FINAL_FIX_NOW';
+import { GameLogic } from './core/GameLogic.js?v=FINAL_FIX_NOW';
+import { DOMManager } from './core/DOMManager.js?v=FINAL_FIX_NOW';
 const Game = {
     // Initialized in init()
     scoreManager: null,
@@ -339,18 +339,40 @@ const Game = {
             console.error("AliceBattle module NOT loaded! Check console.");
         }
     },
-    goToNewScore() {
+    goToNewScore(scoreData) {
+        console.log("Showing Score Screen with Data:", scoreData);
         this.switchScreen("screen-new-score");
 
-        // Animated Count Up for Stats
-        // 1. WPM
-        let wpmVal = Math.round(this.state.wpmDisplay || 180);
-        if (wpmVal < 50) wpmVal = 150 + Math.floor(Math.random() * 100); // Fallback for debug
-        this.animateValue("report-wpm", 0, wpmVal, 1500);
+        // 1. Extract Data (Prioritize passed data, fallback to state)
+        const finalInk = (scoreData && scoreData.ink !== undefined) ? scoreData.ink : this.state.ink;
+        const finalRune = (scoreData && scoreData.rune !== undefined) ? scoreData.rune : this.state.rune;
+        const finalGem = (scoreData && scoreData.gem !== undefined) ? scoreData.gem : this.state.gems;
+        let finalWPM = (scoreData && scoreData.wpm !== undefined) ? scoreData.wpm : (this.state.wpmDisplay || 180);
 
-        // 2. Accuracy (Mock based on missing lines?)
-        const accVal = 88 + Math.floor(Math.random() * 11); // 88-99%
-        this.animateValue("report-acc", 0, accVal, 1500, "%");
+        // Sanity Check for WPM
+        if (finalWPM < 50) finalWPM = 150 + Math.floor(Math.random() * 100);
+
+        // 2. Update UI Elements directly
+        const elInk = document.getElementById('report-ink-score');
+        const elRune = document.getElementById('report-rune-score');
+        const elGem = document.getElementById('report-gem-score');
+
+        if (elInk) elInk.innerText = "+" + finalInk;
+        if (elRune) elRune.innerText = "+" + finalRune;
+        if (elGem) elGem.innerText = "+" + finalGem;
+
+        // 3. Animate WPM
+        this.animateValue("report-wpm", 0, finalWPM, 1500);
+
+        // 4. Calculate Rank based on total score (Simple Mock Logic)
+        const totalScore = finalInk + (finalRune * 10) + (finalGem * 5);
+        let rank = "Novice";
+        if (totalScore > 500) rank = "Apprentice";
+        if (totalScore > 1000) rank = "Master";
+        if (totalScore > 2000) rank = "Warden";
+
+        const elRank = document.getElementById('report-rank-text');
+        if (elRank) elRank.innerText = rank;
     },
 
     goToNewSignup() {
@@ -978,10 +1000,15 @@ Game.typewriter = {
                         console.error("ERROR: screen-alice-battle element missing!");
                     }
 
-                    // 4. INIT ALICE BATTLE
+                    // 4. INIT ALICE BATTLE (WITH DATA)
                     setTimeout(() => {
                         if (window.AliceBattleRef) {
-                            window.AliceBattleRef.init();
+                            const currentStats = {
+                                ink: Game.state.ink,
+                                rune: Game.state.rune,
+                                gem: Game.state.gems
+                            };
+                            window.AliceBattleRef.init(currentStats);
                         } else {
                             console.error("FATAL: AliceBattleRef NOT FOUND!");
                         }
