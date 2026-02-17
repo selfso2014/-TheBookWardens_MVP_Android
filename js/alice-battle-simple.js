@@ -585,13 +585,13 @@
                     parentBar.style.border = '2px solid #fff';
                     parentBar.style.height = '24px';
 
-                    // FIXED POSITIONING (BREAKOUT STRATEGY)
-                    parentBar.style.position = 'fixed';
-                    parentBar.style.top = '48%'; // Center Screen (Fixed to Viewport)
+                    // FIXED POSITIONING (Force Visibility)
+                    parentBar.style.position = 'absolute';
+                    parentBar.style.top = '50vh'; // Exact center (vh units)
                     parentBar.style.left = '50%';
                     parentBar.style.transform = 'translateX(-50%)';
                     parentBar.style.width = '90%';
-                    parentBar.style.zIndex = '9999'; // Highest priority
+                    parentBar.style.zIndex = '950';
                     parentBar.style.marginTop = '0';
                     parentBar.style.boxShadow = '0 0 15px rgba(0,0,0,0.8)';
                     parentBar.style.overflow = 'visible';
@@ -629,19 +629,15 @@
                 // Adjust Layout compactness
                 const villainArea = container.querySelector('.entity-area.villain');
                 if (villainArea) {
-                    villainArea.style.height = '40vh';
-                    villainArea.style.overflow = 'visible'; // ALLOW BREAKOUT if needed
+                    villainArea.style.height = '45vh'; // More space for cards
+                    villainArea.style.minHeight = '200px';
                 }
 
-                // Text Field Adjustments
+                // Move Text Field Down (Below Bar)
                 if (ui.textField) {
-                    // 1. Remove Title Sibling
-                    const titleEl = ui.textField.previousElementSibling;
-                    if (titleEl) titleEl.style.display = 'none';
-
                     const tfParent = ui.textField.parentElement;
                     // Push down below HP Bar (50vh + bar height)
-                    tfParent.style.marginTop = '53vh';
+                    tfParent.style.marginTop = '55vh';
                     tfParent.style.paddingTop = '10px';
                     tfParent.style.zIndex = '800';
                     tfParent.style.position = 'absolute';
@@ -651,9 +647,9 @@
                     // WIDER & SHORTER TEXT FIELD
                     ui.textField.style.width = '94vw';
                     ui.textField.style.marginLeft = '3vw';
-                    ui.textField.style.height = '150px';
+                    ui.textField.style.height = '150px !important'; // Force Fixed Height
                     ui.textField.style.minHeight = '150px';
-                    ui.textField.style.maxHeight = '150px'; // FIXED
+                    ui.textField.style.maxHeight = '150px';
                     ui.textField.style.overflowY = 'auto'; // SCROLLABLE
                 }
 
