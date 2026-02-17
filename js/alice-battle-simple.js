@@ -587,7 +587,7 @@
 
                     // FIXED POSITIONING (BREAKOUT STRATEGY)
                     parentBar.style.position = 'fixed';
-                    parentBar.style.top = '42vh'; // Moved Up (45 -> 42)
+                    parentBar.style.top = '42vh';
                     parentBar.style.left = '50%';
                     parentBar.style.transform = 'translateX(-50%)';
                     parentBar.style.width = '90%';
@@ -631,9 +631,9 @@
                 if (villainArea) {
                     villainArea.style.height = '40vh';
                     villainArea.style.overflow = 'visible';
-                    // PUSH VILLAIN CARDS UP
+                    // PUSH VILLAIN CARDS DOWN 
                     villainArea.style.justifyContent = 'flex-start';
-                    villainArea.style.paddingTop = '2vh';
+                    villainArea.style.paddingTop = '0'; // Use margin on cards instead
                 }
 
                 // Text Field Adjustments (Fixed Position)
@@ -644,8 +644,8 @@
 
                     const tfParent = ui.textField.parentElement;
                     // Reset standard positioning
-                    tfParent.style.position = 'fixed'; // FIXED to screen
-                    tfParent.style.top = '49vh'; // Below HP Bar (42vh + bar)
+                    tfParent.style.position = 'fixed';
+                    tfParent.style.top = '49vh';
                     tfParent.style.left = '0';
                     tfParent.style.width = '100%';
                     tfParent.style.marginTop = '0';
@@ -654,12 +654,12 @@
                     tfParent.style.display = 'flex';
                     tfParent.style.justifyContent = 'center';
 
-                    // Box Styles
+                    // Box Styles - REDUCED HEIGHT (5 lines approx)
                     ui.textField.style.width = '94vw';
                     ui.textField.style.marginLeft = '0';
-                    ui.textField.style.height = '150px';
-                    ui.textField.style.minHeight = '150px';
-                    ui.textField.style.maxHeight = '150px';
+                    ui.textField.style.height = '110px';
+                    ui.textField.style.minHeight = '110px';
+                    ui.textField.style.maxHeight = '110px';
                     ui.textField.style.overflowY = 'auto';
                 }
 
@@ -670,7 +670,7 @@
                 const wardenArea = container.querySelector('.entity-area.warden');
                 if (wardenArea) {
                     wardenArea.style.justifyContent = 'flex-end';
-                    wardenArea.style.paddingBottom = '10px'; // Force cards to bottom
+                    wardenArea.style.paddingBottom = '0px';
                 }
 
                 if (ui.gameUi) ui.gameUi.style.opacity = '1';
@@ -681,14 +681,22 @@
 
                 cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
 
-                // Compact Villain Cards
-                // Try multiple selectors to catch the container
+                // Compact Villain Cards (PUSH DOWN)
                 const vCards = container.querySelector('.villain-cards') || container.querySelector('.entity-area.villain .card-container');
                 if (vCards) {
                     vCards.style.transform = 'scale(0.8)';
-                    vCards.style.transformOrigin = 'top center'; // Pivot from top to sit higher
-                    vCards.style.marginTop = '0';
+                    vCards.style.transformOrigin = 'top center';
+                    vCards.style.marginTop = '15vh'; // Corrected position to reveal face
                 }
+
+                // BIGGER WARDEN CARDS
+                const wCards = container.querySelector('.entity-area.warden .card-container');
+                if (wCards) {
+                    wCards.style.transform = 'scale(1.2)'; // BIGGER
+                    wCards.style.transformOrigin = 'bottom center';
+                    wCards.style.marginBottom = '30px';
+                }
+
 
                 initTextBattlefield();
                 updateCardDisplay();
