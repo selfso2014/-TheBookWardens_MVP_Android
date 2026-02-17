@@ -1038,9 +1038,22 @@ Game.typewriter = {
 };
 
 window.Game = Game;
-document.addEventListener("DOMContentLoaded", () => {
+
+// [SAFETY FIX] Module timing protection
+const initGame = () => {
+    if (Game.isInitialized) return;
+    Game.isInitialized = true;
+    console.log("[Game] Initializing (Module Loaded)...");
     Game.init();
-});
+};
+
+if (document.readyState === "loading") {
+    // Document still parsing
+    document.addEventListener("DOMContentLoaded", initGame);
+} else {
+    // Document already interactive/complete
+    initGame();
+}
 
 
 // End of file
