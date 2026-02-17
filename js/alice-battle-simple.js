@@ -584,10 +584,17 @@
                     parentBar.style.backgroundColor = '#D50000';
                     parentBar.style.border = '2px solid #fff';
                     parentBar.style.height = '24px';
-                    parentBar.style.position = 'relative'; // For labels
-                    parentBar.style.overflow = 'visible'; // Allow labels outside
-                    parentBar.style.marginTop = '80px'; // MOVE DOWN MORE
-                    parentBar.style.zIndex = '900'; // FORCE ON TOP
+
+                    // FIXED POSITIONING (Force Visibility)
+                    parentBar.style.position = 'absolute';
+                    parentBar.style.top = '25%'; // Below Villain Image
+                    parentBar.style.left = '50%';
+                    parentBar.style.transform = 'translateX(-50%)';
+                    parentBar.style.width = '80%';
+                    parentBar.style.zIndex = '950'; // Very high
+                    parentBar.style.marginTop = '0'; // Clear previous margin
+                    parentBar.style.boxShadow = '0 0 15px rgba(0,0,0,0.8)';
+                    parentBar.style.overflow = 'visible';
 
                     // Add Labels if missing
                     if (!parentBar.querySelector('.lbl-warden')) {
@@ -601,6 +608,7 @@
                         wLbl.style.fontWeight = 'bold';
                         wLbl.style.lineHeight = '24px';
                         wLbl.style.fontFamily = 'Cinzel, serif';
+                        wLbl.style.textShadow = '0 0 5px #000';
                         parentBar.appendChild(wLbl);
 
                         const vLbl = document.createElement('div');
@@ -613,14 +621,24 @@
                         vLbl.style.fontWeight = 'bold';
                         vLbl.style.lineHeight = '24px';
                         vLbl.style.fontFamily = 'Cinzel, serif';
+                        vLbl.style.textShadow = '0 0 5px #000';
                         parentBar.appendChild(vLbl);
                     }
                 }
 
-                // Move Text Field Down
+                // Adjust Layout compactness
+                const villainArea = container.querySelector('.entity-area.villain');
+                if (villainArea) {
+                    villainArea.style.height = '30vh'; // Reduce slightly
+                    villainArea.style.minHeight = '200px';
+                }
+
+                // Move Text Field Up (Remove Gap)
                 if (ui.textField) {
-                    ui.textField.parentElement.style.marginTop = '100px';
-                    ui.textField.parentElement.style.zIndex = '800'; // Lower than HP bar
+                    // Reset margin/padding to pull it up
+                    ui.textField.parentElement.style.marginTop = '0px';
+                    ui.textField.parentElement.style.paddingTop = '10vh'; // Push down just enough below HP Bar
+                    ui.textField.parentElement.style.zIndex = '800';
                 }
 
                 if (ui.wardenHp) ui.wardenHp.parentElement.style.display = 'none';
@@ -631,6 +649,14 @@
                 }
 
                 cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
+
+                // Compact Villain Cards
+                const vCards = container.querySelector('.villain-cards');
+                if (vCards) {
+                    vCards.style.transform = 'scale(0.8)';
+                    vCards.style.transformOrigin = 'top center';
+                    vCards.style.marginTop = '-20px'; // Pull up
+                }
 
                 initTextBattlefield();
                 updateCardDisplay();
