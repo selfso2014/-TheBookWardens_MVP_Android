@@ -1042,6 +1042,15 @@
         </button>
       </div>
 
+      <!-- New Copy Link Button -->
+      <button
+        onclick="navigator.clipboard.writeText('https://selfso2014.github.io/TheBookWardens_MVP/'); alert('Game Link Copied!');"
+        onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.1)'"
+        style="background: rgba(255,255,255,0.1); border: 1px solid #777; color: #fff; padding: 12px 25px; border-radius: 30px; cursor: pointer; font-size: 1rem; margin-bottom: 40px; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s;">
+        <span style="font-size: 1.2rem;">🔗</span> Copy Game Link
+      </button>
+
       <button class="btn-primary"
         onclick="document.getElementById('screen-new-share').style.display='none'; Game.switchScreen('screen-home'); location.reload();">
         Return to Lobby
