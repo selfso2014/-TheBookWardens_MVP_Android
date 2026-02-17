@@ -330,7 +330,13 @@ const Game = {
     },
 
     // --- 3. Boss Battle ---
-    // checkBoss(optionIndex) - DELETED (Deprecated feature: Direct call to Typewriter checkBossAnswer used instead)
+    checkBossAnswer(optionIndex) {
+        if (this.typewriter && typeof this.typewriter.checkBossAnswer === 'function') {
+            this.typewriter.checkBossAnswer(optionIndex);
+        } else {
+            console.error("Typewriter checkBossAnswer method not found.");
+        }
+    },
 
 
     // --- 4. Splash Screen Logic (Proxy to IntroManager) ---
