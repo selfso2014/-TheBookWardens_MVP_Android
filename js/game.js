@@ -2206,11 +2206,18 @@ Game.typewriter = {
     },
 
     bindKeyAndUnlock_V2() {
-        if (this.wardenManager) {
-            this.wardenManager.bindWarden();
-        } else {
-            console.error("WardenManager not initialized!");
+        if (!this.wardenManager) {
+            console.warn("[Game] WardenManager not ready on click. Force initializing...");
+            // Ensure WardenManager is available in scope (it is imported at top)
+            try {
+                this.wardenManager = new WardenManager(this);
+            } catch (e) {
+                console.error("[Game] Failed to force-init WardenManager:", e);
+                alert("Game Error: WardenManager Missing. Please refresh.");
+                return;
+            }
         }
+        this.wardenManager.bindWarden();
     },
 
     goToNewSignup() {
