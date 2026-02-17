@@ -307,7 +307,6 @@
 
     #screen-final-boss.alice-battle-mode .hp {
       height: 100%;
-      width: 100%;
       /* Full HP for visual mode */
     }
 
@@ -327,6 +326,37 @@
       user-select: none;
     }
   </style>
+  <script>
+    window.Game = Game;
+
+    // [DEBUG] Shortcut
+    window.debugJump = (idx = 2) => {
+      console.log(`[Debug v14.1.20] Jumping to MidBoss Battle ${idx}`);
+      // Use window.Game to ensure global reference
+      if (window.Game && typeof window.Game.triggerMidBossBattle === 'function') {
+        window.Game.currentParaIndex = idx;
+        window.Game.triggerMidBossBattle();
+      } else {
+        console.error("[Debug] Game.triggerMidBossBattle not found on window.Game", window.Game);
+      }
+    };
+
+    // [SAFETY FIX] Module timing protection
+    const initGame = () => {
+      if (Game.isInitialized) return;
+      Game.isInitialized = true;
+      console.log("[Game v14.1.20] Initializing (Module Loaded)...");
+      Game.init();
+    };
+
+    if (document.readyState === "loading") {
+      // Document still parsing
+      document.addEventListener("DOMContentLoaded", initGame);
+    } else {
+      // Document already interactive/complete
+      initGame();
+    }
+  </script>
 </head>
 
 <body>
@@ -1223,14 +1253,14 @@
 
   <!-- Scripts -->
   <!-- 1. Eye Tracking Core -->
-  <script type="module" src="./js/app.js?v=v14.1.18"></script>
-  <!-- Alice Battle Logic (Full Module with Closure Scope) -->
-  <script type="module" src="./js/alice-battle.js?v=v14.1.18"></script>
+  <script type="module" src="./js/app.js?v=v14.1.20"></script>
+  <!-- Alice Battle Logic (Latest - Single Bar Logic) -->
+  <script src="./js/alice-battle-simple.js?v=v14.1.33"></script>
   <!-- Linked Game.AliceBattle to AliceBattleRef Logic moved to GameLogic -->
   <!-- 2. Game Logic -->
-  <script type="module" src="./js/calibration.js?v=v14.1.18"></script>
+  <script type="module" src="./js/calibration.js?v=v14.1.20"></script>
   <!-- WardenManager removed (Imported by game.js) -->
-  <script type="module" src="./js/game.js?v=v14.1.18"></script>
+  <script type="module" src="./js/game.js?v=v14.1.20"></script>
 
   <!-- 3. Explicit Event Binding for Debug Button (With STANDALONE BATTLE LOGIC) -->
 </body>
