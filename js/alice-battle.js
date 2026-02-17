@@ -137,6 +137,15 @@ function endGame(result) {
         if (ui.finalScreen) ui.finalScreen.classList.add('active');
 
         if (result === 'victory') {
+            // [NEW] Push Battle Results to Score Manager
+            if (window.Game && window.Game.scoreManager) {
+                console.log("[AliceBattle] Victory! Saving resources...", cardValues);
+                window.Game.scoreManager.ink = cardValues.ink;
+                window.Game.scoreManager.runes = cardValues.rune;
+                window.Game.scoreManager.gems = cardValues.gem;
+                // Save Bonus (e.g. Health Bonus?) - Optional
+            }
+
             if (ui.resultHeader) {
                 ui.resultHeader.innerText = "VICTORY";
                 ui.resultHeader.style.color = "#4da6ff";
