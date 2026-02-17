@@ -2167,9 +2167,7 @@ Game.typewriter = {
         animateValue("report-gem-count", 0, gem, 1000, "", "", 400);
         animateValue("report-gem-score", 0, gem * 500, 1500, "+", "", 400);
 
-        // Boss Bonus (Grand Finale)
-        // 10,000 pts is huge, so make it dramatic
-        animateValue("report-boss-score", 0, 10000, 2000, "+", "", 1200);
+
     },
 
     bindKeyAndUnlock() {

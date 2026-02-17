@@ -155,13 +155,35 @@ function endGame(result) {
                 ui.resultHeader.style.color = "#4da6ff";
             }
             if (ui.storyDisplay) ui.storyDisplay.innerHTML = `<div class="story-clean">${aliceStory}</div>`;
+
+            // [NEW] Configure Button for Next Step
+            if (ui.restartBtn) {
+                ui.restartBtn.innerText = "VIEW REPORT";
+                ui.restartBtn.style.background = "#ffd700";
+                ui.restartBtn.style.color = "#000";
+                ui.restartBtn.onclick = () => {
+                    if (window.Game) window.Game.goToNewScore();
+                };
+            }
+
         } else {
+            // DEFEAT
             if (ui.resultHeader) {
                 ui.resultHeader.innerText = "DEFEAT";
                 ui.resultHeader.style.color = "#ff4d4d";
             }
             if (ui.storyDisplay) ui.storyDisplay.innerHTML = `<div class="story-corrupted">${corruptText(aliceStory)}</div>`;
             createRifts();
+
+            // Config Button for Retry
+            if (ui.restartBtn) {
+                ui.restartBtn.innerText = "TRY AGAIN";
+                ui.restartBtn.style.background = "#ff4d4d";
+                ui.restartBtn.style.color = "#fff";
+                ui.restartBtn.onclick = () => {
+                    AliceBattle.init(); // Restart Battle
+                };
+            }
         }
     }, 1000);
 }
@@ -238,6 +260,7 @@ export const AliceBattle = {
             resize();
 
             // Reset Game
+            // Reset Game
             villainHP = 100;
             wardenHP = 100;
             gameState = 'playing';
@@ -249,8 +272,20 @@ export const AliceBattle = {
             if (ui.finalScreen) ui.finalScreen.classList.remove('active');
             if (ui.log) ui.log.innerText = "Battle started...";
 
-            // Reset Cards
-            cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
+            // [NEW] Load Resources from ScoreManager (Real Player Stats)
+            if (window.Game && window.Game.scoreManager) {
+                const sm = window.Game.scoreManager;
+                console.log("[AliceBattle] Loading resources from ScoreManager:", sm);
+
+                // If scoreManager has values, use them. Otherwise default.
+                cardValues.ink = (sm.ink > 0) ? sm.ink : 190;
+                cardValues.rune = (sm.runes > 0) ? sm.runes : 30;
+                cardValues.gem = (sm.gems > 0) ? sm.gems : 50;
+            } else {
+                // Default Fallback
+                cardValues.ink = 190; cardValues.rune = 30; cardValues.gem = 50;
+            }
+
             vCardValues.queen = 100; vCardValues.king = 60; vCardValues.joker = 40;
             updateCardDisplay();
 
