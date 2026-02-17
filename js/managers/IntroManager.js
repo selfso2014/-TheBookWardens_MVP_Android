@@ -13,9 +13,17 @@ export class IntroManager {
         const startBtn = document.getElementById("btn-start-game");
         if (startBtn) {
             startBtn.onclick = async () => {
+                // Prevent double clicks
+                startBtn.disabled = true;
+                startBtn.classList.add("loading");
+                startBtn.innerText = "Initializing...";
+
                 // 1. Check In-App Browser
                 if (this.isInAppBrowser()) {
                     this.openSystemBrowser();
+                    startBtn.disabled = false;
+                    startBtn.innerText = "Start Game";
+                    startBtn.classList.remove("loading");
                     return;
                 }
 
