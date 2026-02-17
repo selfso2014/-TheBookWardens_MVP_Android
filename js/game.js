@@ -314,7 +314,17 @@ const Game = {
     // checkBoss(optionIndex) - DELETED (Deprecated feature: Direct call to Typewriter checkBossAnswer used instead)
 
 
-    // --- 4. Splash Screen Logic (Deprecated: IntroManager handles this) ---
+    // --- 4. Splash Screen Logic (Proxy to IntroManager) ---
+    dismissSplash() {
+        if (this.introManager) {
+            this.introManager.dismissSplash();
+        } else {
+            console.error("IntroManager not ready!");
+            // Fallback manual removal if Manager fails
+            const splash = document.getElementById("screen-splash");
+            if (splash) splash.classList.remove("active");
+        }
+    },
 
     // --- NEW: Enriched Game Flow (Debug / Implementation) ---
     // --- NEW: Alice Battlefield Integration ---
