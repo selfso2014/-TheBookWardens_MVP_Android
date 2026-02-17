@@ -1,4 +1,4 @@
-export class WardenManager {
+class WardenManager {
     constructor(gameRef) {
         this.game = gameRef;
         this.email = localStorage.getItem('warden_email') || null;
@@ -105,3 +105,4 @@ export class WardenManager {
         }
     }
 }
+window.WardenManager = WardenManager;
