@@ -942,45 +942,46 @@ Game.typewriter = {
             }
 
             // Hide Boss UI immediately (Force)
+            // Hide Boss UI with Delay (Wait for Resource Animation)
+            // [CHANGED] Don't hide immediately. Wait for animation (1.2s).
             const villainScreen = document.getElementById("screen-boss");
-            if (villainScreen) {
-                villainScreen.classList.remove("active");
-                villainScreen.style.display = "none"; // Hard hide to prevent loop
-                // Restore display property after transition so it can reappear later
-                setTimeout(() => { villainScreen.style.display = ""; }, 2000);
-            }
 
-            // Check if this was the Last Paragraph
-            if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                // [CHANGED] Instead of Victory, go to FINAL BOSS
-                console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
-                setTimeout(() => {
-                    this.triggerFinalBossBattle();
-                }, 1500);
-            } else {
-                // GO TO NEXT PARAGRAPH
-                // Force hide villain modal if exists
-                const villainModal = document.getElementById("villain-modal");
-                if (villainModal) villainModal.style.display = "none";
+            setTimeout(() => {
+                if (villainScreen) {
+                    villainScreen.classList.remove("active");
+                    villainScreen.style.display = "none";
+                    setTimeout(() => { villainScreen.style.display = ""; }, 2000);
+                }
 
-                this.currentParaIndex++;
-                console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
+                // Check if this was the Last Paragraph
+                if (this.currentParaIndex >= this.paragraphs.length - 1) {
+                    console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
+                    // Provide a slight pause before Final Boss
+                    setTimeout(() => {
+                        this.triggerFinalBossBattle();
+                    }, 500);
+                } else {
+                    // GO TO NEXT PARAGRAPH
+                    // Force hide villain modal if exists
+                    const villainModal = document.getElementById("villain-modal");
+                    if (villainModal) villainModal.style.display = "none";
 
-                // Reset State for Next Paragraph
-                this.chunkIndex = 0;
-                this.lineStats.clear();
-                // Note: Do NOT resume 'isPaused' here. It will be resumed inside playNextParagraph() after content is ready.
+                    this.currentParaIndex++;
+                    console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
 
-                // Ensure clean transition with shorter delay (1.5s) per request
-                setTimeout(() => {
+                    // Reset State for Next Paragraph
+                    this.chunkIndex = 0;
+                    this.lineStats.clear();
+                    // Note: Do NOT resume 'isPaused' here. It will be resumed inside playNextParagraph() after content is ready.
+
                     Game.switchScreen("screen-read");
                     // Wait a bit for screen transition before starting text
                     setTimeout(() => {
                         this.chunkIndex = 0; // Double ensure reset
                         this.playNextParagraph();
                     }, 500);
-                }, 1500); // Reduced from 3000 to 1500
-            }
+                }
+            }, 1200); // Wait for resource animation (1.0s) + buffer
         } else {
             // FAILURE
             Game.addGems(-10); // -10 Gem (Penalty)
