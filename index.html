@@ -1007,10 +1007,23 @@
       <div id="reward-section"
         style="flex: 1; min-height: 0; background: linear-gradient(180deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0.8) 100%); border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0; transform: translateY(50px); transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);">
 
+        <style>
+          @keyframes keyFloating {
+            0% {
+              transform: translateY(0);
+              filter: drop-shadow(0 0 15px gold);
+            }
+
+            100% {
+              transform: translateY(-10px);
+              filter: drop-shadow(0 0 25px gold);
+            }
+          }
+        </style>
         <div
-          style="display:flex; flex-direction: column; justify-content:center; align-items:center; margin-bottom:20px; text-align: center;">
+          style="display:flex; flex-direction: column; justify-content:center; align-items:center; margin-bottom:20px; margin-top: 30px; text-align: center;">
           <img src="goldenkey.png"
-            style="width: 140px; height: auto; margin-bottom: 15px; filter: drop-shadow(0 0 15px gold); animation: floatUp 3s ease-in-out infinite alternate;">
+            style="width: 140px; height: auto; margin-bottom: 15px; animation: keyFloating 2s ease-in-out infinite alternate;">
           <div>
             <div
               style="font-family: 'Cinzel', serif; color: #ffd700; font-size: 1.5rem; font-weight: bold; margin-bottom: 5px;">
