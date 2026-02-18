@@ -477,21 +477,92 @@ const Game = {
             if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
 
             newBtn.onclick = () => {
-                const email = emailInput ? emailInput.value : "";
+                const email = emailInput ? emailInput.value.trim() : "";
+
                 if (!email || !email.includes("@")) {
                     alert("Please enter a valid email address.");
                     return;
                 }
 
-                // Simulate API Call
-                newBtn.innerText = "Sending...";
-                newBtn.disabled = true;
+                // 1. Initialize Firebase if needed
+                if (typeof firebase === "undefined") {
+                    alert("System Error: Firebase SDK not loaded.");
+                    return;
+                }
 
-                setTimeout(() => {
-                    alert("Reward Claimed! Check your email.");
-                    // Go to Share Screen
-                    Game.switchScreen("screen-new-share");
-                }, 1500);
+                if (!firebase.apps.length) {
+                    if (window.FIREBASE_CONFIG) {
+                        try {
+                            firebase.initializeApp(window.FIREBASE_CONFIG);
+                        } catch (e) {
+                            console.error("Firebase Init Error:", e);
+                            alert("Database Connection Failed.");
+                            return;
+                        }
+                    } else {
+                        alert("System Error: Firebase Config missing.");
+                        return;
+                    }
+                }
+
+                // 2. Prepare Data
+                const now = new Date();
+                // KST (UTC+9) formatting
+                const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                const kstStr = kstDate.toISOString().replace('T', ' ').slice(0, 19);
+
+                const reportData = {
+                    email: email,
+                    timestamp: kstStr,
+                    wpm: finalWPM,
+                    ink: finalInk,
+                    rune: finalRune,
+                    gem: finalGem,
+                    device: navigator.userAgent
+                };
+
+                // 3. Save to Realtime Database
+                const originalText = "CLAIM REWARD";
+                newBtn.disabled = true;
+                newBtn.innerText = "⏳ SAVING...";
+                newBtn.style.opacity = "0.7";
+
+                // Use Realtime Database "warden_leads"
+                const db = firebase.database();
+                const leadsRef = db.ref("warden_leads");
+                const newLeadRef = leadsRef.push(); // Generate key first
+
+                // Add Session ID reference to report data
+                reportData.sessionId = newLeadRef.key;
+
+                // Promise Array for Parallel saving
+                const promises = [];
+
+                // 1. Save Lead Data (Summary)
+                promises.push(newLeadRef.set(reportData));
+
+                // 2. Save Full Gaze Data (Detail) - if available
+                if (window.gazeDataManager) {
+                    newBtn.innerText = "⏳ DATA SYNC...";
+                    console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
+                    // Upload to separate path 'sessions/{key}' to keep leads light
+                    promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
+                }
+
+                Promise.all(promises)
+                    .then(() => {
+                        window.alert("Access Granted! Eye-Tracking Data Secured.\nCheck your email for the Secret Chapter.");
+                        newBtn.innerText = "✅ CLAIMED";
+                        newBtn.style.background = "#4CAF50";
+                        if (emailInput) emailInput.disabled = true;
+                    })
+                    .catch((error) => {
+                        console.error("Firebase Save Error:", error);
+                        window.alert("Transmission Failed: " + error.message);
+                        newBtn.disabled = false;
+                        newBtn.innerText = originalText;
+                        newBtn.style.opacity = "1";
+                    });
             };
         }
     },
