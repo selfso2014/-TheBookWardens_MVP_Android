@@ -424,7 +424,7 @@
     </header>
 
     <!-- SCREEN 0: SPLASH / TITLE -->
-    <section id="screen-splash" class="screen active"
+    <section id="screen-splash" class="screen"
       onclick="this.classList.remove('active'); document.getElementById('screen-home').style.display='flex'; setTimeout(()=>document.getElementById('screen-home').classList.add('active'), 50);">
       <div
         style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -435,7 +435,7 @@
     </section>
 
     <!-- SCREEN 0.5: HOME / LOBBY -->
-    <section id="screen-home" class="screen">
+    <section id="screen-home" class="screen active" style="display: flex;">
       <h1 class="title-logo">The Book Wardens</h1>
       <p
         style="margin-top: -10px; margin-bottom: 40px; color: #ffd700; font-family: 'Cinzel', serif; font-size: 1.2rem; font-style: italic; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);">
