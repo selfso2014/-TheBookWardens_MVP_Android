@@ -261,6 +261,12 @@ export class CalibrationManager {
     }
 
     showFailPopup() {
+        this.ctx.logW("cal", "showFailPopup called. Stopping watchdog.");
+        this.state.running = false; // [FIX] Stop the loop
+
+        // Stop rendering the dot/orb so it doesn't overlap text
+        this.state.inFailPopup = true;
+
         const popup = document.getElementById("cal-fail-popup");
         if (popup) {
             popup.style.display = "flex";
@@ -293,27 +299,41 @@ export class CalibrationManager {
     }
 
     retryPoint() {
-        this.ctx.logI("cal", "Retrying calibration point...");
-        // Reset local state
-        this.state.running = true;
-        this.state.progress = 0;
-        this.state.displayProgress = 0;
+        this.ctx.logI("cal", "Retrying calibration point (Async)...");
 
-        // Restart timeout
-        this.startCollection();
+        // Use setTimeout to unblock UI thread and break potential loops
+        setTimeout(() => {
+            // Reset state
+            this.state.running = true;
+            this.state.progress = 0;
+            this.state.displayProgress = 0;
+            this.state.inFailPopup = false;
 
-        // If we need to trigger SDK again:
-        // In some SDK versions, you just need to wait. In others, you might re-call startCollectSamples.
-        // For SeeSo, if collection timed out, we might need to restart it.
-        // We'll rely on app.js or the user clicking "Start Point" again if we reset UI.
+            // Restore UI Status Text
+            const statusEl = document.getElementById("calibration-status");
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.textContent = "Look at the Magic Orb!";
+            }
 
-        // Let's reset the UI button to "Retry" so user can physically click it again
-        const btn = document.getElementById("btn-calibration-start");
-        if (btn) {
-            btn.style.display = "inline-block";
-            btn.textContent = "Retry Point";
-            btn.style.pointerEvents = "auto";
-        }
+            // Hide Start Button (Auto-start)
+            const btn = document.getElementById("btn-calibration-start");
+            if (btn) btn.style.display = "none";
+
+            // Restart Watchdog
+            this.startCollection();
+
+            // Trigger SDK Collection
+            try {
+                if (this.seeso && typeof this.seeso.startCollectSamples === 'function') {
+                    this.seeso.startCollectSamples();
+                } else {
+                    this.ctx.logW("cal", "seeso.startCollectSamples unavailable");
+                }
+            } catch (e) {
+                this.ctx.logE("cal", "SDK retry error", e);
+            }
+        }, 100);
     }
 
     /**
@@ -380,11 +400,11 @@ export class CalibrationManager {
                     statusEl.style.color = "#0f0";
                     statusEl.style.textShadow = "0 0 10px #0f0";
 
-                    // Force Absolute Position (Above Button)
+                    // Force Absolute Position
                     statusEl.style.position = 'absolute';
                     statusEl.style.left = '50%';
                     statusEl.style.transform = 'translateX(-50%)';
-                    statusEl.style.top = (y + 80) + 'px'; // Button is at y+150
+                    statusEl.style.top = (y + 150) + 'px'; // 150px below dot
                     statusEl.style.width = "auto";
                     statusEl.style.whiteSpace = "nowrap";
                     statusEl.style.textAlign = "center";
@@ -393,8 +413,8 @@ export class CalibrationManager {
 
                 const btn = document.getElementById("btn-calibration-start");
                 if (btn) {
-                    // Update Button Text & Position per User Request
-                    btn.textContent = "Look At The Dot";
+                    // Update Button Text & Position
+                    btn.textContent = "OK";
 
                     // Style: Center horizontally, placed well below the dot
                     btn.style.display = "inline-block";
@@ -402,10 +422,8 @@ export class CalibrationManager {
                     btn.style.left = '50%';
                     btn.style.transform = 'translateX(-50%)';
 
-                    // Place it 150px below the dot (or fixed at bottom if preferred, but user said "below point")
-                    // Since it's 1-point (Center), y is likely window.innerHeight/2.
-                    // Let's use a safe margin.
-                    btn.style.top = (y + 150) + 'px';
+                    // Place it below the text
+                    btn.style.top = (y + 220) + 'px';
                     btn.style.pointerEvents = "auto";
                 }
             });
