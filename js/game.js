@@ -407,9 +407,16 @@ const Game = {
         const elRuneCount = document.getElementById('report-rune-count');
         const elGemCount = document.getElementById('report-gem-count');
 
-        if (elInk) elInk.innerText = "+" + finalInk;
-        if (elRune) elRune.innerText = "+" + finalRune;
-        if (elGem) elGem.innerText = "+" + finalGem;
+        // 2. Update UI Elements directly (Animation Calls)
+        // Reset to 0 first for animation visual
+        if (elInk) elInk.innerText = "+0";
+        if (elRune) elRune.innerText = "+0";
+        if (elGem) elGem.innerText = "+0";
+
+        // Animate Scores (with slight delays for staggered effect)
+        this.animateValue("report-ink-score", 0, finalInk, 1500, "+");
+        this.animateValue("report-rune-score", 0, finalRune, 1500, "+");
+        this.animateValue("report-gem-score", 0, finalGem, 1500, "+");
 
         // Show totals
         if (elInkCount) elInkCount.innerText = "Current: " + finalInk;
@@ -472,9 +479,8 @@ const Game = {
     },
 
     // Utilities
-    // Utilities
-    animateValue(id, start, end, duration, suffix = "") {
-        this.uiManager.animateValue(id, start, end, duration, "", suffix);
+    animateValue(id, start, end, duration, prefix = "", suffix = "") {
+        this.uiManager.animateValue(id, start, end, duration, prefix, suffix);
     }
 };
 

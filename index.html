@@ -947,78 +947,88 @@
 
     <!-- NEW SCENE 2: MISSION ACCOMPLISHED (Score Report) -->
     <section id="screen-new-score" class="screen"
-      style="text-align: center; background: radial-gradient(circle at center, #1a103c 0%, #000 90%); height: 100vh; overflow: hidden; padding: 60px 10px 10px 10px; box-sizing: border-box;">
+      style="text-align: center; background: radial-gradient(circle at center, #1a103c 0%, #000 90%); height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; display: none; flex-direction: column;">
 
       <!-- HEADER -->
       <h2
         style="color: #ffd700; margin: 0 0 10px 0; font-family: 'Cinzel', serif; font-size: 1.8rem; text-shadow: 0 0 20px gold; font-weight: bold; letter-spacing: 2px; flex: 0 0 auto;">
         MISSION REPORT</h2>
 
-      <!-- ROW 1: STATS -->
-      <div style="flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 5px;">
-        <!-- WPM -->
-        <div
-          style="background: rgba(0,229,255,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(0, 229, 255, 0.4);">
-          <div style="color: #888; font-size: 0.7rem;">SPEED</div>
-          <div style="display:flex; align-items:baseline; justify-content:center;">
-            <span id="report-wpm" style="font-size: 1.5rem; font-weight: bold; color: #00e5ff;">0</span>
-            <span style="font-size: 0.7rem; color: #00e5ff; margin-left:3px;">WPM</span>
+      <!-- GROUP A: STATS & RESOURCES (Flex 1) -->
+      <div
+        style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 15px; margin-bottom: 20px;">
+
+        <!-- ROW 1: STATS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <!-- WPM -->
+          <div
+            style="background: rgba(0,229,255,0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(0, 229, 255, 0.4); display: flex; flex-direction: column; justify-content: center;">
+            <div style="color: #888; font-size: 0.9rem; margin-bottom: 5px;">SPEED</div>
+            <div style="display:flex; align-items:baseline; justify-content:center;">
+              <span id="report-wpm" style="font-size: 2.2rem; font-weight: bold; color: #00e5ff;">0</span>
+              <span style="font-size: 1rem; color: #00e5ff; margin-left:5px;">WPM</span>
+            </div>
+          </div>
+          <!-- RANK -->
+          <div
+            style="background: rgba(255,215,0,0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,215,0,0.4); display: flex; flex-direction: column; justify-content: center;">
+            <div style="color: #888; font-size: 0.9rem; margin-bottom: 5px;">RANK</div>
+            <div id="report-rank-text" style="font-size: 2rem; font-weight: bold; color: gold;">Novice</div>
           </div>
         </div>
-        <!-- RANK -->
-        <div
-          style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,215,0,0.4);">
-          <div style="color: #888; font-size: 0.7rem;">RANK</div>
-          <div id="report-rank-text" style="font-size: 1.4rem; font-weight: bold; color: gold;">Novice</div>
+
+        <!-- ROW 2: RESOURCES (Expanded Size) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; flex-grow: 1;">
+          <!-- INK -->
+          <div
+            style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; display:flex; flex-direction:column; align-items:center; justify-content: center;">
+            <img src="ink.png" style="width:60px; height:auto; margin-bottom:10px;">
+            <div id="report-ink-count" style="font-size:0.9rem; color:#ccc; margin-bottom: 5px;">0</div>
+            <div id="report-ink-score" style="font-size:1.5rem; font-weight:bold; color:#00e5ff;">+0</div>
+          </div>
+          <!-- RUNE -->
+          <div
+            style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; display:flex; flex-direction:column; align-items:center; justify-content: center;">
+            <img src="rune.png" style="width:60px; height:auto; margin-bottom:10px;">
+            <div id="report-rune-count" style="font-size:0.9rem; color:#ccc; margin-bottom: 5px;">0</div>
+            <div id="report-rune-score" style="font-size:1.5rem; font-weight:bold; color:#00ff00;">+0</div>
+          </div>
+          <!-- GEM -->
+          <div
+            style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; display:flex; flex-direction:column; align-items:center; justify-content: center;">
+            <img src="gem.png" style="width:60px; height:auto; margin-bottom:10px;">
+            <div id="report-gem-count" style="font-size:0.9rem; color:#ccc; margin-bottom: 5px;">0</div>
+            <div id="report-gem-score" style="font-size:1.5rem; font-weight:bold; color:#d500f9;">+0</div>
+          </div>
         </div>
+
       </div>
 
-      <!-- ROW 2: RESOURCES -->
-      <div style="flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
-        <!-- INK -->
-        <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; display:flex; flex-direction:column; align-items:center;">
-          <img src="ink.png" style="width:45px; height:auto; margin-bottom:5px;">
-          <div id="report-ink-count" style="font-size:0.8rem; color:#ccc;">0</div>
-          <div id="report-ink-score" style="font-size:0.9rem; font-weight:bold; color:#00e5ff;">+0</div>
-        </div>
-        <!-- RUNE -->
-        <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; display:flex; flex-direction:column; align-items:center;">
-          <img src="rune.png" style="width:45px; height:auto; margin-bottom:5px;">
-          <div id="report-rune-count" style="font-size:0.8rem; color:#ccc;">0</div>
-          <div id="report-rune-score" style="font-size:0.9rem; font-weight:bold; color:#00ff00;">+0</div>
-        </div>
-        <!-- GEM -->
-        <div
-          style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; display:flex; flex-direction:column; align-items:center;">
-          <img src="gem.png" style="width:45px; height:auto; margin-bottom:5px;">
-          <div id="report-gem-count" style="font-size:0.8rem; color:#ccc;">0</div>
-          <div id="report-gem-score" style="font-size:0.9rem; font-weight:bold; color:#d500f9;">+0</div>
-        </div>
-      </div>
-
-      <!-- ROW 4: REWARD (Golden Key) -->
+      <!-- GROUP B: REWARD (Golden Key) (Flex 1) -->
       <div id="reward-section"
-        style="flex: 1 1 auto; background: linear-gradient(180deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0.8) 100%); border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; justify-content: center; min-height: 0;">
+        style="flex: 1; min-height: 0; background: linear-gradient(180deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0.8) 100%); border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
 
-        <div style="display:flex; justify-content:center; align-items:center; margin-bottom:5px;">
-          <div style="font-size: 3rem; margin-right:10px;">🗝️</div>
-          <div style="text-align:left;">
-            <div style="font-family: 'Cinzel', serif; color: #ffd700; font-size: 1.2rem; font-weight: bold;">GOLDEN KEY
+        <div
+          style="display:flex; flex-direction: column; justify-content:center; align-items:center; margin-bottom:20px; text-align: center;">
+          <div style="font-size: 4rem; margin-bottom: 10px;">🗝️</div>
+          <div>
+            <div
+              style="font-family: 'Cinzel', serif; color: #ffd700; font-size: 1.5rem; font-weight: bold; margin-bottom: 5px;">
+              GOLDEN KEY
             </div>
-            <div style="font-size: 0.8rem; color: #ccc;">Unlocks Chapter 1</div>
+            <div style="font-size: 1rem; color: #ccc; max-width: 300px; line-height: 1.4;">
+              Unlock your Eye-Tracking data and Secret Chapter.
+            </div>
           </div>
         </div>
 
         <!-- Form -->
-        <!-- Form (Simple Email) -->
-        <div id="bind-form" style="width: 100%; max-width: 320px; margin: 10px auto 0 auto;">
+        <div id="bind-form" style="width: 100%; max-width: 350px;">
           <input type="email" id="warden-email" placeholder="Enter Email to Claim Reward"
-            style="width: 100%; padding: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.05); border: 1px solid #555; color: #fff; border-radius: 5px; text-align: center; font-size: 1rem;">
+            style="width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(255,255,255,0.05); border: 1px solid #555; color: #fff; border-radius: 8px; text-align: center; font-size: 1.1rem; box-sizing: border-box;">
 
           <button id="btn-claim-reward"
-            style="width:100%; height: 50px; background:#ffd700; border:none; border-radius:5px; font-weight:bold; cursor:pointer; font-size: 1.1rem; box-shadow: 0 0 15px rgba(255,215,0,0.5); transition: transform 0.1s;">
+            style="width:100%; height: 55px; background:#ffd700; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size: 1.2rem; box-shadow: 0 0 20px rgba(255,215,0,0.4); transition: transform 0.1s; color: #333;">
             CLAIM REWARD
           </button>
         </div>
