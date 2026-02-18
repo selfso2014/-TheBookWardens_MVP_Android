@@ -345,8 +345,12 @@ export class CalibrationManager {
             btnStart.onclick = () => {
                 logI("cal", "User clicked Start Point -> Starting Watchdog & SDK");
 
-                // Hide button immediately to prevent double clicks
+                // Hide button immediately
                 btnStart.style.display = "none";
+
+                // [NEW] Hide status text too (Focus on point)
+                const statusEl = document.getElementById("calibration-status");
+                if (statusEl) statusEl.style.display = 'none';
 
                 // 1. Start Watchdog FIRST
                 this.startCollection();
