@@ -106,14 +106,16 @@ export class IntroManager {
         console.log("[IntroManager] Dismissing Splash -> Home Screen");
         this.game.switchScreen("screen-home");
 
-        // Safety: ensure button appears
+        // Safety: ensure button appears via CSS fallback (removed JS intervention)
+        /*
         setTimeout(() => {
             const btn = document.getElementById('btn-start-game');
-            if (btn) {
-                btn.style.opacity = "1";
-                btn.style.pointerEvents = "auto";
+            if(btn) {
+                // btn.style.opacity = "1"; // CSS Animation handles this
+                // btn.style.pointerEvents = "auto";
             }
         }, 1500);
+        */
     }
 
     async startRiftIntro() {

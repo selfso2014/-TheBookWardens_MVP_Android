@@ -433,6 +433,21 @@
       </div>
     </section>
 
+    <style>
+      /* ... existing styles ... */
+      @keyframes fadeInSafe {
+        from {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        to {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+    </style>
+
     <!-- SCREEN 0.5: HOME / LOBBY -->
     <section id="screen-home" class="screen">
       <h1 class="title-logo">The Book Wardens</h1>
@@ -448,7 +463,7 @@
       </div>
 
       <button id="btn-start-game" class="btn-primary"
-        style="margin-top: 40px; padding: 20px 40px; font-size: 1.5rem; animation: pulse 2s infinite; pointer-events: none; opacity: 0; transition: opacity 1.0s;">
+        style="margin-top: 40px; padding: 20px 40px; font-size: 1.5rem; opacity: 0; pointer-events: none; animation: pulse 2s infinite, fadeInSafe 1s 2.5s forwards;">
         Start Game
       </button>
 
