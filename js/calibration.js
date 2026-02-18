@@ -221,6 +221,27 @@ export class CalibrationManager {
         if (!seeso) return;
         const { logI, logW, logE, setStatus, setState, requestRender, onCalibrationFinish } = this.ctx;
 
+        // [FIX] Bind Start Button Click to Seeso SDK
+        const btnStart = document.getElementById("btn-calibration-start");
+        if (btnStart) {
+            btnStart.onclick = () => {
+                logI("cal", "User clicked Start Point -> seeso.startCollectSamples()");
+
+                // Hide button immediately to prevent double clicks
+                btnStart.style.display = "none";
+
+                // Trigger SDK Collection
+                if (typeof seeso.startCollectSamples === "function") {
+                    seeso.startCollectSamples();
+                } else {
+                    logE("cal", "seeso.startCollectSamples is not a function!");
+                }
+
+                // Start Watchdog
+                this.startCollection();
+            };
+        }
+
         // 1. Next Point
         if (typeof seeso.addCalibrationNextPointCallback === "function") {
             seeso.addCalibrationNextPointCallback((x, y) => {
