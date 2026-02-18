@@ -551,7 +551,15 @@ const Game = {
 
                 Promise.all(promises)
                     .then(() => {
-                        window.alert("Access Granted! Eye-Tracking Data Secured.\nCheck your email for the Secret Chapter.");
+                        // REPLACED: window.alert -> Custom Modal
+                        this.showSuccessModal(() => {
+                            // On Confirm action
+                            // Game.switchScreen("screen-new-share"); 
+                            // Or refresh, or whatever the next step is.
+                            // Assuming "screen-new-share" is next based on context.
+                            this.goToNewShare();
+                        });
+
                         newBtn.innerText = "✅ CLAIMED";
                         newBtn.style.background = "#4CAF50";
                         if (emailInput) emailInput.disabled = true;
@@ -565,6 +573,38 @@ const Game = {
                     });
             };
         }
+    },
+
+    // NEW: Custom Success Modal Logic
+    showSuccessModal(onConfirm) {
+        const modal = document.getElementById("success-modal");
+        const btn = document.getElementById("btn-modal-confirm");
+        if (!modal || !btn) {
+            window.alert("Access Granted! (Modal Missing)");
+            if (onConfirm) onConfirm();
+            return;
+        }
+
+        // Show
+        modal.style.display = "flex";
+        // Force Reflow
+        void modal.offsetHeight;
+
+        modal.style.opacity = "1";
+        const content = modal.firstElementChild;
+        if (content) content.style.transform = "scale(1)";
+
+        // Bind Action
+        btn.onclick = () => {
+            // Hide Animation
+            modal.style.opacity = "0";
+            if (content) content.style.transform = "scale(0.9)";
+
+            setTimeout(() => {
+                modal.style.display = "none";
+                if (onConfirm) onConfirm();
+            }, 300);
+        };
     },
 
     goToNewSignup() {
