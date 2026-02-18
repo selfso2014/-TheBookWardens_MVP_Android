@@ -425,7 +425,7 @@
 
     <!-- SCREEN 0: SPLASH / TITLE -->
     <section id="screen-splash" class="screen active"
-      onclick="this.classList.remove('active'); if(window.Game) Game.dismissSplash();">
+      onclick="this.classList.remove('active'); document.getElementById('screen-home').style.display='flex'; setTimeout(()=>document.getElementById('screen-home').classList.add('active'), 50);">
       <div
         style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <img src="./Main_Intro.png" alt="The Book Wardens"
