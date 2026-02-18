@@ -314,6 +314,11 @@ const calManager = new CalibrationManager({
   onFaceCheckSuccess: () => {
     logI("cal", "Face Check Success -> Triggering Real Calibration");
     startActualCalibration();
+  },
+  // [NEW] Restart callback for Retry
+  onRestart: () => {
+    logI("cal", "Retrying Calibration -> Restarting Sequence");
+    startActualCalibration();
   }
 });
 

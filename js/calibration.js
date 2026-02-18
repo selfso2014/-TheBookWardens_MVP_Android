@@ -318,18 +318,16 @@ export class CalibrationManager {
             const btn = document.getElementById("btn-calibration-start");
             if (btn) btn.style.display = "none";
 
-            // Restart Watchdog
-            this.startCollection();
-
-            // Trigger SDK Collection
-            try {
+            // [FIX] Restart ENTIRE calibration sequence to prevent premature "Finish"
+            if (this.ctx.onRestart) {
+                this.ctx.onRestart();
+            } else {
+                this.ctx.logE("cal", "onRestart callback missing! Cannot retry properly.");
+                // Fallback: try startCollection but might fail
+                this.startCollection();
                 if (this.seeso && typeof this.seeso.startCollectSamples === 'function') {
                     this.seeso.startCollectSamples();
-                } else {
-                    this.ctx.logW("cal", "seeso.startCollectSamples unavailable");
                 }
-            } catch (e) {
-                this.ctx.logE("cal", "SDK retry error", e);
             }
         }, 100);
     }
