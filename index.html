@@ -424,7 +424,7 @@
     </header>
 
     <!-- SCREEN 0: SPLASH / TITLE -->
-    <section id="screen-splash" class="screen"
+    <section id="screen-splash" class="screen active"
       onclick="this.classList.remove('active'); document.getElementById('screen-home').style.display='flex'; setTimeout(()=>document.getElementById('screen-home').classList.add('active'), 50);">
       <div
         style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -435,7 +435,7 @@
     </section>
 
     <!-- SCREEN 0.5: HOME / LOBBY -->
-    <section id="screen-home" class="screen active" style="display: flex;">
+    <section id="screen-home" class="screen">
       <h1 class="title-logo">The Book Wardens</h1>
       <p
         style="margin-top: -10px; margin-bottom: 40px; color: #ffd700; font-family: 'Cinzel', serif; font-size: 1.2rem; font-style: italic; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);">
@@ -448,40 +448,10 @@
         </p>
       </div>
 
-      <button id="btn-start-game" class="btn-primary">Start Game</button>
-      <p id="camera-disclaimer"
-        style="margin-top: 15px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); font-family: 'Cinzel', serif; font-style: italic; transition: color 0.3s; pointer-events: none;">
-        By entering the Rift,<br>you grant camera access for the Magic Eye.
-      </p>
-
-      <!-- DEBUG BUTTONS REMOVED -->
       <button id="btn-start-game" class="btn-primary"
         style="margin-top: 40px; padding: 20px 40px; font-size: 1.5rem; animation: pulse 2s infinite;">
         Start Game
       </button>
-
-      <!-- [DEBUG] Manual Camera Trigger -->
-      <button onclick="manualCameraTest()"
-        style="margin-top: 20px; padding: 10px; background: #444; color: #aaa; border: 1px solid #666; cursor: pointer;">
-        Force Camera Check
-      </button>
-      <script>
-        async function manualCameraTest() {
-          try {
-            alert("Requesting Camera...");
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            alert("Camera Active! tracks: " + stream.getVideoTracks().length);
-            const video = document.getElementById("preview");
-            if (video) {
-              video.srcObject = stream;
-              video.play();
-            }
-          } catch (e) {
-            alert("Camera Error: " + e.name + " - " + e.message);
-            console.error(e);
-          }
-        }
-      </script>
 
       <!-- NEW DIRECT DEBUG BUTTON (ID-based binding) -->
       <button id="btn-debug-alice"
