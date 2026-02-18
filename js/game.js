@@ -765,28 +765,22 @@ Game.typewriter = {
                         // tick() will reveal them.
  
                         renderer.resetToStart(); // Move cursor to top of new page
-                        this.tick(); // Continue ticking
-                    });
-                }, 2000); // Wait 2s before flipping page
-                return;
             }
             */
 
-            console.log("Paragraph Fully Revealed (All Pages). Clearing tail...");
+            console.log("Paragraph Fully Revealed (All Pages). Preparing for Replay...");
 
-            // CLEANUP TAIL: Fade out any remaining visible chunks
-            // We need to fade out from (chunkIndex - 3) up to (chunkIndex - 1)
-            // But actually, since the loop stopped, we just need to clear everything remaining.
-            // Let's sweep from max(0, this.chunkIndex - 3) to total chunks.
+            // [FIX] Do NOT fade out text here.
+            // We need the text to remain EXACTLY as it is for the Gaze Replay overlay.
+            // If we fade out and then force-show in replay, it causes layout shifts (jumps).
+            // The text will be hidden naturally when we switch to 'screen-boss' after replay.
 
-            let cleanupDelay = 0;
-            const startCleanupIdx = Math.max(0, this.chunkIndex - 3);
-
-            // Schedule cleanups for remaining tail
-            for (let i = startCleanupIdx; i < this.renderer.chunks.length; i++) {
-                this.renderer.scheduleFadeOut(i, cleanupDelay + 600);
-                cleanupDelay += 600;
-            }
+            // let cleanupDelay = 0;
+            // const startCleanupIdx = Math.max(0, this.chunkIndex - 3);
+            // for (let i = startCleanupIdx; i < this.renderer.chunks.length; i++) {
+            //    this.renderer.scheduleFadeOut(i, cleanupDelay + 600);
+            //    cleanupDelay += 600;
+            // }
 
             // [CHANGED] Always trigger Mid-Boss Battle after ANY paragraph (including the last one).
             // Logic: P1 -> Replay -> Mid -> P2 -> Replay -> Mid -> ...
