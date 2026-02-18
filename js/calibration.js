@@ -135,8 +135,17 @@ export class CalibrationManager {
                 const btn = document.getElementById("btn-calibration-start");
                 if (btn) {
                     btn.style.display = "inline-block";
-                    btn.textContent = `Start Point ${this.state.pointCount}`;
+                    btn.textContent = (this.state.pointCount === 1) ? "Start Check" : "Next Point";
+
+                    // [FIX] Move button to the point location so user looks at it!
+                    btn.style.position = 'absolute';
+                    btn.style.left = (x - 40) + 'px'; // Center roughly (assuming button width ~80px)
+                    btn.style.top = (y + 30) + 'px'; // Below the dot
                     btn.style.pointerEvents = "auto";
+
+                    // Add delay logic to button click in index.html or here?
+                    // Currently index.html calls seeso.startCollectSamples().
+                    // We should override it here/ensure it works.
                 }
             });
             logI("sdk", "addCalibrationNextPointCallback bound (CalibrationManager)");

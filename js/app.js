@@ -727,7 +727,7 @@ function startCalibration() {
     // Changing to 5 for better accuracy if supported, but sticking to existing logic first.
     // Assuming 5 is standard, let's use 5. Or keep 1 if that's what was working.
     // The previous code had `seeso.startCalibration(1, criteria)`. Let's stick to 5 for game.
-    // 1-point calibration (mode 1)
+    // 1-point calibration (mode 1) - User mandated
     calManager.reset();
     const mode = 1;
 
