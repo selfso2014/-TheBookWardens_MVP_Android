@@ -91,9 +91,14 @@ setInterval(() => {
   // Old code: Array.from(activeRafs) + {...listenerCounts} = 2 new allocations/sec.
   logBase("INFO", "Meter", `RAF:${rafCount} | LSN:${totalListeners} | BUF:?`);
 
-  // Critical Warnings — only log when actually critical
-  if (rafCount > 2) {
-    logE("CRITICAL", `RAF > 2: count=${rafCount}`);
+  // RAF Warnings — tiered thresholds
+  // Normal gameplay peak: RAF:7 (gaze + revealChunk + flying ink particles)
+  // > 5  : WARN  — slightly above normal, worth watching
+  // > 10 : CRITICAL — likely a runaway loop (OOM risk)
+  if (rafCount > 10) {
+    logE("CRITICAL", `RAF > 10: count=${rafCount}`);
+  } else if (rafCount > 5) {
+    logBase("WARN", "Meter", `RAF > 5: count=${rafCount}`);
   }
   if (totalListeners > 60) {
     logE("CRITICAL", `LSN > 60: total=${totalListeners}`);
