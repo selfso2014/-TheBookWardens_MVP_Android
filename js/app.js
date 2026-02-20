@@ -1292,6 +1292,13 @@ window.startEyeTracking = boot;
 (function () {
   let _tracking = true; // Assume tracking is ON after boot()
 
+  // Helper: read JS heap in MB (Chrome/Android only; null on Safari/iOS)
+  function _heapMB() {
+    return performance.memory
+      ? Math.round(performance.memory.usedJSHeapSize / 1048576)
+      : null;
+  }
+
   window.setSeesoTracking = function (on, reason) {
     if (_tracking === on) {
       logI('seeso', `[Track] already ${on ? 'ON' : 'OFF'}, skipping (${reason})`);
@@ -1304,12 +1311,32 @@ window.startEyeTracking = boot;
           logW('seeso', '[Track] Cannot start — seeso or mediaStream not ready');
           return;
         }
+        const heapBefore = _heapMB();
         seeso.startTracking(mediaStream);
-        logI('seeso', `[Track] ON  ← ${reason}`);
+        // Log heap 800ms after restart (GC may have settled)
+        setTimeout(() => {
+          const heapAfter = _heapMB();
+          if (heapBefore !== null && heapAfter !== null) {
+            const delta = heapAfter - heapBefore;
+            logI('seeso', `[Track] ON  ← ${reason} | JS heap: ${heapBefore}MB → ${heapAfter}MB (${delta >= 0 ? '+' : ''}${delta}MB)`);
+          } else {
+            logI('seeso', `[Track] ON  ← ${reason} | JS heap: N/A (iOS/Safari)`);
+          }
+        }, 800);
       } else {
         if (!seeso || typeof seeso.stopTracking !== 'function') return;
+        const heapBefore = _heapMB();
         seeso.stopTracking();
-        logI('seeso', `[Track] OFF ← ${reason}`);
+        // Measure 800ms later — give GC time to reclaim JS-side SDK buffers
+        setTimeout(() => {
+          const heapAfter = _heapMB();
+          if (heapBefore !== null && heapAfter !== null) {
+            const delta = heapBefore - heapAfter; // positive = freed
+            logI('seeso', `[Track] OFF ← ${reason} | JS heap: ${heapBefore}MB → ${heapAfter}MB (${delta >= 0 ? '-' : '+'}${Math.abs(delta)}MB freed)`);
+          } else {
+            logI('seeso', `[Track] OFF ← ${reason} | JS heap: N/A (iOS/Safari — native ~150MB freed)`);
+          }
+        }, 800);
       }
     } catch (e) {
       logW('seeso', `[Track] ${on ? 'startTracking' : 'stopTracking'} threw:`, e);
