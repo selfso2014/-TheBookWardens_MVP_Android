@@ -43,6 +43,12 @@ export class GazeDataManager {
         // [FIX] Search Boundary for WPM Calculation
         this.searchStartIndex = 0;
 
+        // [FIX-iOS] Rolling window — cap gaze buffer to prevent OOM on long sessions.
+        // At 30fps × ~5min = 9000 frames. Beyond that, iOS kills the WebContent process.
+        // We trim the front of the array and adjust lastUploadedIndex accordingly.
+        this.MAX_BUFFER_SIZE = 9000; // ~5 minutes at 30fps
+        this.lastPreprocessIndex = 0; // Track which entries have been smoothed
+
         // --- RGT (Relative-Gaze Trigger) State ---
         this.currentLineMinX = 99999;     // 'a' (Line Start)
         this.globalMaxX = 0;              // 'b' (Line End / Screen Right)
@@ -99,9 +105,22 @@ export class GazeDataManager {
             // CRITICAL: Always push raw data
             this.data.push(entry);
 
+            // [FIX-iOS] Rolling buffer: trim oldest entries when over the size limit.
+            // This prevents the data array from growing unboundedly during long sessions.
+            if (this.data.length > this.MAX_BUFFER_SIZE) {
+                const trimCount = Math.floor(this.MAX_BUFFER_SIZE * 0.1); // trim 10% at once
+                this.data.splice(0, trimCount);
+                // Adjust upload cursor so we don't re-upload trimmed entries
+                this.lastUploadedIndex = Math.max(0, this.lastUploadedIndex - trimCount);
+                this.lastPreprocessIndex = Math.max(0, this.lastPreprocessIndex - trimCount);
+                this.searchStartIndex = Math.max(0, (this.searchStartIndex || 0) - trimCount);
+                // Adjust searchStartIndex floor to new data[0]
+                console.warn(`[Mem] GazeData trimmed: ${trimCount} old entries removed. New size: ${this.data.length}`);
+            }
+
             // [DEBUG] Gaze Data Pressure Monitor
             if (this.data.length % 1000 === 0) {
-                console.log(`[Mem] GazeData size: ${this.data.length} (Warning!)`);
+                console.warn(`[Mem] GazeData size: ${this.data.length} / ${this.MAX_BUFFER_SIZE}`);
             }
 
             // [NEW] Capture Start of Content (First valid Line Index)
@@ -180,13 +199,21 @@ export class GazeDataManager {
     }
 
     /**
-     * Post-processing: Interpolation -> Smoothing -> Velocity
+     * Post-processing: Smoothing & Velocity — INCREMENTAL (only new entries)
+     * [FIX-iOS] Previously ran O(n²) over the ENTIRE data array on every upload.
+     * Now only processes entries from lastPreprocessIndex onward.
      */
     preprocessData() {
         if (this.data.length < 2) return;
 
-        // 1. Interpolation
-        for (let i = 0; i < this.data.length; i++) {
+        // [FIX] Only process NEW data since last call
+        const startIdx = Math.max(0, this.lastPreprocessIndex - 2); // overlap 2 for smooth continuity
+        const endIdx = this.data.length;
+
+        if (startIdx >= endIdx - 1) return; // Nothing new to process
+
+        // 1. Interpolation (only for new slice)
+        for (let i = startIdx; i < endIdx; i++) {
             const curr = this.data[i];
             const isMissing = isNaN(curr.x) || isNaN(curr.y) || (curr.x === 0 && curr.y === 0) || typeof curr.x !== 'number';
 
@@ -215,11 +242,11 @@ export class GazeDataManager {
             }
         }
 
-        // 2. Gaussian Smoothing & Velocity
+        // 2. Gaussian Smoothing & Velocity (only for new slice)
         const kernel = [0.0545, 0.2442, 0.4026, 0.2442, 0.0545]; // Sigma=1.0
         const half = Math.floor(kernel.length / 2);
 
-        for (let i = 0; i < this.data.length; i++) {
+        for (let i = startIdx; i < endIdx; i++) {
             let sumX = 0, sumY = 0, sumK = 0;
             for (let k = -half; k <= half; k++) {
                 const idx = i + k;
@@ -232,7 +259,6 @@ export class GazeDataManager {
             this.data[i].gx = sumX / sumK;
             this.data[i].gy = sumY / sumK;
 
-            // Recalculate Velocity with Smoothed Data
             if (i > 0) {
                 const prev = this.data[i - 1];
                 const dt = this.data[i].t - prev.t;
@@ -245,6 +271,9 @@ export class GazeDataManager {
                 }
             }
         }
+
+        // Update cursor
+        this.lastPreprocessIndex = endIdx;
     }
 
     setContext(ctx) {
