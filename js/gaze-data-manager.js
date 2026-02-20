@@ -777,6 +777,15 @@ export class GazeDataManager {
         // Return Sweep means we moved FROM line N TO line N+1. We want to mark line N.
         const targetLine = (d0.lineIndex > 0) ? d0.lineIndex - 1 : 0;
 
+        // [CRITICAL for Replay] Log this pang event.
+        // playGazeReplay() uses pangLog as its sole data source for:
+        //   - which lines to show replay path on
+        //   - when to trigger combo + score animations
+        // This is a tiny 4-field object — negligible memory cost.
+        if (this.pangLog) {
+            this.pangLog.push({ t: d0.t, lineIndex: targetLine, type, vx });
+        }
+
         // 1. Visual Effect — purple dot (lightweight, single RAF one-shot)
         if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
             typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
@@ -809,6 +818,7 @@ export class GazeDataManager {
         this.pangCountInPara++;
         setTimeout(() => { this._calcWPMForLine(targetLine, d0.t); }, 100);
     }
+
 
     // WPM calculation — runs deferred (off the 30fps gaze hot path)
     _calcWPMForLine(targetLine, now) {
