@@ -748,10 +748,11 @@ function attachSeesoCallbacks() {
     const stName = SDK?.TrackingState ? enumName(SDK.TrackingState, stVal) : String(stVal);
 
     // IMPORTANT: string message so NaN/undefined remains visible
-    logI("gaze", `xy x=${fmt(xRaw)} y=${fmt(yRaw)} state=${stName}(${fmt(stVal)}) conf=${fmt(conf)}`);
+    // [MOD] Removed per user request (too noisy)
+    // logI("gaze", `xy x=${fmt(xRaw)} y=${fmt(yRaw)} state=${stName}(${fmt(stVal)}) conf=${fmt(conf)}`);
 
-    // Also reflect on HUD
-    setGazeInfo(`gaze: x=${fmt(xRaw)}  y=${fmt(yRaw)}  state=${stName}(${fmt(stVal)})  conf=${fmt(conf)}`);
+    // [MOD] Removed per user request (too noisy)
+    // setGazeInfo(`gaze: x=${fmt(xRaw)}  y=${fmt(yRaw)}  state=${stName}(${fmt(stVal)})  conf=${fmt(conf)}`);
 
     if ((typeof xRaw !== "number" || typeof yRaw !== "number") && DEBUG_LEVEL >= 2) {
       logD("gaze", "schema", { keys: g ? Object.keys(g) : null });
