@@ -773,156 +773,98 @@ export class GazeDataManager {
         d0.didFire = true;
         d0.rsTriggerType = type;
 
-        console.log(`[RS] 💥 TRIGGER! (${type}) VX:${vx.toFixed(2)} at ${d0.t}ms`);
-
         // Determine Target Line (The line just finished)
         // Return Sweep means we moved FROM line N TO line N+1. We want to mark line N.
         const targetLine = (d0.lineIndex > 0) ? d0.lineIndex - 1 : 0;
 
-        // [NEW] Log for Replay
-        if (this.pangLog) {
-            this.pangLog.push({
-                t: d0.t,
-                lineIndex: targetLine,
-                type: type,
-                vx: vx
-            });
-        }
-
-        // 1. Visual Effect (Existing)
+        // 1. Visual Effect — purple dot (lightweight, single RAF one-shot)
         if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
             typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
 
-            // [Fix 1] Only trigger visual effect if we are actively reading (screen-read active)
-            // This prevents Pang effects during Boss Battles or Transitions.
+            // Only trigger visual effect if we are actively reading (screen-read active)
             const readScreen = document.getElementById('screen-read');
             if (readScreen && readScreen.classList.contains('active')) {
                 window.Game.typewriter.renderer.triggerReturnEffect(targetLine);
             }
         }
 
-        // 2. Game Reward (New: Ink +10) via Event Bus
-        // DECOUPLED: No direct Game.addInk call.
+        // 2. Game Reward (Ink +10) via Event Bus — decoupled
         if (bus) {
             bus.emit('pang');
         }
 
         // --- RGT: Update 'b' (Global Max X) & Reset 'a' ---
-        // 1. Update Global Max (b) with current X (End of Line)
         if (d0.x > this.globalMaxX) {
             this.globalMaxX = d0.x;
-            // console.log(`[RGT] New Global Max (b): ${this.globalMaxX}`);
         }
 
-        // 2. Start Collecting New Min X (a) for Next Line
         this.currentLineMinX = 99999;
         this.isCollectingLineStart = true;
-        setTimeout(() => {
-            this.isCollectingLineStart = false;
-            // console.log(`[RGT] Line Start (a) Locked: ${this.currentLineMinX}`);
-        }, 200);
+        setTimeout(() => { this.isCollectingLineStart = false; }, 200);
 
-        // --- 3. GAZE-BASED WPM CALCULATION (User Spec) ---
-        // Logic:
-        // 1. Only lines with Purple Circle (RS) are valid.
-        // 2. Measure Time Interval & Word Count for valid lines.
-        // 3. Accumulate and Calculate WPM.
+        // WPM calculation deferred to avoid O(N) scan on the hot gaze callback path.
+        // WPM updates are best-effort; we defer 100ms to clear the gaze frame cost.
+        this.lastRSTime = d0.t;
+        this.lastRSLine = targetLine;
+        this.pangCountInPara++;
+        setTimeout(() => { this._calcWPMForLine(targetLine, d0.t); }, 100);
+    }
 
-        if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer) {
-            const renderer = window.Game.typewriter.renderer;
-            const lines = renderer.lines;
+    // WPM calculation — runs deferred (off the 30fps gaze hot path)
+    _calcWPMForLine(targetLine, now) {
+        if (!window.Game || !window.Game.typewriter || !window.Game.typewriter.renderer) return;
+        const renderer = window.Game.typewriter.renderer;
+        const lines = renderer.lines;
+        if (!lines || lines.length === 0) return;
+        if (targetLine >= lines.length - 1) return; // skip last line
 
-            // Check 2.3: Skip Last Line
-            // If targetLine is the last line (or greater), we ignore it per user request.
-            // (Last line usually doesn't have a distinct RS to a "next" line, or ends the paragraph)
-            if (lines && lines.length > 0 && targetLine < lines.length - 1) {
+        const lineObj = lines[targetLine];
+        const wordCount = (lineObj && lineObj.wordIndices) ? lineObj.wordIndices.length : 0;
+        if (wordCount === 0) return;
 
-                // Get Word Count for this line
-                const lineObj = lines[targetLine];
-                const wordCount = (lineObj && lineObj.wordIndices) ? lineObj.wordIndices.length : 0;
+        // Time calculation — use lastRSTime chain when possible (O(1)), otherwise O(N) scan
+        let duration = 0;
+        if (this.lastRSLine === targetLine - 1 && this.lastRSTime > 0 &&
+            // Ensure lastRSTime is from THIS deferred call's now, not the stored one
+            this._prevRSTime && this._prevRSTime > 0) {
+            duration = now - this._prevRSTime;
+        } else {
+            // Backward scan — cap at 800 entries (was 1500)
+            const limit = Math.max(this.searchStartIndex || 0, this.data.length - 800);
+            let startTime = now;
+            for (let i = this.data.length - 1; i >= limit; i--) {
+                const d = this.data[i];
+                if (d.lineIndex === targetLine) { startTime = d.t; }
+                else if (d.lineIndex < targetLine) break;
+            }
+            if (startTime === now && targetLine === 0 && this.firstContentTime) {
+                startTime = this.firstContentTime;
+            }
+            duration = now - startTime;
+        }
+        this._prevRSTime = now;
 
-                let duration = 0;
-                const now = d0.t;
+        if (duration < 100 || wordCount === 0) return;
+        if (this.pangCountInPara <= 1) return; // skip first pang (warm-up)
+        if (targetLine === 0) return;           // skip line 0
 
-                // Determine Time Interval
-                // Case 2.2: Continuous Chain (Previous line was also valid RS)
-                if (this.lastRSLine === targetLine - 1 && this.lastRSTime > 0) {
-                    duration = now - this.lastRSTime;
-                    // console.log(`[WPM] Chain: Line ${targetLine} (Duration: ${duration}ms)`);
-                }
-                // Case 2.1: Gap or First Line
-                else {
-                    // Find "First Char Time" -> Backward Search in Data for start of this line
-                    let startTime = now;
-                    // Look back up to 20 seconds, but NOT beyond current paragraph start
-                    const limit = Math.max(this.searchStartIndex || 0, this.data.length - 1500);
-                    for (let i = this.data.length - 1; i >= limit; i--) {
-                        if (this.data[i].lineIndex === targetLine) {
-                            startTime = this.data[i].t;
-                        } else if (this.data[i].lineIndex < targetLine) {
-                            // Moved to previous line, stop
-                            break;
-                        }
-                    }
+        this.validTimeSum += duration;
+        this.validWordSum += wordCount;
 
-                    // Fallback: If startTime is still now (scan failed), use firstContentTime for line 0
-                    if (startTime === now && targetLine === 0 && this.firstContentTime) {
-                        startTime = this.firstContentTime;
-                    }
-
-                    duration = now - startTime;
-                    // console.log(`[WPM] Gap/First: Line ${targetLine} (Start: ${startTime}, End: ${now}, Dur: ${duration}ms)`);
-                }
-
-                // Sanity Check: Ignore impossibly short lines (< 100ms) to prevent noise
-                if (duration > 100 && wordCount > 0) {
-
-                    // [NEW] Ignore First Pang of Each Paragraph
-                    // The first transition (whether 0->1 or 0->2 skip) is often unstable or includes warm-up.
-                    this.pangCountInPara++;
-
-                    if (this.pangCountInPara > 1) {
-                        // [FIX] Exclude Line 0 logic is now redundant if we skip first pang, 
-                        // but kept for safety if pangCount logic changes.
-                        if (targetLine > 0) {
-                            this.validTimeSum += duration;
-                            this.validWordSum += wordCount;
-                        }
-                    } else {
-                        console.log(`[WPM] Skipping First Pang of Paragraph (Line ${targetLine})`);
-                    }
-
-                    // 4. Calculate WPM (Only if we have valid lines > 0)
-                    const minutes = this.validTimeSum / 60000;
-                    if (minutes > 0 && this.validWordSum > 0) {
-                        this.wpm = Math.round(this.validWordSum / minutes);
-
-                        // [NEW] WPM Data Logging
-                        if (!this.wpmData) this.wpmData = [];
-                        this.wpmData.push({
-                            paraIndex: (this.context && this.context.paraIndex !== undefined) ? this.context.paraIndex : -1, // [NEW] Tag Paragraph
-                            lineIndex: targetLine,
-                            startTime: Math.round(now - duration), // Keep raw data in log
-                            endTime: now,
-                            duration: duration,
-                            words: wordCount,
-                            wpm: this.wpm // This will be the cumulative WPM (unchanged for Line 0)
-                        });
-
-                        console.log(`[WPM] Updated: ${this.wpm} (Line: ${targetLine}, Words: ${this.validWordSum}, Time: ${this.validTimeSum}ms)`);
-                    }
-
-                    // Update State
-                    this.lastRSTime = now;
-                    this.lastRSLine = targetLine;
-
-                    // 5. Real-time Update HUD
-                    if (window.Game && window.Game.typewriter && typeof window.Game.typewriter.updateWPM === 'function') {
-                        window.Game.typewriter.updateWPM();
-                    }
-                }
-            } else {
-                console.log(`[WPM] Skipping Last/Invalid Line: ${targetLine} (Total: ${lines.length})`);
+        const minutes = this.validTimeSum / 60000;
+        if (minutes > 0 && this.validWordSum > 0) {
+            this.wpm = Math.round(this.validWordSum / minutes);
+            if (!this.wpmData) this.wpmData = [];
+            this.wpmData.push({
+                paraIndex: (this.context && this.context.paraIndex !== undefined) ? this.context.paraIndex : -1,
+                lineIndex: targetLine,
+                duration,
+                words: wordCount,
+                wpm: this.wpm
+            });
+            // Update HUD (best-effort)
+            if (window.Game && window.Game.typewriter && typeof window.Game.typewriter.updateWPM === 'function') {
+                window.Game.typewriter.updateWPM();
             }
         }
     }

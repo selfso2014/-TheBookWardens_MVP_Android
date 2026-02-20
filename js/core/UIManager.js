@@ -106,21 +106,26 @@ export class UIManager {
             const obj = document.getElementById(id);
             if (!obj) return;
             let startTimestamp = null;
+            let lastFrameTs = 0;
+            const TARGET_FRAME_MS = 1000 / 60; // cap at 60fps even on 120Hz displays
             let rafId;
             const step = (timestamp) => {
                 if (!startTimestamp) startTimestamp = timestamp;
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                // Ease-out effect
-                const ease = 1 - Math.pow(1 - progress, 3);
-                const current = Math.floor(ease * (end - start) + start);
-                obj.innerText = prefix + current.toLocaleString() + suffix;
+
+                // 60fps gate: only update DOM every 16.7ms
+                if ((timestamp - lastFrameTs) >= TARGET_FRAME_MS) {
+                    lastFrameTs = timestamp;
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.floor(ease * (end - start) + start);
+                    obj.innerText = prefix + current.toLocaleString() + suffix;
+                }
+
                 if (progress < 1) {
                     rafId = window.requestAnimationFrame(step);
-                    // Keep the latest id in the list (replace old)
                     const idx = this._animRafs.indexOf(rafId);
                     if (idx === -1) this._animRafs.push(rafId);
                 } else {
-                    // Animation complete — remove from tracking list
                     this._animRafs = this._animRafs.filter(r => r !== rafId);
                 }
             };

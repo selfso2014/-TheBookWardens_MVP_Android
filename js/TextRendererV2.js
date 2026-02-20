@@ -748,14 +748,10 @@ export class TextRenderer {
     triggerReturnEffect(lineIndex = null) {
         if (!this.cursor) return false;
 
-        // --- Faster Animation (50ms) ---
-        // Cooldown is handled by game.js (1.5s logic)
-        // Here we just prevent visual glitching if called extremely fast (< 50ms)
+        // Cooldown: prevent visual glitching if called extremely fast (<50ms)
         const now = Date.now();
         if (this.lastRenderTime && (now - this.lastRenderTime < 50)) return false;
         this.lastRenderTime = now;
-
-        console.log("[TextRenderer] 🔥 Return Visual Triggered! Line:", lineIndex);
 
         let targetY;
 
@@ -802,25 +798,21 @@ export class TextRenderer {
 
         const impact = this.impactElement;
 
-        // Reset Style (Instant)
+        // Reset Style instantly (no reflow needed — CSS transition handles it)
         impact.style.transition = "none";
         impact.style.width = "10px";
         impact.style.height = "10px";
         impact.style.opacity = "1";
-        impact.style.left = (window.innerWidth - 20) + "px"; // [FIX] Right Edge
+        impact.style.left = (window.innerWidth - 20) + "px";
         impact.style.top = targetY + "px";
-        impact.style.transform = "translate(-50%, -50%) scale(1.0)"; // Start Small (10px)
+        impact.style.transform = "translate(-50%, -50%) scale(1.0)";
 
-        // Force Reflow
-        void impact.offsetWidth;
-
-        // Animate: Visible Flash (0.2s for Snappy feedback)
-        // Changed from 0.5s to 0.2s per user request.
-        impact.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-in";
-
-        // [FIX-iOS] Track this single-shot RAF to avoid orphan on fast screen transitions
+        // Animate: schedule via RAF (one-shot, tracked for cleanup)
+        // Note: we skip void offsetWidth to avoid forced layout recalculation on every pang.
+        // The next-frame transition start is handled by the browser's rendering pipeline.
         this.trackRAF(requestAnimationFrame(() => {
-            impact.style.transform = "translate(-50%, -50%) scale(2.0)"; // End at 20px
+            impact.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-in";
+            impact.style.transform = "translate(-50%, -50%) scale(2.0)";
             impact.style.opacity = "0";
         }));
 
@@ -1290,12 +1282,20 @@ export class TextRenderer {
 
         document.body.appendChild(p);
 
-        // Animation Loop (Quadratic Bezier)
+        // [120Hz FIX] Timestamp-gate to 60fps max.
+        // On ProMotion iPhones RAF fires at 120fps. We skip frames < 16.7ms apart.
+        const TARGET_FRAME_MS = 1000 / 60;
         let startTime = null;
         const duration = 1000;
+        let lastFrameTs = 0;
 
         const animate = (timestamp) => {
             if (!startTime) startTime = timestamp;
+
+            // 60fps gate — skip rendering work on 120Hz if not enough time has passed
+            const shouldRender = (timestamp - lastFrameTs) >= TARGET_FRAME_MS;
+            if (shouldRender) lastFrameTs = timestamp;
+
             const progress = (timestamp - startTime) / duration;
 
             if (progress >= 1) {
@@ -1310,24 +1310,23 @@ export class TextRenderer {
                 return;
             }
 
-            // Ease-In-Out
-            const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-            const t = ease;
+            if (shouldRender) {
+                // Ease-In-Out
+                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                const t = ease;
 
-            // Quadratic Bezier Formula
-            // B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-            const invT = 1 - t;
-            const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
-            const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
+                // Quadratic Bezier Formula
+                const invT = 1 - t;
+                const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
+                const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
 
-            p.style.left = currentX + 'px';
-            p.style.top = currentY + 'px';
+                p.style.left = currentX + 'px';
+                p.style.top = currentY + 'px';
 
-            // Shrink slightly (1.5 -> 1.0)
-            const scale = 1.5 - (progress * 0.5);
-            p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                const scale = 1.5 - (progress * 0.5);
+                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            }
 
-            // [FIX-iOS] Track so cancelAllAnimations() can cancel mid-flight
             this.trackRAF(requestAnimationFrame(animate));
         };
         this.trackRAF(requestAnimationFrame(animate));
