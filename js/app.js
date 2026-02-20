@@ -87,9 +87,18 @@ EventTarget.prototype.removeEventListener = function (type, listener, options) {
 setInterval(() => {
   const rafCount = activeRafs.size;
 
-  // [FIX-iOS] Avoid per-second allocations (Array.from, object spread).
-  // Old code: Array.from(activeRafs) + {...listenerCounts} = 2 new allocations/sec.
-  logBase("INFO", "Meter", `RAF:${rafCount} | LSN:${totalListeners} | BUF:?`);
+  // [NEW] HEAP monitoring — Chrome/Android only (Safari blocks performance.memory for privacy).
+  // Reads 3 numbers from an existing browser object: negligible overhead (<0.01ms/call).
+  let heapStr = 'N/A'; // Default for Safari / unsupported browsers
+  let heapPct = -1;
+  if (performance.memory) {
+    const usedMB = Math.round(performance.memory.usedJSHeapSize / 1048576);
+    const limitMB = Math.round(performance.memory.jsHeapSizeLimit / 1048576);
+    heapPct = Math.round((performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100);
+    heapStr = `${usedMB}MB(${heapPct}%)`;
+  }
+
+  logBase("INFO", "Meter", `RAF:${rafCount} | LSN:${totalListeners} | HEAP:${heapStr}`);
 
   // RAF Warnings — tiered thresholds
   // Normal gameplay peak: RAF:7 (gaze + revealChunk + flying ink particles)
@@ -102,6 +111,17 @@ setInterval(() => {
   }
   if (totalListeners > 60) {
     logE("CRITICAL", `LSN > 60: total=${totalListeners}`);
+  }
+
+  // HEAP Warnings (Chrome/Android only — heapPct === -1 means unsupported, skip)
+  // > 70% : WARN     — memory climbing, watch trend
+  // > 85% : CRITICAL — high pressure, iOS OOM risk zone
+  if (heapPct >= 0) {
+    if (heapPct > 85) {
+      logE("CRITICAL", `HEAP > 85%: ${heapStr} — OOM risk`);
+    } else if (heapPct > 70) {
+      logBase("WARN", "Meter", `HEAP > 70%: ${heapStr}`);
+    }
   }
 
 }, 1000);
