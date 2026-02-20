@@ -239,7 +239,8 @@ function ensureLogPanel() {
       });
       alert(`Uploaded! Session ID: ${sessionId}`);
     } catch (e) {
-      alert("Upload Failed: " + e.message);
+      // Guide user to fix permissions
+      alert("Upload Failed: " + e.message + "\n\n[Action Required]\nGo to Firebase Console > Realtime Database > Rules\nSet .read and .write to true.");
     }
   }, "#4fc3f7"));
 
