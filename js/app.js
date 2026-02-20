@@ -35,6 +35,74 @@ const DEBUG_LEVEL = (() => {
   return Number.isFinite(n) ? n : 0; // Default: 0 (Hidden)
 })();
 
+// --- [NEW] Debug Meter: Memory Leak Tracker ---
+const activeRafs = new Set();
+const listenerCounts = {};
+let totalListeners = 0;
+
+// Hook RAF
+const originalRAF = window.requestAnimationFrame;
+const originalCAF = window.cancelAnimationFrame;
+
+window.requestAnimationFrame = (cb) => {
+  const id = originalRAF((t) => {
+    activeRafs.delete(id);
+    if (cb) cb(t);
+  });
+  activeRafs.add(id);
+  return id;
+};
+
+window.cancelAnimationFrame = (id) => {
+  activeRafs.delete(id);
+  originalCAF(id);
+};
+
+// Hook Event Listeners
+const originalAdd = EventTarget.prototype.addEventListener;
+const originalRemove = EventTarget.prototype.removeEventListener;
+
+EventTarget.prototype.addEventListener = function (type, listener, options) {
+  listenerCounts[type] = (listenerCounts[type] || 0) + 1;
+  totalListeners++;
+  return originalAdd.call(this, type, listener, options);
+};
+
+EventTarget.prototype.removeEventListener = function (type, listener, options) {
+  if (listenerCounts[type] > 0) {
+    listenerCounts[type]--;
+    totalListeners--;
+  }
+  return originalRemove.call(this, type, listener, options);
+};
+
+// Start 1s Metric Loop
+setInterval(() => {
+  // Only log if debug is enabled OR to console if critical
+  const rafCount = activeRafs.size;
+
+  const metricData = {
+    ts: new Date().toISOString(),
+    rafCount: rafCount,
+    rafs: Array.from(activeRafs),
+    listenerCount: totalListeners,
+    listeners: { ...listenerCounts },
+    buffers: {}
+  };
+
+  // Log format requested by user
+  logBase("INFO", "Meter", `RAF:${rafCount} | LSN:${totalListeners} | BUF:?`, metricData);
+
+  // Critical Warnings (iOS Crash Prevention)
+  if (rafCount > 2) {
+    logE("CRITICAL", `RAF > 2: [${Array.from(activeRafs)}]`);
+  }
+  if (totalListeners > 60) {
+    logE("CRITICAL", `LSN > 60:`, listenerCounts);
+  }
+
+}, 1000);
+
 // ---------- DOM ----------
 const els = {
   hud: document.getElementById("hud"),
@@ -69,89 +137,125 @@ function safeJson(v) {
 }
 
 function ensureLogPanel() {
-  if (DEBUG_LEVEL === 0) return null; // Don't create panel if debug is off
+  // Always create panel structure, but hide if debug=0
+  // (We want it available for activation via secret gesture or URL param changes if we implement that later)
+  // For now, respect DEBUG_LEVEL
+  if (DEBUG_LEVEL === 0) return null;
 
-  let panel = document.getElementById("debugLogPanel");
-  if (panel) return panel;
+  let container = document.getElementById("debugContainer");
+  if (container) return document.getElementById("debugLogPanel");
 
-  panel = document.createElement("pre");
+  // Main Container
+  container = document.createElement("div");
+  container.id = "debugContainer";
+  container.style.position = "fixed";
+  container.style.right = "10px";
+  container.style.bottom = "10px";
+  container.style.zIndex = "99999";
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.alignItems = "flex-end";
+  container.style.gap = "5px";
+
+  // Toggle Button (Mini Mode)
+  const btnToggle = document.createElement("button");
+  btnToggle.textContent = "🐞";
+  btnToggle.style.fontSize = "24px";
+  btnToggle.style.width = "40px";
+  btnToggle.style.height = "40px";
+  btnToggle.style.borderRadius = "50%";
+  btnToggle.style.border = "2px solid rgba(255,255,255,0.3)";
+  btnToggle.style.background = "rgba(0,0,0,0.6)";
+  btnToggle.style.cursor = "pointer";
+  btnToggle.style.boxShadow = "0 0 10px rgba(0,0,0,0.5)";
+
+  // Panel (Hidden by default)
+  const panel = document.createElement("pre");
   panel.id = "debugLogPanel";
-  panel.style.position = "fixed";
-  panel.style.right = "12px";
-  panel.style.bottom = "12px";
-  panel.style.width = "560px";
-  panel.style.maxWidth = "calc(100vw - 24px)";
-  panel.style.height = "320px";
-  panel.style.maxHeight = "40vh";
+  panel.style.display = "none"; // Start hidden
+  panel.style.width = "300px"; // Mobile friendly width
+  panel.style.height = "200px";
   panel.style.overflow = "auto";
   panel.style.padding = "10px";
   panel.style.borderRadius = "10px";
-  panel.style.background = "rgba(0,0,0,0.75)";
-  panel.style.color = "#d7f7d7";
-  panel.style.fontFamily =
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-  panel.style.fontSize = "12px";
-  panel.style.lineHeight = "1.35";
-  panel.style.zIndex = "99999";
+  panel.style.background = "rgba(0,0,0,0.85)";
+  panel.style.color = "#0f0";
+  panel.style.fontFamily = "monospace";
+  panel.style.fontSize = "10px";
   panel.style.whiteSpace = "pre-wrap";
   panel.style.wordBreak = "break-word";
-  panel.style.userSelect = "text";
+  panel.style.border = "1px solid #333";
+  panel.style.marginBottom = "5px";
 
-  const header = document.createElement("div");
-  header.style.position = "fixed";
-  header.style.right = "12px";
-  header.style.bottom = "340px";
-  header.style.width = panel.style.width;
-  header.style.maxWidth = panel.style.maxWidth;
-  header.style.display = "flex";
-  header.style.gap = "8px";
-  header.style.zIndex = "99999";
+  // Toolbar
+  const toolbar = document.createElement("div");
+  toolbar.style.display = "none"; // Start hidden with panel
+  toolbar.style.gap = "5px";
 
-  const btnCopy = document.createElement("button");
-  btnCopy.textContent = "Copy Logs";
-  btnCopy.style.padding = "6px 10px";
-  btnCopy.style.borderRadius = "8px";
-  btnCopy.style.border = "1px solid rgba(255,255,255,0.2)";
-  btnCopy.style.background = "rgba(255,255,255,0.08)";
-  btnCopy.style.color = "white";
-  btnCopy.onclick = async () => {
-    try {
-      await navigator.clipboard.writeText(panel.textContent || "");
-      logI("ui", "Logs copied to clipboard");
-    } catch (e) {
-      logE("ui", "Failed to copy logs", e);
-    }
+  const createBtn = (text, onClick, color = "#fff") => {
+    const b = document.createElement("button");
+    b.textContent = text;
+    b.style.padding = "4px 8px";
+    b.style.fontSize = "10px";
+    b.style.borderRadius = "4px";
+    b.style.border = "1px solid #555";
+    b.style.background = "#333";
+    b.style.color = color;
+    b.onclick = onClick;
+    return b;
   };
 
-  const btnClear = document.createElement("button");
-  btnClear.textContent = "Clear Logs";
-  btnClear.style.padding = "6px 10px";
-  btnClear.style.borderRadius = "8px";
-  btnClear.style.border = "1px solid rgba(255,255,255,0.2)";
-  btnClear.style.background = "rgba(255,255,255,0.08)";
-  btnClear.style.color = "white";
-  btnClear.onclick = () => {
+  // Copy
+  toolbar.appendChild(createBtn("Copy", async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(LOG_BUFFER, null, 2));
+      alert("Logs Copied!");
+    } catch (e) { alert("Copy Failed"); }
+  }));
+
+  // Clear
+  toolbar.appendChild(createBtn("Clear", () => {
     LOG_BUFFER.length = 0;
     panel.textContent = "";
-    logI("ui", "Logs cleared");
+  }));
+
+  // Upload (DB)
+  toolbar.appendChild(createBtn("Upload DB", async () => {
+    if (!window.firebase) {
+      alert("Firebase SDK missing!");
+      return;
+    }
+    const db = firebase.database();
+    const sessionId = "session_" + Date.now();
+    try {
+      await db.ref("logs/" + sessionId).set({
+        ua: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+        logs: LOG_BUFFER
+      });
+      alert(`Uploaded! Session ID: ${sessionId}`);
+    } catch (e) {
+      alert("Upload Failed: " + e.message);
+    }
+  }, "#4fc3f7"));
+
+  // Toggle Logic
+  let isExpanded = false;
+  btnToggle.onclick = () => {
+    isExpanded = !isExpanded;
+    panel.style.display = isExpanded ? "block" : "none";
+    toolbar.style.display = isExpanded ? "flex" : "none";
+    btnToggle.textContent = isExpanded ? "❌" : "🐞";
+
+    // Auto-scroll to bottom when opening
+    if (isExpanded) panel.scrollTop = panel.scrollHeight;
   };
 
-  const badge = document.createElement("div");
-  badge.textContent = `debug=${DEBUG_LEVEL}`;
-  badge.style.marginLeft = "auto";
-  badge.style.padding = "6px 10px";
-  badge.style.borderRadius = "999px";
-  badge.style.border = "1px solid rgba(255,255,255,0.2)";
-  badge.style.background = "rgba(255,255,255,0.08)";
-  badge.style.color = "white";
-  badge.style.fontSize = "12px";
+  container.appendChild(panel);
+  container.appendChild(toolbar);
+  container.appendChild(btnToggle);
+  document.body.appendChild(container);
 
-  header.appendChild(btnCopy);
-  header.appendChild(btnClear);
-  header.appendChild(badge);
-
-  document.body.appendChild(header);
-  document.body.appendChild(panel);
   return panel;
 }
 
