@@ -33,6 +33,9 @@ export class TextRenderer {
 
         // [New] Animation Safety
         this.activeAnimations = []; // Store timeout IDs to cancel them on reset/page turn
+        // [FIX-iOS] Track RAF IDs to cancel them all on cleanup (prevents orphaned loops)
+        this.activeRAFs = [];
+        this._replayRAFId = null; // dedicated slot for the replay animate loop
 
         // Visual Elements
         this.cursor = null;
@@ -41,7 +44,7 @@ export class TextRenderer {
         this.initStyles();
     }
 
-    // [New] Safety Method: Kill all pending text reveals
+    // [New] Safety Method: Kill all pending text reveals AND RAF loops
     cancelAllAnimations() {
         if (this.activeAnimations.length > 0) {
             console.log(`[Life] TextRenderer: Cancelling ${this.activeAnimations.length} pending animations.`);
@@ -50,6 +53,23 @@ export class TextRenderer {
         } else {
             console.log(`[Life] TextRenderer: No pending animations to cancel.`);
         }
+        // [FIX-iOS] Also cancel any tracked RAF loops
+        if (this.activeRAFs && this.activeRAFs.length > 0) {
+            console.log(`[Life] TextRenderer: Cancelling ${this.activeRAFs.length} RAFs.`);
+            this.activeRAFs.forEach(id => cancelAnimationFrame(id));
+            this.activeRAFs = [];
+        }
+        // Cancel dedicated replay RAF
+        if (this._replayRAFId) {
+            cancelAnimationFrame(this._replayRAFId);
+            this._replayRAFId = null;
+        }
+    }
+
+    // [FIX-iOS] Track a RAF id so cancelAllAnimations() can clean it up
+    trackRAF(id) {
+        if (id) this.activeRAFs.push(id);
+        return id;
     }
 
     initStyles() {
@@ -353,10 +373,11 @@ export class TextRenderer {
         // This ensures hit-testing words on THIS page works correctly.
         // We delay slightly to allow display:block to reflow.
         return new Promise(resolve => {
-            requestAnimationFrame(() => {
+            // [FIX-iOS] Track this RAF so cancelAllAnimations() can clean it up
+            this.trackRAF(requestAnimationFrame(() => {
                 this.lockLayout(); // Recalculate lines for current page
                 resolve();
-            });
+            }));
         });
     }
 
@@ -790,10 +811,11 @@ export class TextRenderer {
         // Changed from 0.5s to 0.2s per user request.
         impact.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-in";
 
-        requestAnimationFrame(() => {
+        // [FIX-iOS] Track this single-shot RAF to avoid orphan on fast screen transitions
+        this.trackRAF(requestAnimationFrame(() => {
             impact.style.transform = "translate(-50%, -50%) scale(2.0)"; // End at 20px
             impact.style.opacity = "0";
-        });
+        }));
 
         if (this.validatedLines && typeof lineIndex === 'number' && lineIndex >= 0) {
             this.validatedLines.add(lineIndex);
@@ -892,7 +914,11 @@ export class TextRenderer {
         forceVisibility();
 
         // 2. Continuous Enforcement (Anti-Async Guard)
+        // [FIX-iOS] Register safetyInterval in activeAnimations so cancelAllAnimations() can kill it
         const safetyInterval = setInterval(forceVisibility, 10);
+        this.activeAnimations.push(safetyInterval);
+        // Also register in Game tracker as double safety
+        if (window.Game && window.Game.trackInterval) window.Game.trackInterval(safetyInterval);
 
         console.log(`[TextRenderer] Text restored. Waiting 500ms, enforcing visibility...`);
         // DELAY REPLAY START
@@ -1097,6 +1123,7 @@ export class TextRenderer {
                 if (progress >= 1) {
                     canvas.style.transition = "opacity 0.5s";
                     canvas.style.opacity = "0";
+                    this._replayRAFId = null;
                     setTimeout(() => { canvas.remove(); if (onComplete) onComplete(); }, 500);
                     return;
                 }
@@ -1121,9 +1148,11 @@ export class TextRenderer {
                         ctx.shadowBlur = 0;
                     }
                 }
-                requestAnimationFrame(animate);
+                // [FIX-iOS] Store RAF ID so it can be cancelled by cancelAllAnimations()
+                this._replayRAFId = requestAnimationFrame(animate);
             };
-            requestAnimationFrame(animate);
+            // [FIX-iOS] Track the initial replay RAF
+            this._replayRAFId = requestAnimationFrame(animate);
 
         }, 500);
     }
@@ -1291,9 +1320,10 @@ export class TextRenderer {
             const scale = 1.5 - (progress * 0.5);
             p.style.transform = `translate(-50%, -50%) scale(${scale})`;
 
-            requestAnimationFrame(animate);
+            // [FIX-iOS] Track so cancelAllAnimations() can cancel mid-flight
+            this.trackRAF(requestAnimationFrame(animate));
         };
-        requestAnimationFrame(animate);
+        this.trackRAF(requestAnimationFrame(animate));
     }
 
     _spawnReplayPulse(yPos) {

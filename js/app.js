@@ -934,16 +934,24 @@ async function preloadSDK() {
   return initPromise;
 }
 
-// Auto-start preload after short delay
-setTimeout(preloadSDK, 500);
+// [FIX-iOS Cases 3&4] REMOVED auto-start preload.
+// Previously: setTimeout(preloadSDK, 500) ran WASM init 500ms after page load.
+// On low-memory iPhones, iOS detects large WASM allocation with no user gesture
+// and kills the WebContent process in ~1.4 seconds (before any user interaction).
+// Fix: SDK now initializes ONLY when the user has touched the screen and boot() is called.
+// This gives iOS the user-gesture signal it requires to allocate memory fairly.
 
-// Modified initSeeso (now just waits for preload)
 async function initSeeso() {
-  if (!initPromise) preloadSDK();
+  // First call: starts the preload. Subsequent calls: waits for existing promise.
+  if (!initPromise) {
+    logI("sdk", "[FIX] initSeeso: starting SDK init on-demand (user-gesture path).");
+    preloadSDK();
+  }
   try {
     await initPromise;
     return true;
   } catch (e) {
+    logE("sdk", "initSeeso failed", e);
     return false;
   }
 }
