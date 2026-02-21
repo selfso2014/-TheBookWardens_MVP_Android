@@ -84,6 +84,31 @@ function isSafariWebKit() {
  * Must be called AFTER seeso.startTracking() has set seeso.seeso.imageCapture.
  * @param {object} rawSeeso - The raw Seeso instance (seeso.seeso)
  */
+
+// [FIX #3] Global pool: reuse a single hidden video element per MediaStream track id.
+// Prevents orphaned <video> elements accumulating in <body> across stopTracking/startTracking cycles.
+const _safariVideoPool = new Map(); // trackId -> {video, canvas, ctx}
+
+function _getOrCreateSafariVideo(track) {
+  if (!track) return null;
+  const id = track.id || '__default__';
+  if (_safariVideoPool.has(id)) return _safariVideoPool.get(id);
+
+  const video = document.createElement('video');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('autoplay', '');
+  video.muted = true;
+  video.style.cssText = 'position:fixed;width:1px;height:1px;top:0;left:-2px;opacity:0.01;pointer-events:none;z-index:-1';
+  document.body.appendChild(video);
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const entry = { video, canvas, ctx };
+  _safariVideoPool.set(id, entry);
+  return entry;
+}
+
 function patchSdkImageCapture(rawSeeso) {
   if (!isSafariWebKit()) return; // Chrome/Firefox: grabFrame works natively
 
@@ -93,66 +118,80 @@ function patchSdkImageCapture(rawSeeso) {
     return;
   }
 
-  // Already patched?
+  // Already patched? (but re-check if track changed — SDK may replace imageCapture on restart)
   if (ic.__grabFramePatched) return;
   ic.__grabFramePatched = true;
 
-  // Create a dedicated video element for this ImageCapture instance.
-  // Unlike the SDK's videoElement, this one is guaranteed to:
-  //   1. Have `playsinline` (required for iOS autoplay)
-  //   2. Have `muted = true` (required for autoplay without gesture)
-  //   3. Be appended to body (required to receive video frames in Safari)
-  const track = ic._videoStreamTrack || ic.track || rawSeeso.track;
-  const video = document.createElement('video');
-  video.setAttribute('playsinline', '');
-  video.setAttribute('autoplay', '');
-  video.muted = true;
-  video.style.cssText = 'position:fixed;width:1px;height:1px;top:0;left:-2px;opacity:0.01;pointer-events:none;z-index:-1';
-  document.body.appendChild(video);
-
-  if (track) {
-    video.srcObject = new MediaStream([track]);
-    video.play().catch(() => { });
+  // Seed video with current track (if available)
+  const initialTrack = ic._videoStreamTrack || ic.track || rawSeeso.track;
+  const initialEntry = _getOrCreateSafariVideo(initialTrack);
+  if (initialEntry && initialTrack) {
+    initialEntry.video.srcObject = new MediaStream([initialTrack]);
+    initialEntry.video.play().catch(() => { });
   }
 
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
-  // Replace grabFrame on the INSTANCE (not prototype) to avoid affecting other instances
+  // Replace grabFrame on the INSTANCE (not prototype)
   ic.grabFrame = function safariGrabFrame() {
     return new Promise((resolve, reject) => {
-      // If track changed (e.g. after stopTracking/startTracking), update video source
+      // [FIX #3-A] Get current live track — may differ from initialTrack after restart
       const currentTrack = rawSeeso.track;
-      if (currentTrack && video.srcObject) {
-        const existingTracks = video.srcObject.getVideoTracks();
-        if (!existingTracks.includes(currentTrack)) {
-          video.srcObject = new MediaStream([currentTrack]);
-          video.play().catch(() => { });
-        }
+
+      // [FIX #3-B] null/ended track: don't reject immediately.
+      // stopTracking() → startTracking() race: track briefly becomes null/ended.
+      // Wait up to 500ms for it to recover before giving up.
+      if (!currentTrack || currentTrack.readyState !== 'live') {
+        let waitRetries = 10; // 10 × 50ms = 500ms
+        const waitForTrack = () => {
+          const t = rawSeeso.track;
+          if (t && t.readyState === 'live') {
+            // Track recovered — re-enter normal attempt flow
+            ic.grabFrame().then(resolve).catch(reject);
+          } else if (waitRetries-- > 0) {
+            setTimeout(waitForTrack, 50);
+          } else {
+            reject(new DOMException('Safari grabFrame: track not live after 500ms wait', 'InvalidStateError'));
+          }
+        };
+        setTimeout(waitForTrack, 50);
+        return;
       }
 
+      // Get or create pooled video for this track
+      const entry = _getOrCreateSafariVideo(currentTrack);
+      if (!entry) {
+        reject(new DOMException('Safari grabFrame: failed to create video entry', 'InvalidStateError'));
+        return;
+      }
+
+      const { video, canvas, ctx } = entry;
+
+      // Sync srcObject if track changed
+      const existingTracks = video.srcObject?.getVideoTracks?.() || [];
+      if (!existingTracks.includes(currentTrack)) {
+        video.srcObject = new MediaStream([currentTrack]);
+        video.play().catch(() => { });
+      }
+
+      // [FIX #3-C] Increased retries: 30 × 30ms = 900ms max wait.
+      // Low-power mode / slow iPhones need more than 450ms for video.readyState >= 2.
       const attempt = (retries) => {
-        if (!currentTrack || currentTrack.readyState !== 'live') {
-          return reject(new DOMException('Track ended', 'InvalidStateError'));
-        }
         if (video.readyState >= 2 && video.videoWidth > 0) {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
-          // createImageBitmap is available on all modern browsers incl. iOS 15+
           createImageBitmap(canvas).then(resolve).catch(reject);
         } else if (retries > 0) {
           setTimeout(() => attempt(retries - 1), 30);
         } else {
-          reject(new DOMException('Safari grabFrame: video not ready after retries', 'InvalidStateError'));
+          reject(new DOMException('Safari grabFrame: video not ready after 900ms', 'InvalidStateError'));
         }
       };
-      attempt(15); // 15 × 30ms = 450ms max wait
+      attempt(30); // [FIX] 30 × 30ms = 900ms (was 15 × 30ms = 450ms)
     });
   };
 
   if (typeof logW === 'function') {
-    logW('polyfill', '[Safari] SDK imageCapture.grabFrame() patched — videoElementPlaying hang eliminated');
+    logW('polyfill', '[Safari] SDK imageCapture.grabFrame() patched v26 — null-track guard + 900ms timeout + video pool');
   }
 }
 
@@ -974,7 +1013,9 @@ async function ensureCamera() {
       setState("perm", "denied");
       showRetry(true, "camera permission denied");
       logE("camera", "getUserMedia all attempts failed", e2);
-      alert("Camera access failed! Please check permissions or close other apps using the camera.");
+      // [FIX #1] alert() → setStatus(): iOS에서 alert() 호출은 async 흐름을 블로킹해
+      // SDK 내부 타이머/콜백이 비정상 종료될 수 있음. 논블로킹 메시지로 대체.
+      setStatus("⚠️ 카메라 접근 실패. 카메라 권한을 허용하거나 다른 앱을 닫은 후 재시도하세요.");
       return false;
     }
   }
@@ -1094,13 +1135,19 @@ async function preloadSDK() {
     } catch (e) {
       logE("sdk", "Preload Failed", e);
       setState("sdk", "init_exception");
+      // [FIX #1] Reset initPromise so next boot() call gets a fresh attempt (not cached rejection)
+      initPromise = null;
       // Always show retry UI regardless of failure type
       const isTimeout = e.message && e.message.includes("timeout");
       setStatus(isTimeout
-        ? "⚠️ 로딩 시간 초과. 네트워크를 확인 후 새로고침 해주세요."
+        ? "⚠️ 로딩 시간 초과. 네트워크를 확인 후 재시도 중..."
         : `⚠️ SDK 초기화 실패: ${e.message}. 새로고침 해주세요.`
       );
-      showRetry(true, isTimeout ? "sdk_timeout" : "sdk_init_failed");
+      if (!isTimeout) {
+        // Non-timeout errors (license, WASM corrupt) → show retry button immediately
+        showRetry(true, "sdk_init_failed");
+      }
+      // For timeouts: boot() will auto-retry once before showing the button
       throw e;
 
     }
@@ -1134,6 +1181,8 @@ async function initSeeso() {
     return true;
   } catch (e) {
     logE("sdk", "initSeeso failed", e);
+    // [FIX #1] Reset so next attempt is fresh (don't cache the rejection)
+    initPromise = null;
     return false;
   }
 }
@@ -1444,9 +1493,23 @@ async function boot() {
   }
 
   // [EasySeeSo pattern] SDK init FIRST, then camera.
-  // EasySeeSo.init() → EasySeeSo.startTracking() (getUserMedia inside).
-  const sdkOk = await initSeeso();
-  if (!sdkOk) return false;
+  // [FIX #1] Auto-retry SDK init once on timeout before showing manual retry button.
+  let sdkOk = await initSeeso();
+  if (!sdkOk) {
+    const isTimeout = state.sdk === 'init_exception';
+    if (isTimeout) {
+      logW('boot', '[FIX #1] SDK init timed out — auto-retrying once...');
+      setStatus('⏳ AI 모델 로딩 재시도 중... (네트워크가 느린 환경)');
+      // Small wait before retry so GC can run
+      await new Promise(r => setTimeout(r, 1500));
+      sdkOk = await initSeeso();
+    }
+    if (!sdkOk) {
+      setStatus('⚠️ 초기화 실패. 아래 버튼을 눌러 다시 시도하세요.');
+      showRetry(true, 'sdk_init_failed_after_retry');
+      return false;
+    }
+  }
 
   // Camera AFTER init (matches EasySeeSo flow)
   const camOk = await ensureCamera();
@@ -1486,14 +1549,14 @@ window.setSeesoTracking = function (on, reason) {
     return;
   }
   window._seesoSdkOn = on;
-  window._gazeActive = on;
 
   const heapMB = performance.memory
     ? Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB'
     : 'N/A';
 
   if (!on) {
-    // ── SDK OFF: stopTracking → WASM 종료 → 메모리 해제 ──
+    // ── SDK OFF: stopTracking → WASM → 메모리 해제 ──
+    window._gazeActive = false; // Close gate immediately
     try {
       if (seeso) {
         seeso.stopTracking();
@@ -1503,34 +1566,65 @@ window.setSeesoTracking = function (on, reason) {
       logW('seeso', '[Gate] stopTracking() threw:', e);
     }
   } else {
-    // ── SDK ON: stopTracking()이 카메라 트랙을 ended로 만들기 때문에
-    //           existingStream 없이 호출 → SDK 내부에서 getUserMedia() fresh 스트림 획득
-    try {
-      if (seeso && _onGazeCb && _onDebugCb) {
-        seeso.startTracking(_onGazeCb, _onDebugCb)  // NO existingStream → fresh camera
-          .then((ok) => {
-            logI('seeso', `[Gate] OPEN  ← SDK startTracking() ok=${ok} | reason: ${reason} | heap: ${heapMB}`);
-            if (ok) {
-              // 새 스트림으로 mediaStream 참조 업데이트
-              mediaStream = seeso.stream || mediaStream;
-              if (els && els.video && mediaStream) {
-                els.video.srcObject = mediaStream;
-              }
-              // [SAFARI FIX] stopTracking() 후 startTracking() 재호출 시
-              // SDK가 새 imageCapture 인스턴스를 생성함 → 이전 패치 소멸
-              // → 매 startTracking() 성공마다 패치를 재적용해야 함
-              const rawSeeso = seeso?.seeso;
-              if (rawSeeso) patchSdkImageCapture(rawSeeso);
-            } else {
-              logW('seeso', '[Gate] startTracking() returned false');
-            }
-          })
-          .catch((e) => logW('seeso', '[Gate] startTracking() threw:', e));
-      } else {
+    // ── SDK ON: startTracking() 완료 후에만 gaze gate 열기 ──
+    // [FIX #2] _gazeActive=false 유지, startTracking.then() 내부에서만 true로 설정.
+    // 이전: setSeesoTracking(true) 호출 즉시 _gazeActive=true → SDK 미준비 상태에서 gaze 처리 시작.
+    // 수정: SDK startTracking이 ok=true를 반환한 후에만 gate 개방.
+    window._gazeActive = false; // [FIX] Keep closed until SDK is actually ready
+
+    const attemptStart = (retriesLeft) => {
+      if (!seeso || !_onGazeCb || !_onDebugCb) {
         logW('seeso', `[Gate] Cannot restart SDK — seeso=${!!seeso} cb=${!!_onGazeCb}`);
+        // Fallback: open gate anyway so game doesn't freeze, but gaze won't be processed
+        window._gazeActive = true;
+        return;
       }
+
+      seeso.startTracking(_onGazeCb, _onDebugCb) // NO existingStream → fresh camera
+        .then((ok) => {
+          logI('seeso', `[Gate] OPEN  ← SDK startTracking() ok=${ok} retries_left=${retriesLeft} | reason: ${reason} | heap: ${heapMB}`);
+          if (ok) {
+            // 새 스트림으로 mediaStream 참조 업데이트
+            mediaStream = seeso.stream || mediaStream;
+            if (els && els.video && mediaStream) {
+              els.video.srcObject = mediaStream;
+            }
+            // [SAFARI FIX] 재시작 시 새 imageCapture 인스턴스 생성 → 패치 재적용
+            const rawSeeso = seeso?.seeso;
+            if (rawSeeso) patchSdkImageCapture(rawSeeso);
+
+            // [FIX #2] SDK 준비 확인 후 gate 개방
+            window._gazeActive = true;
+            logI('seeso', '[Gate] _gazeActive = true (SDK confirmed ready)');
+          } else {
+            logW('seeso', `[Gate] startTracking() returned false (retriesLeft=${retriesLeft})`);
+            if (retriesLeft > 0) {
+              logW('seeso', `[Gate] Retrying startTracking in 1s... (${retriesLeft} left)`);
+              setTimeout(() => attemptStart(retriesLeft - 1), 1000);
+            } else {
+              // 재시도 실패: gate 강제 개방 (gaze 없어도 게임은 진행되도록)
+              logW('seeso', '[Gate] All retries failed. Opening gate anyway (no-gaze fallback).');
+              window._gazeActive = true;
+            }
+          }
+        })
+        .catch((e) => {
+          logW('seeso', '[Gate] startTracking() threw:', e);
+          if (retriesLeft > 0) {
+            logW('seeso', `[Gate] Retrying after error in 1s... (${retriesLeft} left)`);
+            setTimeout(() => attemptStart(retriesLeft - 1), 1000);
+          } else {
+            logW('seeso', '[Gate] All retries exhausted. Opening gate (no-gaze fallback).');
+            window._gazeActive = true;
+          }
+        });
+    };
+
+    try {
+      attemptStart(3); // 최대 3회 재시도
     } catch (e) {
       logW('seeso', '[Gate] restart threw:', e);
+      window._gazeActive = true; // Fallback
     }
   }
 };
