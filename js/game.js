@@ -1187,10 +1187,18 @@ Game.typewriter = {
                     // Restore cursor opacity just in case (though screen switch follows)
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
 
-                    // Optional: Restore active state? 
-                    // No need, we are moving to the next screen (Boss Battle).
+                    // [FIX-iOS] Free gaze data now — replay has already consumed sessionData.
+                    // Next paragraph will start with an empty array (fresh t=0 timeline).
+                    // Called here to avoid the race condition of clearing inside resetTriggers()
+                    // while gaze data is already flowing in from setSeesoTracking(true).
+                    const gdm = window.gazeDataManager;
+                    if (gdm && typeof gdm.clearGazeData === 'function') {
+                        gdm.clearGazeData();
+                    }
+
                     resolve();
                 });
+
             } else {
                 console.warn("Renderer does not support playGazeReplay.");
                 resolve();

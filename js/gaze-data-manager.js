@@ -362,10 +362,34 @@ export class GazeDataManager {
         setTimeout(() => this.isCollectingLineStart = false, 200);
     }
 
+    // [FIX-iOS] Free the accumulated gaze data array AFTER replay has consumed it.
+    // Called explicitly by game.js inside the playGazeReplay onComplete callback —
+    // i.e. AFTER replay finishes and BEFORE playNextParagraph() starts.
+    //
+    // Why separate from resetTriggers():
+    //   resetTriggers() runs while gaze is already flowing (setSeesoTracking(true) fires just
+    //   before it). Clearing data + firstTimestamp there caused a timeline race condition that
+    //   broke pang detection for the entire next paragraph (confirmed in earlier test).
+    //
+    // What this prevents on iOS:
+    //   Without this, this.data carries ALL paragraphs' gaze entries into the next paragraph.
+    //   3 paragraphs × 9000 entries = up to 27,000 objects in the array → ~1-2MB overhead
+    //   that compounds with SeeSo WASM (100-190MB) to push past iOS OOM threshold.
+    clearGazeData() {
+        const prev = this.data ? this.data.length : 0;
+        this.data = [];
+        this.buffer = [];
+        this.firstTimestamp = null;   // Next paragraph starts fresh t=0 timeline
+        this.lastPreprocessIndex = 0;
+        this.lastUploadedIndex = 0;
+        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Next para starts fresh.`);
+    }
+
     // NEW: Retrieve Pang Logs for Replay
     getPangLogs() {
         return this.pangLog || [];
     }
+
 
     exportCSV(startTime = 0, endTime = Infinity) {
         if (!this.data || this.data.length === 0) {
