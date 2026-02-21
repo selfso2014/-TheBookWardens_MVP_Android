@@ -1263,7 +1263,8 @@ setInterval(() => {
   }
 
   // If tracking is running but gaze callbacks stopped, surface it
-  if (state.track === "running" && lastGazeAt && now - lastGazeAt > 1500) {
+  // Skip warning when SDK is intentionally OFF (replay/battle phase)
+  if (state.track === "running" && lastGazeAt && now - lastGazeAt > 1500 && window._seesoSdkOn !== false) {
     logW("hb", "No gaze samples for >1.5s while tracking is running.", hb);
   }
 }, 2000);
