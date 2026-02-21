@@ -155,16 +155,17 @@ export class IntroManager {
         console.log("[IntroManager] Dismissing Splash -> Home Screen");
         this.game.switchScreen("screen-home");
 
-        // Safety: ensure button appears via CSS fallback (removed JS intervention)
-        /*
+        // [Mem] Free splash image after transition.
+        // Main_Intro.png is only shown on screen-splash.
+        // Once dismissed, this screen is never revisited.
+        // Setting src='' releases the decoded bitmap (~15-25MB) from iOS Safari memory.
         setTimeout(() => {
-            const btn = document.getElementById('btn-start-game');
-            if(btn) {
-                // btn.style.opacity = "1"; // CSS Animation handles this
-                // btn.style.pointerEvents = "auto";
+            const splashImg = document.querySelector('#screen-splash img');
+            if (splashImg && splashImg.src) {
+                splashImg.src = '';
+                console.log('[Mem] Main_Intro.png released from memory.');
             }
-        }, 1500);
-        */
+        }, 500);
     }
 
     async startRiftIntro() {
@@ -257,6 +258,24 @@ export class IntroManager {
         this.game.state.vocabIndex = 0;
         this.game.loadVocab(0);
         this.game.switchScreen("screen-word");
+
+        // [Mem] Free rift intro images after intro completes.
+        // Book_Alice.png (~15MB) + ink_shadow_boss.png rift variant (~2MB)
+        // screen-rift-intro is shown exactly once at game start and never revisited.
+        // Note: ink_shadow_boss.png in screen-boss (villain-img) is a SEPARATE element
+        // and is intentionally NOT freed here — it's needed for repeated mid-boss battles.
+        setTimeout(() => {
+            const riftBookImg = document.getElementById('rift-book-image');
+            if (riftBookImg && riftBookImg.src) {
+                riftBookImg.src = '';
+                console.log('[Mem] Book_Alice.png (rift) released from memory.');
+            }
+            const riftVillainImg = document.querySelector('#screen-rift-intro .rift-villain-img');
+            if (riftVillainImg && riftVillainImg.src) {
+                riftVillainImg.src = '';
+                console.log('[Mem] ink_shadow_boss.png (rift) released from memory.');
+            }
+        }, 500);
     }
 
     spawnMeteor(layer) {
