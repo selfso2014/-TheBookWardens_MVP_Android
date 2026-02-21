@@ -339,6 +339,11 @@ export class GazeDataManager {
         this.maxLineIndexReached = -1; // Reset max reach guard
         this.pangLog = []; // NEW: Reset Pang Logs
 
+        // [FIX-iOS] Clear lineMetadata to prevent unbounded growth across paragraphs.
+        // setLineMetadata() is called per-line per-frame (30fps) during reading.
+        // Without this reset, all past paragraphs' line entries accumulate in the object.
+        this.lineMetadata = {};
+
         // Reset WPM State (Partially)
         // [FIX] Do NOT reset cumulative WPM stats (wpm, validWordSum, validTimeSum)
         // This ensures WPM is averaged across the entire session, not per paragraph.
