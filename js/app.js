@@ -51,6 +51,120 @@ console.log = function (...args) {
 };
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// [POLYFILL] ImageCapture.grabFrame() for Safari/WebKit
+//
+// Safari does NOT implement ImageCapture.grabFrame() — the method is simply
+// undefined. The SeeSo SDK calls it internally for every camera frame, so on
+// any WebKit-based browser (iOS Safari, iPadOS Safari, macOS Safari) the SDK
+// produces non-stop errors and face/gaze detection never works.
+//
+// Fix: inject grabFrame() onto ImageCapture.prototype BEFORE the SDK loads,
+// using a persistent <video> element that mirrors the MediaStreamTrack.
+// createImageBitmap(canvas) gives the SDK the same ImageBitmap it expects.
+// ─────────────────────────────────────────────────────────────────────────────
+(function installGrabFramePolyfill() {
+  // Only patch if ImageCapture exists but grabFrame is missing (Safari case)
+  if (typeof ImageCapture === 'undefined') {
+    // ImageCapture doesn't exist at all — full polyfill needed
+    window.ImageCapture = class ImageCapture {
+      constructor(track) {
+        this.track = track;
+        this._video = null;
+        this._canvas = null;
+        this._ctx = null;
+        this._ready = false;
+        this._setup();
+      }
+      _setup() {
+        const video = document.createElement('video');
+        video.setAttribute('autoplay', '');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+        video.muted = true;
+        video.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
+        document.body.appendChild(video);
+        video.srcObject = new MediaStream([this.track]);
+        video.play().then(() => { this._ready = true; }).catch(() => { });
+        this._video = video;
+        this._canvas = document.createElement('canvas');
+        this._ctx = this._canvas.getContext('2d');
+      }
+      grabFrame() {
+        return new Promise((resolve, reject) => {
+          const attempt = (retries) => {
+            const v = this._video;
+            if (!v || this.track.readyState !== 'live') {
+              return reject(new DOMException('Track ended', 'InvalidStateError'));
+            }
+            if (v.readyState >= 2 && v.videoWidth > 0) {
+              this._canvas.width = v.videoWidth;
+              this._canvas.height = v.videoHeight;
+              this._ctx.drawImage(v, 0, 0);
+              createImageBitmap(this._canvas).then(resolve).catch(reject);
+            } else if (retries > 0) {
+              setTimeout(() => attempt(retries - 1), 30);
+            } else {
+              reject(new DOMException('Video not ready', 'InvalidStateError'));
+            }
+          };
+          attempt(10);
+        });
+      }
+    };
+    if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture fully polyfilled (grabFrame via canvas)');
+    else setTimeout(() => { if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture fully polyfilled (grabFrame via canvas)'); }, 200);
+  } else if (typeof ImageCapture.prototype.grabFrame !== 'function') {
+    // ImageCapture exists but grabFrame is not implemented
+    const OrigImageCapture = ImageCapture;
+    const _origGrabFrame = OrigImageCapture.prototype.grabFrame;
+    if (!_origGrabFrame) {
+      // Patch only grabFrame onto existing prototype
+      const _videos = new WeakMap();
+      ImageCapture.prototype.grabFrame = function () {
+        return new Promise((resolve, reject) => {
+          const track = this.track;
+          if (!track || track.readyState !== 'live') {
+            return reject(new DOMException('Track ended', 'InvalidStateError'));
+          }
+          let info = _videos.get(this);
+          if (!info) {
+            const video = document.createElement('video');
+            video.setAttribute('autoplay', '');
+            video.setAttribute('playsinline', '');
+            video.muted = true;
+            video.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
+            document.body.appendChild(video);
+            video.srcObject = new MediaStream([track]);
+            video.play().catch(() => { });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            info = { video, canvas, ctx };
+            _videos.set(this, info);
+          }
+          const attempt = (retries) => {
+            const { video, canvas, ctx } = info;
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              ctx.drawImage(video, 0, 0);
+              createImageBitmap(canvas).then(resolve).catch(reject);
+            } else if (retries > 0) {
+              setTimeout(() => attempt(retries - 1), 30);
+            } else {
+              reject(new DOMException('Video not ready for grabFrame', 'InvalidStateError'));
+            }
+          };
+          attempt(10);
+        });
+      };
+      if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture.grabFrame() patched via canvas polyfill');
+      else setTimeout(() => { if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture.grabFrame() patched via canvas polyfill'); }, 200);
+    }
+  }
+  // Chrome/Firefox: grabFrame exists natively → no patch needed
+})();
+
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e.reason?.message || e.reason?.toString?.() || String(e.reason);
   if (typeof logE === 'function') logE('sdk', 'Unhandled rejection: ' + msg);
