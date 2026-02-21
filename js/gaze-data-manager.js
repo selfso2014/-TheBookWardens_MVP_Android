@@ -371,6 +371,14 @@ export class GazeDataManager {
     //   before it). Clearing data + firstTimestamp there caused a timeline race condition that
     //   broke pang detection for the entire next paragraph (confirmed in earlier test).
     //
+    // Why firstTimestamp is NOT reset here:
+    //   firstTimestamp is the absolute game-start reference (set once during calibration).
+    //   t = Date.now() - firstTimestamp → always increases monotonically.
+    //   If we null firstTimestamp, the next paragraph's t resets to 0.
+    //   Then lastPosPeakTime=0 (from resetTriggers) and t=0 → timeSincePeak=0 < 600ms
+    //   → pang detection blocked. Keeping firstTimestamp means t continues from where
+    //   para 0 left off (e.g. 90,000ms), so timeSincePeak = 90,000 >> 600 → no block.
+    //
     // What this prevents on iOS:
     //   Without this, this.data carries ALL paragraphs' gaze entries into the next paragraph.
     //   3 paragraphs × 9000 entries = up to 27,000 objects in the array → ~1-2MB overhead
@@ -379,11 +387,12 @@ export class GazeDataManager {
         const prev = this.data ? this.data.length : 0;
         this.data = [];
         this.buffer = [];
-        this.firstTimestamp = null;   // Next paragraph starts fresh t=0 timeline
+        // NOTE: firstTimestamp intentionally NOT reset — see comment above.
         this.lastPreprocessIndex = 0;
         this.lastUploadedIndex = 0;
-        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Next para starts fresh.`);
+        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
     }
+
 
     // NEW: Retrieve Pang Logs for Replay
     getPangLogs() {
