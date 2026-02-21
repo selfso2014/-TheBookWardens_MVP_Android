@@ -392,6 +392,18 @@ export class CalibrationManager {
 
                 logI("cal", `onCalibrationNextPoint (#${this.state.pointCount}) x=${x} y=${y}`);
 
+                // [SDK FIX] Immediately start collecting samples for this calibration point.
+                // The SDK requires startCollectSamples() before it gathers gaze data.
+                // Previously wired to OK button click only → calibration hung at 0%.
+                try {
+                    if (typeof seeso.startCollectSamples === "function") {
+                        seeso.startCollectSamples();
+                        logI("cal", `[SDK] startCollectSamples() auto-called (point #${this.state.pointCount})`);
+                    }
+                } catch (e) {
+                    logI("cal", "[SDK] startCollectSamples threw:", e);
+                }
+
                 // Update UI: Text ABOVE Button
                 const statusEl = document.getElementById("calibration-status");
                 if (statusEl) {
