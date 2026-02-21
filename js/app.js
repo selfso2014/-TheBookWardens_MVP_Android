@@ -52,118 +52,109 @@ console.log = function (...args) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [POLYFILL] ImageCapture.grabFrame() for Safari/WebKit
+// [POLYFILL] ImageCapture.grabFrame() for Safari/WebKit — POST-SDK PATCH
 //
-// Safari does NOT implement ImageCapture.grabFrame() — the method is simply
-// undefined. The SeeSo SDK calls it internally for every camera frame, so on
-// any WebKit-based browser (iOS Safari, iPadOS Safari, macOS Safari) the SDK
-// produces non-stop errors and face/gaze detection never works.
+// IMPORTANT: This file uses ES module `import`, which means all imports
+// (including seeso.min.js) are evaluated BEFORE this module body runs.
+// Patching window.ImageCapture here is TOO LATE for the SDK's import-time check.
 //
-// Fix: inject grabFrame() onto ImageCapture.prototype BEFORE the SDK loads,
-// using a persistent <video> element that mirrors the MediaStreamTrack.
-// createImageBitmap(canvas) gives the SDK the same ImageBitmap it expects.
+// The SeeSo SDK has its own internal ImageCapture polyfill that DOES implement
+// grabFrame(), but it has a critical Safari bug:
+//   grabFrame() waits for `self.videoElementPlaying` — a Promise that resolves
+//   on the 'playing' DOM event. On iOS/iPadOS Safari, if the page is not
+//   in the foreground or the video is created off-screen, 'playing' NEVER fires.
+//   Result: grabFrame() hangs forever → processFrame_ stalls → FPS = 0.
+//
+// Fix Strategy (post-SDK patch):
+//   After the SDK initializes and calls initStreamTrack_(), the SDK sets
+//   `seeso.seeso.imageCapture` to an instance of *its own* ImageCapture class.
+//   We patch the PROTOTYPE of that instance's constructor, replacing grabFrame()
+//   with a readyState-based implementation that does NOT wait for 'playing'.
+//   This is applied in patchSdkImageCapture() called after startTracking().
 // ─────────────────────────────────────────────────────────────────────────────
-(function installGrabFramePolyfill() {
-  // Only patch if ImageCapture exists but grabFrame is missing (Safari case)
-  if (typeof ImageCapture === 'undefined') {
-    // ImageCapture doesn't exist at all — full polyfill needed
-    window.ImageCapture = class ImageCapture {
-      constructor(track) {
-        this.track = track;
-        this._video = null;
-        this._canvas = null;
-        this._ctx = null;
-        this._ready = false;
-        this._setup();
-      }
-      _setup() {
-        const video = document.createElement('video');
-        video.setAttribute('autoplay', '');
-        video.setAttribute('playsinline', '');
-        video.setAttribute('muted', '');
-        video.muted = true;
-        video.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
-        document.body.appendChild(video);
-        video.srcObject = new MediaStream([this.track]);
-        video.play().then(() => { this._ready = true; }).catch(() => { });
-        this._video = video;
-        this._canvas = document.createElement('canvas');
-        this._ctx = this._canvas.getContext('2d');
-      }
-      grabFrame() {
-        return new Promise((resolve, reject) => {
-          const attempt = (retries) => {
-            const v = this._video;
-            if (!v || this.track.readyState !== 'live') {
-              return reject(new DOMException('Track ended', 'InvalidStateError'));
-            }
-            if (v.readyState >= 2 && v.videoWidth > 0) {
-              this._canvas.width = v.videoWidth;
-              this._canvas.height = v.videoHeight;
-              this._ctx.drawImage(v, 0, 0);
-              createImageBitmap(this._canvas).then(resolve).catch(reject);
-            } else if (retries > 0) {
-              setTimeout(() => attempt(retries - 1), 30);
-            } else {
-              reject(new DOMException('Video not ready', 'InvalidStateError'));
-            }
-          };
-          attempt(10);
-        });
-      }
-    };
-    if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture fully polyfilled (grabFrame via canvas)');
-    else setTimeout(() => { if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture fully polyfilled (grabFrame via canvas)'); }, 200);
-  } else if (typeof ImageCapture.prototype.grabFrame !== 'function') {
-    // ImageCapture exists but grabFrame is not implemented
-    const OrigImageCapture = ImageCapture;
-    const _origGrabFrame = OrigImageCapture.prototype.grabFrame;
-    if (!_origGrabFrame) {
-      // Patch only grabFrame onto existing prototype
-      const _videos = new WeakMap();
-      ImageCapture.prototype.grabFrame = function () {
-        return new Promise((resolve, reject) => {
-          const track = this.track;
-          if (!track || track.readyState !== 'live') {
-            return reject(new DOMException('Track ended', 'InvalidStateError'));
-          }
-          let info = _videos.get(this);
-          if (!info) {
-            const video = document.createElement('video');
-            video.setAttribute('autoplay', '');
-            video.setAttribute('playsinline', '');
-            video.muted = true;
-            video.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
-            document.body.appendChild(video);
-            video.srcObject = new MediaStream([track]);
-            video.play().catch(() => { });
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            info = { video, canvas, ctx };
-            _videos.set(this, info);
-          }
-          const attempt = (retries) => {
-            const { video, canvas, ctx } = info;
-            if (video.readyState >= 2 && video.videoWidth > 0) {
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              ctx.drawImage(video, 0, 0);
-              createImageBitmap(canvas).then(resolve).catch(reject);
-            } else if (retries > 0) {
-              setTimeout(() => attempt(retries - 1), 30);
-            } else {
-              reject(new DOMException('Video not ready for grabFrame', 'InvalidStateError'));
-            }
-          };
-          attempt(10);
-        });
-      };
-      if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture.grabFrame() patched via canvas polyfill');
-      else setTimeout(() => { if (typeof logW === 'function') logW('polyfill', '[Safari] ImageCapture.grabFrame() patched via canvas polyfill'); }, 200);
-    }
+
+/** @returns {boolean} true if this is a Safari/WebKit browser */
+function isSafariWebKit() {
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    || /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+/**
+ * Patch the SDK's internal ImageCapture instance's grabFrame() method.
+ * Must be called AFTER seeso.startTracking() has set seeso.seeso.imageCapture.
+ * @param {object} rawSeeso - The raw Seeso instance (seeso.seeso)
+ */
+function patchSdkImageCapture(rawSeeso) {
+  if (!isSafariWebKit()) return; // Chrome/Firefox: grabFrame works natively
+
+  const ic = rawSeeso?.imageCapture;
+  if (!ic) {
+    setTimeout(() => patchSdkImageCapture(rawSeeso), 100); // retry until available
+    return;
   }
-  // Chrome/Firefox: grabFrame exists natively → no patch needed
-})();
+
+  // Already patched?
+  if (ic.__grabFramePatched) return;
+  ic.__grabFramePatched = true;
+
+  // Create a dedicated video element for this ImageCapture instance.
+  // Unlike the SDK's videoElement, this one is guaranteed to:
+  //   1. Have `playsinline` (required for iOS autoplay)
+  //   2. Have `muted = true` (required for autoplay without gesture)
+  //   3. Be appended to body (required to receive video frames in Safari)
+  const track = ic._videoStreamTrack || ic.track || rawSeeso.track;
+  const video = document.createElement('video');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('autoplay', '');
+  video.muted = true;
+  video.style.cssText = 'position:fixed;width:1px;height:1px;top:0;left:-2px;opacity:0.01;pointer-events:none;z-index:-1';
+  document.body.appendChild(video);
+
+  if (track) {
+    video.srcObject = new MediaStream([track]);
+    video.play().catch(() => { });
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Replace grabFrame on the INSTANCE (not prototype) to avoid affecting other instances
+  ic.grabFrame = function safariGrabFrame() {
+    return new Promise((resolve, reject) => {
+      // If track changed (e.g. after stopTracking/startTracking), update video source
+      const currentTrack = rawSeeso.track;
+      if (currentTrack && video.srcObject) {
+        const existingTracks = video.srcObject.getVideoTracks();
+        if (!existingTracks.includes(currentTrack)) {
+          video.srcObject = new MediaStream([currentTrack]);
+          video.play().catch(() => { });
+        }
+      }
+
+      const attempt = (retries) => {
+        if (!currentTrack || currentTrack.readyState !== 'live') {
+          return reject(new DOMException('Track ended', 'InvalidStateError'));
+        }
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          // createImageBitmap is available on all modern browsers incl. iOS 15+
+          createImageBitmap(canvas).then(resolve).catch(reject);
+        } else if (retries > 0) {
+          setTimeout(() => attempt(retries - 1), 30);
+        } else {
+          reject(new DOMException('Safari grabFrame: video not ready after retries', 'InvalidStateError'));
+        }
+      };
+      attempt(15); // 15 × 30ms = 450ms max wait
+    });
+  };
+
+  if (typeof logW === 'function') {
+    logW('polyfill', '[Safari] SDK imageCapture.grabFrame() patched — videoElementPlaying hang eliminated');
+  }
+}
 
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e.reason?.message || e.reason?.toString?.() || String(e.reason);
@@ -1074,14 +1065,15 @@ async function preloadSDK() {
       setState("sdk", "constructed");
 
       logI("sdk", "initializing engine via EasySeeSo.init()...");
+      setStatus("Loading AI model...");
 
-      const SDK_INIT_TIMEOUT_MS = 20000;
+      const SDK_INIT_TIMEOUT_MS = 30000; // 30s — WASM CDN download can be slow on mobile
       await Promise.race([
         new Promise((resolve, reject) => {
           seeso.init(
             LICENSE_KEY,
             () => resolve(),          // afterInitialized
-            () => reject(new Error("EasySeeSo init failed (afterFailed)"))
+            () => reject(new Error("EasySeeSo init failed (afterFailed — license or WASM error)"))
           );
         }),
         new Promise((_, reject) =>
@@ -1096,16 +1088,21 @@ async function preloadSDK() {
       // 여기서는 calibration 콜백만 별도 등록
       attachSeesoCallbacks();
       setState("sdk", "initialized");
+      setStatus("Initializing...");
       console.log("[Seeso] Preload Complete! Ready for Tracking.");
       return true;
     } catch (e) {
       logE("sdk", "Preload Failed", e);
       setState("sdk", "init_exception");
-      if (e.message && e.message.includes("timeout")) {
-        setStatus("⚠️ 로딩 실패. 페이지를 새로고침 해주세요.");
-        showRetry(true, "sdk_timeout");
-      }
+      // Always show retry UI regardless of failure type
+      const isTimeout = e.message && e.message.includes("timeout");
+      setStatus(isTimeout
+        ? "⚠️ 로딩 시간 초과. 네트워크를 확인 후 새로고침 해주세요."
+        : `⚠️ SDK 초기화 실패: ${e.message}. 새로고침 해주세요.`
+      );
+      showRetry(true, isTimeout ? "sdk_timeout" : "sdk_init_failed");
       throw e;
+
     }
   })();
 
@@ -1235,6 +1232,8 @@ function startTracking() {
       };
       logI("diag", "processFrame_ patch applied to rawSeeso (seeso.seeso)");
 
+      // [SAFARI FIX] Patch imageCapture.grabFrame() to bypass videoElementPlaying hang
+      patchSdkImageCapture(rawSeeso);
       // Also patch checkStreamTrack_ to see if it's blocking
       if (typeof rawSeeso.checkStreamTrack_ === "function") {
         const _origCST = rawSeeso.checkStreamTrack_.bind(rawSeeso);
