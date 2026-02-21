@@ -338,6 +338,9 @@ export class GazeDataManager {
         this.pendingReturnSweep = null;
         this.maxLineIndexReached = -1; // Reset max reach guard
         this.pangLog = []; // NEW: Reset Pang Logs
+        // [FIX-iOS] Clear wpmData per paragraph (was only cleared in reset(), not resetTriggers()).
+        // Without this, all paragraphs' WPM log entries accumulate across the session.
+        this.wpmData = [];
 
         // [FIX-iOS] Clear lineMetadata to prevent unbounded growth across paragraphs.
         // setLineMetadata() is called per-line per-frame (30fps) during reading.
@@ -395,7 +398,12 @@ export class GazeDataManager {
         // NOTE: firstTimestamp intentionally NOT reset — see comment above.
         this.lastPreprocessIndex = 0;
         this.lastUploadedIndex = 0;
-        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
+        // [FIX-iOS] Release replayData reference. Firebase upload has already consumed it
+        // (uploadToCloud runs at replay START, clearGazeData runs at replay END).
+        // Without this, the old gaze array (9000 entries ~0.5MB) lives in replayData
+        // indefinitely, preventing GC across all paragraphs.
+        this.replayData = null;
+        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries + replayData. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
     }
 
 
