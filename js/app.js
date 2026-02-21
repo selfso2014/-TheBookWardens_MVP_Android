@@ -336,6 +336,8 @@ setInterval(() => {
 (function attachVisibilityGuard() {
   let wasCalRunning = false;
   let wasTracking = false;
+  let wasReading = false;     // [FIX #6] Track if reading session was active
+  let wasSdkOn = false;       // [FIX #6] Track if SDK gate was open
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -375,6 +377,12 @@ setInterval(() => {
       // 5. Track game tracking state
       wasTracking = window.Game?.state?.isTracking || false;
 
+      // [FIX #6] Track reading session state
+      const activeScreen = document.querySelector('.screen.active')?.id;
+      wasReading = activeScreen === 'screen-read';
+      wasSdkOn = window._seesoSdkOn === true;
+      logW('sys', `[iOS Guard] wasReading=${wasReading} wasSdkOn=${wasSdkOn} screen=${activeScreen}`);
+
     } else {
       // ── TAB VISIBLE AGAIN ───────────────────────────────────────────────
       logW('sys', '[iOS Guard] Tab visible — resuming');
@@ -391,6 +399,26 @@ setInterval(() => {
         tick();
       }
       wasCalRunning = false;
+
+      // [FIX #6] Resume reading session if it was active when tab was hidden
+      if (wasReading) {
+        logW('sys', '[iOS Guard] Reading session was active — attempting to restore');
+
+        // Re-open gaze gate if it was open (SDK may need restart)
+        if (wasSdkOn && typeof window.setSeesoTracking === 'function' && window._seesoSdkOn !== true) {
+          logW('sys', '[iOS Guard] Re-opening gaze gate after tab restore');
+          window.setSeesoTracking(true, 'visibility_restore');
+        }
+
+        // Restart typewriter tick if it was paused
+        const typewriter = window.Game?.typewriter;
+        if (typewriter && typewriter.isPaused === true) {
+          logW('sys', '[iOS Guard] Resuming typewriter tick (was paused on hide)');
+          typewriter.isPaused = false;
+        }
+      }
+      wasReading = false;
+      wasSdkOn = false;
     }
   });
 })();
@@ -986,38 +1014,77 @@ async function ensureCamera() {
   }
 
   if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-    alert("Camera requires HTTPS! Redirecting...");
+    setStatus("Camera requires HTTPS! Redirecting...");
     location.replace(`https:${location.href.substring(location.protocol.length)}`);
     return false;
   }
 
-  setState("perm", "requesting");
-  try {
-    // EasySeeSo 공식 패턴과 동일: facingMode만 지정, SDK가 내부적으로 카메라 포맷 처리
-    // width/height/frameRate 강제 지정 시 portrait(480x640) 프레임이 와서 SDK face detection 실패 가능
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: false,
-    });
-
-  } catch (e1) {
-    console.warn("[Camera] 1st attempt failed (constraints). Retrying with basic constraints...");
+  // [FIX #5] 이전에 ended된 트랙이 있으면 명시적으로 stop() → 카메라 핸들 해제.
+  // iOS에서 이전 트랙이 살아있으면 새 getUserMedia가 NotReadableError를 낼 수 있음.
+  if (mediaStream) {
     try {
-      // 2nd Attempt: Basic constraints (Laptop Friendly)
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false
-      });
-    } catch (e2) {
-      // Final Failure
-      setState("perm", "denied");
-      showRetry(true, "camera permission denied");
-      logE("camera", "getUserMedia all attempts failed", e2);
-      // [FIX #1] alert() → setStatus(): iOS에서 alert() 호출은 async 흐름을 블로킹해
-      // SDK 내부 타이머/콜백이 비정상 종료될 수 있음. 논블로킹 메시지로 대체.
-      setStatus("⚠️ 카메라 접근 실패. 카메라 권한을 허용하거나 다른 앱을 닫은 후 재시도하세요.");
-      return false;
+      mediaStream.getTracks().forEach(t => t.stop());
+    } catch (e) { /* silent */ }
+    mediaStream = null;
+  }
+
+  setState("perm", "requesting");
+
+  // [FIX #5] 3-단계 getUserMedia 전략:
+  // 1st: facingMode:user (표준 전면 카메라)
+  // 2nd: video:true (제약 없이 사용 가능한 카메라)
+  // 3rd: 2s 대기 후 재시도 (다른 앱이 카메라 점유 중인 경우 release 대기)
+  const CAM_ATTEMPTS = [
+    { video: { facingMode: "user" }, audio: false },
+    { video: true, audio: false },
+  ];
+
+  let lastError = null;
+
+  for (let i = 0; i < CAM_ATTEMPTS.length; i++) {
+    try {
+      logI("camera", `[FIX #5] getUserMedia attempt ${i + 1}/${CAM_ATTEMPTS.length}`);
+      mediaStream = await navigator.mediaDevices.getUserMedia(CAM_ATTEMPTS[i]);
+      lastError = null;
+      break; // Success
+    } catch (e) {
+      lastError = e;
+      logW("camera", `Attempt ${i + 1} failed: ${e.name} — ${e.message}`);
     }
+  }
+
+  // [FIX #5] 3rd attempt: 2s 재시도 (NotReadableError = 카메라 일시 점유 상황 대응)
+  if (lastError) {
+    const isPermDenied = lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError';
+    if (!isPermDenied) {
+      // 권한 거부가 아닌 경우 (NotReadableError 등)는 다른 앱의 카메라 점유가 풀릴 때까지 대기
+      logW("camera", "[FIX #5] Camera busy (NotReadable?). Waiting 2s and retrying...");
+      setStatus("⏳ 카메라를 초기화하는 중... (다른 앱이 카메라를 사용 중일 수 있습니다)");
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        logI("camera", "[FIX #5] getUserMedia 3rd attempt (after 2s wait)");
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        lastError = null;
+      } catch (e3) {
+        lastError = e3;
+        logE("camera", "3rd attempt also failed", e3);
+      }
+    } else {
+      logE("camera", "Camera permission denied — no point retrying", lastError);
+    }
+  }
+
+  if (lastError) {
+    // All attempts failed
+    setState("perm", "denied");
+    showRetry(true, `camera_failed_${lastError.name}`);
+    logE("camera", "getUserMedia all attempts failed", lastError);
+    const isPermDenied = lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError';
+    setStatus(isPermDenied
+      ? "⚠️ 카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라를 허용해주세요."
+      : "⚠️ 카메라 접근 실패. 다른 앱을 닫고 재시도하세요."
+    );
+    return false;
   }
 
   // Success Handling

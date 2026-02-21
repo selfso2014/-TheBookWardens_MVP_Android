@@ -242,6 +242,13 @@ const Game = {
             document.querySelectorAll('.battle-fx, .battle-lightning').forEach(el => el.remove());
         },
 
+        // ── Mid-Boss Screen ──────────────────────────────────────────────
+        'screen-boss': () => {
+            // [FIX #4] Reset pointerEvents lock from checkBossAnswer() answer-disable flow
+            const vs = document.getElementById('screen-boss');
+            if (vs) vs.style.pointerEvents = 'auto';
+        },
+
         // ── Rift / Intro Screens ─────────────────────────────────────────
         'screen-rift-intro': () => {
             // The SceneManager.resetRiftIntro() handles DOM, nothing extra.
@@ -1490,31 +1497,15 @@ Game.typewriter = {
 
     // Extracted Helper: Trigger Final Boss
     triggerFinalBossBattleSequence() {
-        // 1. FORCE HIDE MID BOSS SCREEN
-        const vs = document.getElementById("screen-boss");
-        if (vs) {
-            vs.style.display = "none";
-            vs.classList.remove("active");
-            vs.style.pointerEvents = "auto";
-        }
+        console.log("[FinalBoss] Triggering Final Boss via switchScreen() lifecycle (v26)");
 
-        // 2. Log
-        console.log("Direct Trigger Final Boss (v14.1.32)! Skip GameLogic.");
+        // [FIX #4] Use switchScreen() instead of direct DOM manipulation.
+        // Previous code bypassed clearAllResources() + _unmountScreen(), leaving
+        // TextRenderer RAFs and intervals alive → accumulated → iOS crash on Final Boss.
+        // switchScreen() enforces: UNMOUNT prev → DOM transition → MOUNT next.
+        this.switchScreen('screen-alice-battle');
 
-        // 3. FORCE SWITCH SCREEN (Manual)
-        const aliceScreen = document.getElementById("screen-alice-battle");
-        if (aliceScreen) {
-            // Hide all screens
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            // Show Alice Screen
-            aliceScreen.classList.add('active');
-            aliceScreen.style.display = "flex";
-        } else {
-            console.error("ERROR: screen-alice-battle element missing!");
-            return;
-        }
-
-        // 4. INIT ALICE BATTLE (WITH DATA)
+        // Init AliceBattle after a short frame delay (screen needs to layout first)
         setTimeout(() => {
             if (window.AliceBattleRef) {
                 const currentStats = {
@@ -1523,10 +1514,11 @@ Game.typewriter = {
                     gem: Game.state.gems
                 };
                 window.AliceBattleRef.init(currentStats);
+                console.log("[FinalBoss] AliceBattleRef.init() called with stats:", currentStats);
             } else {
-                console.error("FATAL: AliceBattleRef NOT FOUND!");
+                console.error("[FinalBoss] FATAL: AliceBattleRef NOT FOUND!");
             }
-        }, 100);
+        }, 150); // 150ms: enough for switchScreen RAF to apply 'active' class
     },
 
     // [State] Simple Battle System (Delegated to GameLogic)
