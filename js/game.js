@@ -1135,13 +1135,13 @@ Game.typewriter = {
                 window.setSeesoTracking(false, 'gaze replay start');
             }
 
-            // [CHANGED] Upload Data to Firebase NOW (Background Sync)
-            // We do this here because Replay start signifies "Paragraph Done".
-            if (window.gazeDataManager && Game.sessionId) {
-                console.log("[Cloud] Uploading Paragraph Data...");
-                // No await needed, let it run in background
-                window.gazeDataManager.uploadToCloud(Game.sessionId);
-            }
+            // [DISABLED-iOS] Background Firebase upload during gaze replay REMOVED.
+            // Firebase WebSocket 초기화(addEventListener × 4+)가 iPhone Air에서
+            // LSN 폭발(29→79)을 유발 → iOS WebContent OOM Kill → 크래시.
+            // 업로드는 score 화면의 CLAIM REWARD 버튼 클릭 시에만 수행.
+            // if (window.gazeDataManager && Game.sessionId) {
+            //     window.gazeDataManager.uploadToCloud(Game.sessionId);
+            // }
 
             // Check dependencies
             if (!window.gazeDataManager || !this.startTime) {
@@ -1362,9 +1362,11 @@ Game.typewriter = {
     startBossBattle() {
         console.log("Entering Boss Battle!");
         if (this.uploadMonitor) clearInterval(this.uploadMonitor); // Stop auto-upload
-        if (window.gazeDataManager && Game.sessionId) {
-            window.gazeDataManager.uploadToCloud(Game.sessionId); // Final Upload
-        }
+        // [DISABLED-iOS] Firebase upload at Boss entry removed.
+        // Same reason as gaze replay: WebSocket LSN accumulation crashes iPhone Air.
+        // if (window.gazeDataManager && Game.sessionId) {
+        //     window.gazeDataManager.uploadToCloud(Game.sessionId);
+        // }
         Game.confrontVillain();
     },
 
