@@ -199,7 +199,14 @@ function patchSdkImageCapture(rawSeeso) {
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
           createImageBitmap(canvas)
-            .then(bmp => settle(true, bmp))
+            .then(bmp => {
+              settle(true, bmp);
+              // [FIX-iOS OOM] iOS WKWebView GC does not reclaim ImageBitmaps fast enough.
+              // At 30fps each bitmap = 640×480×4 bytes = 1.2MB GPU memory.
+              // Without explicit close(): 30fps × 60s = 1,800 bitmaps × 1.2MB ≈ 2GB → OOM crash.
+              // SDK processes each frame in ~33ms. 200ms = 6 frames of buffer → safe to close.
+              setTimeout(() => { try { bmp.close(); } catch (_) { } }, 200);
+            })
             .catch(e => settle(false, e));
         } else if (retries > 0) {
           setTimeout(() => attempt(retries - 1), 30);
