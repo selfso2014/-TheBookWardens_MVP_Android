@@ -554,11 +554,33 @@ function ensureLogPanel() {
     return b;
   };
 
+  // [CRASH RECOVERY] Check for crash log from previous session (saved before Jetsam kill)
+  const _savedCrashLog = (() => {
+    try {
+      const ts = parseInt(localStorage.getItem('debug_log_backup_ts') || '0');
+      if ((Date.now() - ts) > 1800000) return null; // ignore logs older than 30 minutes
+      const raw = localStorage.getItem('debug_log_backup');
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  })();
+
+  if (_savedCrashLog && _savedCrashLog.length > 0) {
+    const btnCrash = createBtn(`🔴 Crash(${_savedCrashLog.length})`, () => {
+      panel.textContent = _savedCrashLog.join('\n');
+      panel.style.display = 'block';
+      toolbar.style.display = 'flex';
+      isExpanded = true;
+      btnToggle.textContent = '❌';
+      panel.scrollTop = panel.scrollHeight;
+    }, '#fff', '#b71c1c');
+    toolbar.appendChild(btnCrash);
+  }
+
   // Copy
   toolbar.appendChild(createBtn("📋 Copy", async () => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(LOG_BUFFER, null, 2));
-      const originalText = panel.textContent;
+      await navigator.clipboard.writeText(LOG_BUFFER.join('\n'));
       panel.textContent += "\n[System] Copied to Clipboard!";
       panel.scrollTop = panel.scrollHeight;
       setTimeout(() => alert("Logs Copied!"), 100);
@@ -569,8 +591,10 @@ function ensureLogPanel() {
   toolbar.appendChild(createBtn("🗑️ Clear", () => {
     LOG_BUFFER.length = 0;
     panel.textContent = "";
-    // [NEW] Clear LocalStorage too
-    try { localStorage.removeItem("debug_log_backup"); } catch (e) { }
+    try {
+      localStorage.removeItem('debug_log_backup');
+      localStorage.removeItem('debug_log_backup_ts');
+    } catch (e) { }
   }, "#ff8a80"));
 
   // Upload (DB)
@@ -582,10 +606,24 @@ function ensureLogPanel() {
     btnUpload.style.opacity = "0.7";
     btnUpload.style.cursor = "wait";
 
+    // [v33] Firebase is deferred-loaded. Load it now if not available.
     if (!window.firebase) {
-      alert("Error: Firebase SDK not loaded.");
-      resetBtn();
-      return;
+      btnUpload.textContent = '⏳ Loading Firebase...';
+      try {
+        const loadScript = (src) => new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = src; s.onload = res;
+          s.onerror = () => rej(new Error('Failed: ' + src));
+          document.head.appendChild(s);
+        });
+        await loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
+        await loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js');
+        await loadScript('./js/firebase-config.js');
+      } catch (loadErr) {
+        alert('Firebase load failed: ' + loadErr.message);
+        resetBtn();
+        return;
+      }
     }
 
     try {
@@ -701,6 +739,24 @@ if (panel) {
 // Old code rebuilt 225KB string on EVERY log call.
 let _logDirty = false;
 let _logFlushTimer = null;
+
+// [CRASH RECOVERY] Throttled localStorage save — survives iOS Jetsam process kill.
+// Saves last 400 log lines every 2 seconds. Readable on next page load via 🔴 Crash Log button.
+const _LS_LOG_KEY = 'debug_log_backup';
+const _LS_LOG_TS_KEY = 'debug_log_backup_ts';
+let _crashSavePending = false;
+function _scheduleCrashLogSave() {
+  if (_crashSavePending) return;
+  _crashSavePending = true;
+  setTimeout(() => {
+    _crashSavePending = false;
+    try {
+      localStorage.setItem(_LS_LOG_KEY, JSON.stringify(LOG_BUFFER.slice(-400)));
+      localStorage.setItem(_LS_LOG_TS_KEY, Date.now().toString());
+    } catch (e) { /* localStorage full or unavailable — non-critical */ }
+  }, 2000);
+}
+
 function pushLog(line) {
   if (!panel) return;
   LOG_BUFFER.push(line);
@@ -713,6 +769,7 @@ function pushLog(line) {
       panel.scrollTop = panel.scrollHeight;
     }, 250);
   }
+  _scheduleCrashLogSave(); // [CRASH RECOVERY] persist to localStorage
 }
 
 function logBase(level, tag, msg, data) {
