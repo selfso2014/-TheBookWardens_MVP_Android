@@ -568,15 +568,16 @@ export class GazeDataManager {
 
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
-        } finally {
-            // [FIX-v29] goOffline() — 업로드 성공/실패 무관 WebSocket 즉시 종료.
-            // Firebase SDK는 연결 실패 시 내부적으로 재연결을 반복하며
-            // 매 재연결마다 addEventListener × 4 → LSN 폭발 → iOS OOM Kill.
-            // goOffline()으로 WebSocket을 명시적으로 닫아 재연결 루프를 원천 차단.
+            // [FIX-v32] goOffline()은 실패 시에만 호출.
+            // LSN 폭발 원인은 "실패한 재연결 루프"이지 "성공한 연결"이 아님.
+            // 성공 시 연결을 끊으면 다음 uploadToCloud() 호출 시 매번 재연결 필요.
+            // 실패 시에만 goOffline()으로 재연결 루프를 차단한다.
             if (db) {
                 try { db.goOffline(); } catch (_) { }
             }
         }
+        // [FIX-v32] finally 블록에서 goOffline() 제거:
+        //   성공한 연결은 계속 유지 → 디버그 버튼이 어느 화면에서든 즉시 동작
     }
 
     async exportChartImage(deviceType, startTime = 0, endTime = Infinity) {
