@@ -1647,16 +1647,26 @@ window.startEyeTracking = boot;
 
 // ---------- SeeSo Tracking On/Off Control ----------
 /**
- * [iOS OOM Fix] 읽기 구간 = SDK ON / replay·전투 구간 = SDK OFF
+ * [v33 - Gate-Only Architecture]
  *
- * 새 SDK (v2.5.2): stopTracking() 후 같은 mediaStream으로 startTracking() 재시작 가능.
- * → WASM Worker 종료 → SAB(~150MB) 해제 → iOS OOM 방지
+ * 핵심 변경: WASM stop/start 사이클 제거.
  *
- * OFF: gaze replay 시작 시 (game.js:setSeesoTracking(false))
- * ON:  다음 읽기 구간 시작 직전 (game.js:setSeesoTracking(true))
+ * 이전 방식 (v32):
+ *   OFF → seeso.stopTracking() : WASM 종료 (메모리 해제)
+ *   ON  → seeso.startTracking(): WASM 재로드 (+190MB 스파이크)
+ *   문제: 전환 시 0MB→190MB 스파이크 → iOS Jetsam 유발
+ *
+ * 새 방식 (v33):
+ *   OFF → _gazeActive = false 만 설정 (게이트 닫힘)
+ *   ON  → _gazeActive = true  만 설정 (게이트 열림)
+ *   WASM은 세션 내내 단 한 번만 로드하여 190MB 안정 상주.
+ *   스파이크 없음 → 기기별 크래시 편차 제거.
+ *
+ * OFF (game.js:setSeesoTracking(false)): replay·전투 구간 — 데이터 수집 안 함
+ * ON  (game.js:setSeesoTracking(true)):  읽기 구간 — 데이터 수집 재개
  */
 window._gazeActive = true;
-window._seesoSdkOn = true; // SDK 실제 실행 상태
+window._seesoSdkOn = true;
 
 window.setSeesoTracking = function (on, reason) {
   if (window._seesoSdkOn === on) {
@@ -1670,77 +1680,13 @@ window.setSeesoTracking = function (on, reason) {
     : 'N/A';
 
   if (!on) {
-    // ── SDK OFF: stopTracking → WASM → 메모리 해제 ──
-    window._gazeActive = false; // Close gate immediately
-    try {
-      if (seeso) {
-        seeso.stopTracking();
-        logI('seeso', `[Gate] CLOSED← SDK stopTracking() | reason: ${reason} | heap: ${heapMB}`);
-      }
-    } catch (e) {
-      logW('seeso', '[Gate] stopTracking() threw:', e);
-    }
+    // ── GATE CLOSE: 데이터 수집 중단. WASM은 계속 실행 ──
+    window._gazeActive = false;
+    logI('seeso', `[Gate v33] CLOSED ← gate only, WASM stays on | reason: ${reason} | heap: ${heapMB}`);
   } else {
-    // ── SDK ON: startTracking() 완료 후에만 gaze gate 열기 ──
-    // [FIX #2] _gazeActive=false 유지, startTracking.then() 내부에서만 true로 설정.
-    // 이전: setSeesoTracking(true) 호출 즉시 _gazeActive=true → SDK 미준비 상태에서 gaze 처리 시작.
-    // 수정: SDK startTracking이 ok=true를 반환한 후에만 gate 개방.
-    window._gazeActive = false; // [FIX] Keep closed until SDK is actually ready
-
-    const attemptStart = (retriesLeft) => {
-      if (!seeso || !_onGazeCb || !_onDebugCb) {
-        logW('seeso', `[Gate] Cannot restart SDK — seeso=${!!seeso} cb=${!!_onGazeCb}`);
-        // Fallback: open gate anyway so game doesn't freeze, but gaze won't be processed
-        window._gazeActive = true;
-        return;
-      }
-
-      seeso.startTracking(_onGazeCb, _onDebugCb) // NO existingStream → fresh camera
-        .then((ok) => {
-          logI('seeso', `[Gate] OPEN  ← SDK startTracking() ok=${ok} retries_left=${retriesLeft} | reason: ${reason} | heap: ${heapMB}`);
-          if (ok) {
-            // 새 스트림으로 mediaStream 참조 업데이트
-            mediaStream = seeso.stream || mediaStream;
-            if (els && els.video && mediaStream) {
-              els.video.srcObject = mediaStream;
-            }
-            // [SAFARI FIX] 재시작 시 새 imageCapture 인스턴스 생성 → 패치 재적용
-            const rawSeeso = seeso?.seeso;
-            if (rawSeeso) patchSdkImageCapture(rawSeeso);
-
-            // [FIX #2] SDK 준비 확인 후 gate 개방
-            window._gazeActive = true;
-            logI('seeso', '[Gate] _gazeActive = true (SDK confirmed ready)');
-          } else {
-            logW('seeso', `[Gate] startTracking() returned false (retriesLeft=${retriesLeft})`);
-            if (retriesLeft > 0) {
-              logW('seeso', `[Gate] Retrying startTracking in 1s... (${retriesLeft} left)`);
-              setTimeout(() => attemptStart(retriesLeft - 1), 1000);
-            } else {
-              // 재시도 실패: gate 강제 개방 (gaze 없어도 게임은 진행되도록)
-              logW('seeso', '[Gate] All retries failed. Opening gate anyway (no-gaze fallback).');
-              window._gazeActive = true;
-            }
-          }
-        })
-        .catch((e) => {
-          logW('seeso', '[Gate] startTracking() threw:', e);
-          if (retriesLeft > 0) {
-            logW('seeso', `[Gate] Retrying after error in 1s... (${retriesLeft} left)`);
-            setTimeout(() => attemptStart(retriesLeft - 1), 1000);
-          } else {
-            logW('seeso', '[Gate] All retries exhausted. Opening gate (no-gaze fallback).');
-            window._gazeActive = true;
-          }
-        });
-    };
-
-    try {
-      attemptStart(3); // 최대 3회 재시도
-    } catch (e) {
-      logW('seeso', '[Gate] restart threw:', e);
-      window._gazeActive = true; // Fallback
-    }
+    // ── GATE OPEN: 데이터 수집 재개. WASM은 이미 실행 중 ──
+    window._gazeActive = true;
+    logI('seeso', `[Gate v33] OPEN ← gate only, WASM was always on | reason: ${reason} | heap: ${heapMB}`);
   }
 };
 
