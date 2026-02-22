@@ -40,10 +40,14 @@
   <link rel="stylesheet" href="./css/loading-modal.css" />
 
 
-  <!-- Firebase SDK (Compat) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="./js/firebase-config.js"></script>
+  <!-- Firebase SDK: [v33] Deferred load — NOT loaded at page start.
+       Reason: Firebase SDK creates WebSocket connections immediately on load.
+       On iOS Chrome (iPhone 15 Pro), failed connections retry in a loop
+       adding ~5 EventListeners/sec (LSN explosion) → combined with WASM
+       190MB this pushes the WebContent process over the iOS jetsam limit.
+       Fix: Load Firebase SDK dynamically ONLY when user clicks "Claim Reward".
+       See: game.js loadFirebaseSDK() -->
+  <!-- firebase-app.js, firebase-database.js, firebase-config.js → deferred -->
 
   <script src="./coi-serviceworker.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

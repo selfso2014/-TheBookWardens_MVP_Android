@@ -11,6 +11,35 @@ import { VocabManager } from './managers/VocabManager.js?v=FINAL_FIX_NOW';
 import { UIManager } from './core/UIManager.js?v=FINAL_FIX_NOW';
 import { GameLogic } from './core/GameLogic.js?v=FINAL_FIX_NOW';
 import { DOMManager } from './core/DOMManager.js?v=FINAL_FIX_NOW';
+
+// ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
+// [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
+// It is loaded here on demand — only when the user clicks "Claim Reward".
+// Reason: Firebase SDK creates WebSocket connections immediately on load.
+// On iPhone 15 Pro Chrome (iOS 18), failed connections create a retry loop
+// adding ~5 EventListeners/sec → LSN explosion → pushes WebContent over jetsam limit.
+let _firebaseLoading = null;
+function loadFirebaseSDK() {
+    if (typeof firebase !== 'undefined') return Promise.resolve();
+    if (_firebaseLoading) return _firebaseLoading;
+
+    const loadScript = (src) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load: ' + src));
+        document.head.appendChild(s);
+    });
+
+    _firebaseLoading = loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js')
+        .then(() => loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'))
+        .then(() => loadScript('./js/firebase-config.js'))
+        .then(() => { console.log('[Firebase] SDK dynamically loaded on demand.'); })
+        .catch((e) => { _firebaseLoading = null; throw e; });
+
+    return _firebaseLoading;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 const Game = {
     // Initialized in init()
     scoreManager: null,
@@ -661,7 +690,7 @@ const Game = {
             const newBtn = btnClaim.cloneNode(true);
             if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
 
-            newBtn.onclick = () => {
+            newBtn.onclick = async () => {
                 const email = emailInput ? emailInput.value.trim() : "";
 
                 if (!email || !email.includes("@")) {
@@ -669,10 +698,18 @@ const Game = {
                     return;
                 }
 
-                // 1. Initialize Firebase if needed
+                // 1. Load Firebase SDK on demand (deferred from page load)
                 if (typeof firebase === "undefined") {
-                    alert("System Error: Firebase SDK not loaded.");
-                    return;
+                    newBtn.innerText = "⏳ CONNECTING...";
+                    try {
+                        await loadFirebaseSDK();
+                    } catch (e) {
+                        console.error("[Firebase] SDK dynamic load failed:", e);
+                        alert("System Error: Firebase SDK failed to load.");
+                        newBtn.disabled = false;
+                        newBtn.innerText = "CLAIM REWARD";
+                        return;
+                    }
                 }
 
                 if (!firebase.apps.length) {
