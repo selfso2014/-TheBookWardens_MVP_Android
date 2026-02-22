@@ -1515,7 +1515,7 @@ Game.typewriter = {
         // Previous code bypassed clearAllResources() + _unmountScreen(), leaving
         // TextRenderer RAFs and intervals alive → accumulated → iOS crash on Final Boss.
         // switchScreen() enforces: UNMOUNT prev → DOM transition → MOUNT next.
-        this.switchScreen('screen-alice-battle');
+        Game.switchScreen('screen-alice-battle');
 
         // Init AliceBattle after a short frame delay (screen needs to layout first)
         setTimeout(() => {
