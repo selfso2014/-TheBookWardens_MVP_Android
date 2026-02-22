@@ -566,6 +566,24 @@ const Game = {
 
         this.switchScreen("screen-new-score");
 
+        // [FIX-v29] Firebase WebSocket Warm-up (Cold-start 방지)
+        // 이전: paragraph replay 시 uploadToCloud() 자동 실행 → WebSocket 미리 연결됨
+        // 현재: 자동 업로드 비활성화 → Claim 버튼 클릭 시 cold-start 21초 타임아웃 발생
+        // 해결: score 화면 진입 시 데이터 전송 없이 WebSocket만 미리 연결 (goOnline)
+        //       사용자가 이메일 입력하는 10~20초 동안 연결 수립 완료
+        //       Claim 버튼 클릭 시 이미 연결된 WebSocket 재사용 → 즉시 성공
+        setTimeout(() => {
+            try {
+                if (window.firebase && window.FIREBASE_CONFIG) {
+                    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+                    firebase.database().goOnline();
+                    console.log('[Firebase] WebSocket warm-up started for score screen.');
+                }
+            } catch (e) {
+                console.warn('[Firebase] Warm-up failed (non-critical):', e.message);
+            }
+        }, 500); // 화면 전환 애니메이션 완료 후 실행
+
         // 2. Reset Animation States (Invisible initially)
         const rowStats = document.getElementById("report-stats-row");
         const rowResources = document.getElementById("report-resource-row");
@@ -695,7 +713,7 @@ const Game = {
                 newBtn.innerText = "⏳ SAVING...";
                 newBtn.style.opacity = "0.7";
 
-                // Use Realtime Database "warden_leads"
+                // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
                 const db = firebase.database();
                 const leadsRef = db.ref("warden_leads");
                 const newLeadRef = leadsRef.push(); // Generate key first
@@ -713,28 +731,26 @@ const Game = {
                 if (window.gazeDataManager) {
                     newBtn.innerText = "⏳ DATA SYNC...";
                     console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
-                    // Upload to separate path 'sessions/{key}' to keep leads light
                     promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
                 }
 
                 Promise.all(promises)
                     .then(() => {
-                        // REPLACED: window.alert -> Custom Modal
+                        // [FIX-v29] 성공 후 WebSocket 즉시 종료 → 재연결 루프 차단
+                        try { db.goOffline(); } catch (_) { }
                         this.showSuccessModal(() => {
-                            // On Confirm action
-                            // Game.switchScreen("screen-new-share"); 
-                            // Or refresh, or whatever the next step is.
-                            // Assuming "screen-new-share" is next based on context.
                             this.goToNewShare();
                         });
-
                         newBtn.innerText = "✅ CLAIMED";
                         newBtn.style.background = "#4CAF50";
                         if (emailInput) emailInput.disabled = true;
                     })
                     .catch((error) => {
+                        // [FIX-v29] 실패 후에도 WebSocket 즉시 종료
+                        try { db.goOffline(); } catch (_) { }
                         console.error("Firebase Save Error:", error);
-                        window.alert("Transmission Failed: " + error.message);
+                        // [FIX] alert() → console.error (iOS alert blocks async + SDK cleanup)
+                        console.error("Transmission Failed: " + error.message);
                         newBtn.disabled = false;
                         newBtn.innerText = originalText;
                         newBtn.style.opacity = "1";

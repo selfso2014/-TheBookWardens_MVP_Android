@@ -514,35 +514,32 @@ export class GazeDataManager {
         }
 
         // console.log(`[Firebase] Syncing session [${sessionId}]...`);
+        let db = null;
         try {
             if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
 
             // 1. Ensure Data is Processed
             this.preprocessData();
 
-            const db = firebase.database();
+            db = firebase.database();
 
             // 2. Upload Metadata (Always update to reflect latest stats)
-            // Use 'update' instead of 'set' to avoid wiping other fields if any
             const metaData = {
                 timestamp: Date.now(),
                 userAgent: navigator.userAgent,
                 lineMetadata: this.lineMetadata,
                 totalSamples: this.data.length,
                 firstContentTime: this.firstContentTime,
-                wpmData: this.wpmData || [] // [NEW] Send WPM Log
+                wpmData: this.wpmData || []
             };
 
-            // A. Full Session Path (Heavy Data Context)
+            // A. Full Session Path
             await db.ref('sessions/' + sessionId + '/meta').set(metaData);
 
-            // B. Lightweight List Path (Fast Retrieval)
-            // Storing metadata separately allows the dashboard to load the list instantly
-            // without downloading the massive gaze data array.
+            // B. Lightweight List Path
             await db.ref('session_list/' + sessionId).set(metaData);
 
             // 3. Incremental Chunk Upload (Memory Safe)
-            // Only upload data that hasn't been uploaded yet
             const startIndex = this.lastUploadedIndex;
             const newData = this.data.slice(startIndex);
 
@@ -555,27 +552,26 @@ export class GazeDataManager {
                     return value;
                 }));
 
-                // Push as a new chunk
                 const chunksRef = db.ref('sessions/' + sessionId + '/chunks');
                 await chunksRef.push(payload);
-
-                // Update Cursor
                 this.lastUploadedIndex = this.data.length;
-            } else {
-                // console.log("[Firebase] Nothing new to upload.");
             }
 
-            // 4. Upload Replay Data (If exists and changed - simplest to just set it)
-            // Replay Data is usually set once per paragraph or updated infrequently.
+            // 4. Upload Replay Data
             if (this.replayData) {
                 await db.ref('sessions/' + sessionId + '/replayData').set(this.replayData);
             }
 
-            // console.log("[Firebase] Sync Complete! ✅");
-
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
-            // Don't alert on background sync fail
+        } finally {
+            // [FIX-v29] goOffline() — 업로드 성공/실패 무관 WebSocket 즉시 종료.
+            // Firebase SDK는 연결 실패 시 내부적으로 재연결을 반복하며
+            // 매 재연결마다 addEventListener × 4 → LSN 폭발 → iOS OOM Kill.
+            // goOffline()으로 WebSocket을 명시적으로 닫아 재연결 루프를 원천 차단.
+            if (db) {
+                try { db.goOffline(); } catch (_) { }
+            }
         }
     }
 
