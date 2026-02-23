@@ -743,10 +743,10 @@ const panel = ensureLogPanel();
 
 // ── BUILD VERSION BANNER ──────────────────────────────────────────────────────
 // 로그 수집 시 어느 빌드인지 즉시 식별
-const BUILD_VERSION = 'v34';
-const BUILD_TAG = 'CalDelay800ms_GCDelay3300ms_LogSave500ms';
-const BUILD_COMMIT = '53b30d1';
-const BUILD_DATE = '2026-02-23 09:07 KST';
+const BUILD_VERSION = 'v35';
+const BUILD_TAG = 'WASMSkip_Replay+Boss';
+const BUILD_COMMIT = 'pending';
+const BUILD_DATE = '2026-02-23 09:21 KST';
 const BUILD_BANNER = `[BUILD] ${BUILD_VERSION} | ${BUILD_TAG} | ${BUILD_COMMIT} | ${BUILD_DATE}`;
 // Panel에 즉시 삽입 (logBase 정의 이전이므로 직접 push)
 if (panel) {
@@ -1492,6 +1492,13 @@ function startTracking() {
           _pfLastLog = now;
           logI("diag", `processFrame_ call #${_pfCallCount} | track.readyState=${rawSeeso.track?.readyState} muted=${rawSeeso.track?.muted} enabled=${rawSeeso.track?.enabled}`);
         }
+
+        // [FIX-iPhone15Pro] Skip WASM processing during Replay + Boss phases.
+        // setSeesoTracking(false)=gate blocks gaze callbacks but WASM still runs at 30fps.
+        // During Replay(3s)+Boss(3s) = 180 wasted frames of GPU memory pressure.
+        // _sdkFrameSkip=true tells processFrame_ to return early without WASM computation.
+        if (window._sdkFrameSkip) return;
+
         try {
           const result = await _origPF(imageCapture);
           return result;

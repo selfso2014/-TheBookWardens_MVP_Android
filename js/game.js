@@ -1185,6 +1185,12 @@ Game.typewriter = {
                 window.setSeesoTracking(false, 'gaze replay start');
             }
 
+            // [FIX-iPhone15Pro] Also skip WASM processFrame_ during replay+boss.
+            // Gate (above) blocks gaze callbacks but WASM still fires at 30fps.
+            // Setting _sdkFrameSkip=true halts all WASM processing until next paragraph.
+            window._sdkFrameSkip = true;
+            console.log('[FIX] _sdkFrameSkip=true: WASM halted during replay+boss');
+
             // [DISABLED-iOS] Background Firebase upload during gaze replay REMOVED.
             // Firebase WebSocket 초기화(addEventListener × 4+)가 iPhone Air에서
             // LSN 폭발(29→79)을 유발 → iOS WebContent OOM Kill → 크래시.
@@ -1264,6 +1270,12 @@ Game.typewriter = {
                     if (gdm && typeof gdm.clearGazeData === 'function') {
                         gdm.clearGazeData();
                     }
+
+                    // [FIX-iPhone15Pro] Restore WASM processing before next paragraph.
+                    // _sdkFrameSkip was set true at replay start. Clear it here after replay+boss
+                    // finishes so processFrame_ resumes for Para N reading.
+                    window._sdkFrameSkip = false;
+                    console.log('[FIX] _sdkFrameSkip=false: WASM resumed for next paragraph');
 
                     resolve();
                 });
