@@ -85,22 +85,35 @@ export class CalibrationManager {
     }
 
     updateFaceCheckUI(isTracking) {
-        const indicator = document.getElementById("face-check-indicator");
-        const statusEl = document.getElementById("face-check-status");
-        const btnNext = document.getElementById("btn-face-next");
+        const icon = document.getElementById("face-guide-icon");
+        const status = document.getElementById("face-check-status");
+        const btn = document.getElementById("btn-face-next");
+        const frame = document.querySelector(".face-frame");
 
-        if (indicator) {
-            indicator.style.borderColor = isTracking ? "#00ff00" : "#ff4444";
-        }
-        if (statusEl) {
-            statusEl.textContent = isTracking
-                ? "Face detected! Press Next to continue."
-                : "Please position your face in the camera.";
-            statusEl.style.color = isTracking ? "#00ff00" : "#ffaa00";
-        }
-        if (btnNext) {
-            btnNext.disabled = !isTracking;
-            btnNext.style.opacity = isTracking ? "1" : "0.4";
+        if (isTracking) {
+            if (icon) icon.style.opacity = "1";
+            if (status) {
+                status.textContent = "Perfect! Hold this position.";
+                status.style.color = "#00ff00";
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+            }
+            if (frame) frame.style.borderColor = "#00ff00";
+        } else {
+            if (icon) icon.style.opacity = "0";
+            if (status) {
+                status.textContent = "Face not detected...";
+                status.style.color = "#aaa";
+            }
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = "0.5";
+                btn.style.cursor = "not-allowed";
+            }
+            if (frame) frame.style.borderColor = "rgba(255, 255, 255, 0.3)";
         }
     }
 
