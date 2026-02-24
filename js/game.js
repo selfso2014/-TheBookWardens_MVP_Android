@@ -595,6 +595,9 @@ const Game = {
         const finalGem = (scoreData && scoreData.gem !== undefined) ? scoreData.gem : this.state.gems;
         let finalWPM = (scoreData && scoreData.wpm !== undefined) ? scoreData.wpm : (this.state.wpmDisplay || 180);
 
+        // 정수화: scoreManager.wpmDisplay는 EMA 스무딩으로 소수점이 발생할 수 있음
+        finalWPM = Math.round(finalWPM);
+
         // Sanity Check for WPM
         if (finalWPM < 50) finalWPM = 150 + Math.floor(Math.random() * 100);
 

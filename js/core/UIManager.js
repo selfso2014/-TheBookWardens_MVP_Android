@@ -129,7 +129,8 @@ export class UIManager {
                     // [FIX] Force-write the exact final value.
                     // The 60fps gate (line 117) may have skipped the last DOM update,
                     // leaving Math.floor(ease * range) = end-1 instead of end.
-                    obj.innerText = prefix + end.toLocaleString() + suffix;
+                    // Math.round 으로 정수화하여 소수점 미표시.
+                    obj.innerText = prefix + Math.round(end).toLocaleString() + suffix;
                     this._animRafs = this._animRafs.filter(r => r !== rafId);
                 }
             };
