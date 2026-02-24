@@ -7,6 +7,7 @@
     <title>Cloud Log Viewer - The Book Wardens</title>
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,12 +21,94 @@
             padding: 20px;
         }
 
+        /* ── Login Screen ── */
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            gap: 16px;
+        }
+
+        #login-screen h2 {
+            color: #bb86fc;
+            margin-bottom: 8px;
+        }
+
+        #login-screen input {
+            width: 280px;
+            padding: 12px 16px;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        #login-screen button {
+            width: 316px;
+            padding: 13px;
+            background: #bb86fc;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        #login-screen button:hover {
+            background: #d0a8ff;
+        }
+
+        #login-error {
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+
+        /* ── Main App ── */
+        #app-screen {
+            display: none;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .top-bar h1 {
+            margin: 0;
+            font-size: 1.3rem;
+            color: #bb86fc;
+        }
+
+        .top-bar .user-info {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        #btn-logout {
+            padding: 6px 14px;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        #btn-logout:hover {
+            background: #444;
+        }
+
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
             display: flex;
             gap: 20px;
-            height: 95vh;
+            height: 88vh;
         }
 
         /* Left Sidebar: Session List */
@@ -143,68 +226,133 @@
 
 <body>
 
-    <div class="container">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2>Sessions</h2>
-                <button onclick="loadSessions()"
-                    style="cursor:pointer; background:none; border:none; color:#bb86fc;">↻</button>
+    <!-- ── Login Screen ── -->
+    <div id="login-screen">
+        <h2>🔐 Admin Login</h2>
+        <p style="color:#aaa; margin:0;">The Book Wardens — Log Viewer</p>
+        <input type="email" id="admin-email" placeholder="Admin Email" autocomplete="email">
+        <input type="password" id="admin-password" placeholder="Password" autocomplete="current-password">
+        <button id="btn-login">Sign In</button>
+        <div id="login-error"></div>
+    </div>
+
+    <!-- ── Main App (shown after login) ── -->
+    <div id="app-screen">
+        <div class="top-bar">
+            <h1>📊 Cloud Log Viewer</h1>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span class="user-info" id="logged-in-email"></span>
+                <button id="btn-logout">Sign Out</button>
             </div>
-            <div id="sessionList">Loading...</div>
         </div>
 
-        <!-- Main -->
-        <div class="main">
-            <div id="metadata" style="background:#252525; padding:10px; border-radius:8px; display:none;">
-                <h3 style="margin:0 0 5px 0;">Session Details</h3>
-                <div id="meta-content" style="font-size:0.9rem; color:#aaa;"></div>
+        <div class="container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Sessions</h2>
+                    <button onclick="loadSessions()"
+                        style="cursor:pointer; background:none; border:none; color:#bb86fc;">↻</button>
+                </div>
+                <div id="sessionList">Loading...</div>
             </div>
 
-            <div class="chart-card">
-                <div class="chart-header">
-                    <span>Performance Metrics (RAF & Listeners)</span>
-                    <span style="color:#cf6679; font-size:0.8rem;">Critical: RAF > 2 or LSN > 60</span>
+            <!-- Main -->
+            <div class="main">
+                <div id="metadata" style="background:#252525; padding:10px; border-radius:8px; display:none;">
+                    <h3 style="margin:0 0 5px 0;">Session Details</h3>
+                    <div id="meta-content" style="font-size:0.9rem; color:#aaa;"></div>
                 </div>
-                <div style="height: 200px; position: relative;">
-                    <canvas id="perfChart"></canvas>
-                </div>
-            </div>
 
-            <div class="log-box" id="logContent">Select a session to view logs...</div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span>Performance Metrics (RAF & Listeners)</span>
+                        <span style="color:#cf6679; font-size:0.8rem;">Critical: RAF > 2 or LSN > 60</span>
+                    </div>
+                    <div style="height: 200px; position: relative;">
+                        <canvas id="perfChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="log-box" id="logContent">Select a session to view logs...</div>
+            </div>
         </div>
     </div>
 
     <script>
-        // Init Firebase
+        // ── Firebase Init ──────────────────────────────────────────────────────
         if (!firebase.apps.length) {
             firebase.initializeApp(window.FIREBASE_CONFIG);
         }
+        const auth = firebase.auth();
         const db = firebase.database();
         let chartInstance = null;
 
-        // Load Session List
+        // ── Auth State Observer ───────────────────────────────────────────────
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Logged in → show app
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                document.getElementById('logged-in-email').textContent = user.email;
+                loadSessions();
+            } else {
+                // Not logged in → show login
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app-screen').style.display = 'none';
+            }
+        });
+
+        // ── Login ─────────────────────────────────────────────────────────────
+        document.getElementById('btn-login').onclick = async () => {
+            const email = document.getElementById('admin-email').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const errEl = document.getElementById('login-error');
+            errEl.textContent = '';
+
+            if (!email || !password) {
+                errEl.textContent = 'Please enter email and password.';
+                return;
+            }
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                // onAuthStateChanged will handle the rest
+            } catch (e) {
+                errEl.textContent = '❌ ' + e.message;
+            }
+        };
+
+        // Enter key on password field triggers login
+        document.getElementById('admin-password').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('btn-login').click();
+        });
+
+        // ── Logout ────────────────────────────────────────────────────────────
+        document.getElementById('btn-logout').onclick = () => auth.signOut();
+
+        // ── Load Session List ─────────────────────────────────────────────────
         function loadSessions() {
             const listEl = document.getElementById('sessionList');
-            listEl.innerHTML = "Fetching...";
+            listEl.innerHTML = 'Fetching...';
 
-            // Limit to last 20
             db.ref('logs').orderByKey().limitToLast(20).once('value', snapshot => {
                 const data = snapshot.val();
                 if (!data) {
-                    listEl.innerHTML = "No sessions found.";
+                    listEl.innerHTML = 'No sessions found.';
                     return;
                 }
 
                 const keys = Object.keys(data).reverse(); // Newest first
-                listEl.innerHTML = "";
+                listEl.innerHTML = '';
 
                 keys.forEach(key => {
                     const session = data[key];
                     const div = document.createElement('div');
                     div.className = 'session-item';
 
-                    const date = session.timestamp ? new Date(session.timestamp).toLocaleString() : key.replace('session_', '');
+                    const date = session.timestamp
+                        ? new Date(session.timestamp).toLocaleString()
+                        : key.replace('session_', '');
                     const isIOS = session.ua && (session.ua.includes('iPhone') || session.ua.includes('iPad'));
 
                     div.innerHTML = `
@@ -217,46 +365,38 @@
                     div.onclick = () => loadSessionDetail(key, div);
                     listEl.appendChild(div);
                 });
+            }, err => {
+                listEl.innerHTML = `<p style="color:red;">Read failed: ${err.message}</p>`;
             });
         }
 
-        // Parse Logs
+        // ── Parse Logs ────────────────────────────────────────────────────────
         function parseLogs(logs) {
-            // Regex for [Meter] log
-            // Format: [21:40:05] [log] [Meter] RAF:0 | LSN:27 | BUF:?
-            // Captures: Time, RAF, LSN
             const regex = /\[(\d{2}:\d{2}:\d{2}\.\d{3})\].*\[Meter\].*RAF:(\d+).*LSN:(\d+)/;
-
-            const timePoints = [];
-            const rafCounts = [];
-            const lsnCounts = [];
+            const timePoints = [], rafCounts = [], lsnCounts = [];
 
             logs.forEach(line => {
                 const match = line.match(regex);
                 if (match) {
-                    timePoints.push(match[1]); // Time
-                    rafCounts.push(parseInt(match[2], 10)); // RAF
-                    lsnCounts.push(parseInt(match[3], 10)); // LSN
+                    timePoints.push(match[1]);
+                    rafCounts.push(parseInt(match[2], 10));
+                    lsnCounts.push(parseInt(match[3], 10));
                 }
             });
 
             return { timePoints, rafCounts, lsnCounts };
         }
 
-        // Load & Visualize Session
+        // ── Load Session Detail ───────────────────────────────────────────────
         async function loadSessionDetail(sessionId, el) {
-            // Highlight active
             document.querySelectorAll('.session-item').forEach(e => e.classList.remove('active'));
             el.classList.add('active');
-
-            document.getElementById('logContent').textContent = "Loading logs...";
+            document.getElementById('logContent').textContent = 'Loading logs...';
 
             const snapshot = await db.ref('logs/' + sessionId).once('value');
             const data = snapshot.val();
-
             if (!data) return;
 
-            // Meta
             document.getElementById('metadata').style.display = 'block';
             document.getElementById('meta-content').innerHTML = `
                 <strong>User Agent:</strong> ${data.ua}<br>
@@ -264,23 +404,15 @@
                 <strong>Log Lines:</strong> ${data.logs ? data.logs.length : 0}
             `;
 
-            // Logs text
-            const logText = Array.isArray(data.logs) ? data.logs.join('\n') : "No logs array found.";
+            const logText = Array.isArray(data.logs) ? data.logs.join('\n') : 'No logs array found.';
             document.getElementById('logContent').textContent = logText;
 
-            // Parse & Chart
-            if (Array.isArray(data.logs)) {
-                const parsed = parseLogs(data.logs);
-                renderChart(parsed);
-
-                // Highlight Critical Errors in Log View
-                // TODO: simple syntax highlighting?
-            }
+            if (Array.isArray(data.logs)) renderChart(parseLogs(data.logs));
         }
 
+        // ── Render Chart ──────────────────────────────────────────────────────
         function renderChart(data) {
             const ctx = document.getElementById('perfChart').getContext('2d');
-
             if (chartInstance) chartInstance.destroy();
 
             chartInstance = new Chart(ctx, {
@@ -318,7 +450,7 @@
                             type: 'linear', display: true, position: 'left',
                             title: { display: true, text: 'RAF Count', color: '#ff4444' },
                             grid: { color: '#333' },
-                            ticks: { color: '#ff4444', stepSize: 1 } // RAF is integer
+                            ticks: { color: '#ff4444', stepSize: 1 }
                         },
                         y1: {
                             type: 'linear', display: true, position: 'right',
@@ -327,16 +459,10 @@
                             ticks: { color: '#00e5ff' }
                         }
                     },
-                    plugins: {
-                        legend: { labels: { color: '#fff' } }
-                    }
+                    plugins: { legend: { labels: { color: '#fff' } } }
                 }
             });
         }
-
-        // Init load
-        loadSessions();
-
     </script>
 </body>
 
