@@ -123,16 +123,14 @@ export class GameLogic {
         this.game.switchScreen("screen-owl");
         if (typeof window.setGazeDotState === "function") window.setGazeDotState(false);
 
-        // ── D: 3-second auto-advance ──────────────────────────────────
-        const DURATION_MS = 3000;
+        // ── D: 10-second auto-advance ──────────────────────────────────
+        const DURATION_MS = 10000;
         let _advanced = false;
-        let _t1, _t2, _autoTimer;
+        let _autoTimer;
 
         const advance = () => {
             if (_advanced) return;
             _advanced = true;
-            clearTimeout(_t1);
-            clearTimeout(_t2);
             clearTimeout(_autoTimer);
             // Stop progress bar where it is
             if (bar) { bar.style.transition = 'none'; }
@@ -148,17 +146,8 @@ export class GameLogic {
             });
         }
 
-        // Countdown label: 3 → 2 → 1
-        const numEl = document.getElementById('owl-countdown-num');
-        let remaining = 3;
-        const tick = () => {
-            remaining--;
-            if (numEl) numEl.textContent = remaining;
-        };
-        _t1 = setTimeout(tick, 1000);
-        _t2 = setTimeout(tick, 2000);
-
-        // Auto-advance at 3s
+        // Countdown label: 제거됨 (HTML에서 owl-countdown-label 삭제)
+        // Auto-advance at 10s
         _autoTimer = setTimeout(advance, DURATION_MS);
 
         // Tap-to-skip: DOMManager already bound btn-owl-start → startReadingFromOwl()
