@@ -65,6 +65,15 @@ export class VocabManager {
                 // Use Game proxy or direct manager call if exposed
                 // Assuming Game.checkVocab proxies to this manager
                 btn.onclick = (e) => this.game.checkVocab(idx, e);
+
+                // [iOS Fix] Sticky-hover 방어:
+                // iOS WebKit은 터치 후 :hover 상태가 고착되어 연한 보라색이 잔류함.
+                // touchstart 직후 blur()를 호출하면 브라우저가 hover 상태를 해제함.
+                btn.addEventListener('touchstart', () => {
+                    // requestAnimationFrame 으로 클릭 이벤트가 먼저 처리된 뒤 blur 실행
+                    requestAnimationFrame(() => btn.blur());
+                }, { passive: true });
+
                 optionsDiv.appendChild(btn);
             });
         }

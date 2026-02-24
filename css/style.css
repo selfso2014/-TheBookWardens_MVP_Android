@@ -344,7 +344,17 @@ body {
   cursor: pointer;
 }
 
-.option-btn:hover,
+/* [iOS Fix] hover와 selected 분리.
+   @media(hover:hover) = 실제 마우스/트랙패드 기기에서만 :hover 활성화.
+   iOS·Android 터치 기기는 hover:none 이므로 sticky-hover 고착 현상 원천 차단. */
+@media (hover: hover) {
+  .option-btn:hover {
+    background: rgba(139, 47, 201, 0.3);
+    border-color: var(--primary-accent);
+  }
+}
+
+/* selected 상태는 JS가 직접 클래스를 붙이므로 미디어쿼리 없이 항상 적용 */
 .option-btn.selected {
   background: rgba(139, 47, 201, 0.3);
   border-color: var(--primary-accent);
