@@ -160,7 +160,13 @@ export class IntroManager {
             return;
         }
 
-        // 2. Go to Home Screen (Lobby)
+        // 2. [DEVICE CHECK] Only Android smartphones are supported.
+        if (!this.isAndroidPhone()) {
+            this.showUnsupportedDeviceOverlay();
+            return;
+        }
+
+        // 3. Go to Home Screen (Lobby)
         console.log("[IntroManager] Dismissing Splash -> Home Screen");
         this.game.switchScreen("screen-home");
 
@@ -322,6 +328,106 @@ export class IntroManager {
             /Twitter/i.test(ua) ||
             /DaumApps/i.test(ua)
         );
+    }
+
+    /**
+     * Returns true only if the user is on an Android smartphone.
+     * Tablets (Android tablet UA typically lacks "Mobile") are excluded.
+     */
+    isAndroidPhone() {
+        const ua = navigator.userAgent || '';
+        return /Android/i.test(ua) && /Mobile/i.test(ua);
+    }
+
+    /**
+     * Show a full-screen overlay informing the user that this device is not supported.
+     * Only Android smartphones are supported.
+     */
+    showUnsupportedDeviceOverlay() {
+        // Prevent duplicate overlays
+        if (document.getElementById('unsupported-device-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'unsupported-device-overlay';
+        overlay.style.cssText = [
+            'position:fixed', 'top:0', 'left:0', 'width:100%', 'height:100%',
+            'z-index:999999',
+            'background:linear-gradient(145deg,#0a0010 0%,#1a0030 60%,#0a0015 100%)',
+            'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
+            'padding:32px', 'box-sizing:border-box',
+            'text-align:center', 'color:#fff',
+            'font-family:\'Outfit\',\'Inter\',sans-serif',
+            'animation:fadeInOverlay 0.4s ease-out both'
+        ].join(';');
+
+        // Inject keyframe animation once
+        if (!document.getElementById('unsupported-style')) {
+            const style = document.createElement('style');
+            style.id = 'unsupported-style';
+            style.textContent = `
+                @keyframes fadeInOverlay {
+                    from { opacity: 0; transform: scale(0.96); }
+                    to   { opacity: 1; transform: scale(1); }
+                }
+                @keyframes floatIcon {
+                    0%,100% { transform: translateY(0px); }
+                    50%     { transform: translateY(-10px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        overlay.innerHTML = `
+            <div style="font-size:4.5rem;animation:floatIcon 2.8s ease-in-out infinite;margin-bottom:24px;">📵</div>
+            <h1 style="
+                font-family:'Cinzel',serif;
+                font-size:1.6rem;
+                font-weight:700;
+                color:#c084ff;
+                text-shadow:0 0 20px rgba(180,0,255,0.7);
+                margin:0 0 16px 0;
+                letter-spacing:2px;
+            ">Device Not Supported</h1>
+            <p style="
+                font-size:1.05rem;
+                line-height:1.7;
+                color:#ccc;
+                max-width:320px;
+                margin:0 0 12px 0;
+            ">
+                This experience is designed exclusively for
+                <strong style="color:#a855f7;">Android smartphones</strong>.
+            </p>
+            <p style="
+                font-size:0.95rem;
+                line-height:1.6;
+                color:#999;
+                max-width:300px;
+                margin:0 0 36px 0;
+            ">
+                To play <em style="color:#e2c8ff;">The Book Wardens</em>,
+                please open this link on your Android phone
+                using Chrome or your default browser.
+            </p>
+            <div style="
+                background:rgba(168,85,247,0.12);
+                border:1px solid rgba(168,85,247,0.4);
+                border-radius:14px;
+                padding:16px 24px;
+                max-width:300px;
+                width:100%;
+            ">
+                <p style="margin:0;font-size:0.85rem;color:#a855f7;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
+                    📱 Android Phone Required
+                </p>
+                <p style="margin:8px 0 0 0;font-size:0.8rem;color:#888;">
+                    Eye-tracking technology is only available<br>on Android devices.
+                </p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        console.log('[IntroManager] Unsupported device — overlay shown. UA:', navigator.userAgent);
     }
 
     openSystemBrowser() {
