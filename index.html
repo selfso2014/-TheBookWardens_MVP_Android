@@ -701,17 +701,23 @@
     </section>
 
     <!-- SCREEN 3: BOSS BATTLE (Comprehension) -->
-    <section id="screen-boss" class="screen">
+    <section id="screen-boss" class="screen"
+      style="background: radial-gradient(circle at center, #1a0030 0%, #0a000f 100%); color: #fff; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center;">
       <img src="./ink_shadow_boss.png" class="villain-img" alt="The Ink Shadow"
-        style="width: 200px; margin-bottom: 20px;">
-      <div class="boss-dialogue">
-        <h3 style="margin: 0 0 10px 0; color: #f00;">The Ink Shadow asks:</h3>
-        <p id="boss-question">"Why did Alice follow the Rabbit?"</p>
+        style="width: 180px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(180,0,255,0.6));">
+      <div class="boss-dialogue"
+        style="background: rgba(255,255,255,0.06); border: 1px solid rgba(200,0,255,0.3); border-radius: 12px; padding: 16px 20px; max-width: 480px; width: 90%; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 10px 0; color: #ff6666; font-family: 'Cinzel', serif; font-size: 1rem;">⚡ The Ink Shadow
+          asks:</h3>
+        <p id="boss-question" style="color: #f0f0f0; font-size: 1.1rem; line-height: 1.5; margin: 0;">"Why did Alice
+          follow the Rabbit?"</p>
       </div>
-      <div id="boss-options" class="quiz-options" style="width: 100%; max-width: 500px; margin-top: 20px;">
+      <div id="boss-options" class="quiz-options"
+        style="width: 90%; max-width: 480px; display: flex; flex-direction: column; gap: 10px;">
         <!-- Options will be injected -->
       </div>
     </section>
+
 
     <!-- SCREEN 3.5: FINAL BOSS (Comprehension Challenge) -> REPLACED WITH ALICE BATTLE VISUAL -->
     <section id="screen-final-boss" class="screen alice-battle-mode"
