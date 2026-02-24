@@ -380,31 +380,17 @@ export class CalibrationManager {
                 if (this.state.progressWatchdog) { clearInterval(this.state.progressWatchdog); this.state.progressWatchdog = null; }
                 if (this.state.watchdogTimer) { clearTimeout(this.state.watchdogTimer); this.state.watchdogTimer = null; } // Legacy cleanup
 
-                // Clear wait timer (will re-start in startCollection if manual, or here?)
-                // Actually startCollection is called manually by button click usually.
-                // But for Point 2+, it's automatic?
-                // For 1-point, this is called once.
-
                 this.state.point = { x, y };
-                this.state.running = true;
+                this.state.running = false; // [BUTTON] Wait for user to click OK before collecting
                 this.state.progress = 0;
                 this.state.displayProgress = 0;
 
-                logI("cal", `onCalibrationNextPoint (#${this.state.pointCount}) x=${x} y=${y}`);
+                logI("cal", `onCalibrationNextPoint (#${this.state.pointCount}) x=${x} y=${y} → waiting for OK button`);
 
-                // [SDK FIX] Immediately start collecting samples for this calibration point.
-                // The SDK requires startCollectSamples() before it gathers gaze data.
-                // Previously wired to OK button click only → calibration hung at 0%.
-                try {
-                    if (typeof seeso.startCollectSamples === "function") {
-                        seeso.startCollectSamples();
-                        logI("cal", `[SDK] startCollectSamples() auto-called (point #${this.state.pointCount})`);
-                    }
-                } catch (e) {
-                    logI("cal", "[SDK] startCollectSamples threw:", e);
-                }
+                // [BUTTON] Do NOT auto-call startCollectSamples().
+                // User must click OK button to proceed.
 
-                // Update UI: Text ABOVE Button
+                // Update UI: "Look at the Magic Orb!" text below dot
                 const statusEl = document.getElementById("calibration-status");
                 if (statusEl) {
                     statusEl.textContent = "Look at the Magic Orb!";
@@ -421,24 +407,46 @@ export class CalibrationManager {
                     statusEl.style.textAlign = "center";
                     statusEl.style.pointerEvents = "none";
 
-                    statusEl.style.display = 'block'; // [MOVED]
+                    statusEl.style.display = 'block';
                 }
 
+                // [BUTTON] Show OK button for this calibration point.
+                // Re-bind onclick each time a new point arrives (including point 2, 3, ...).
                 const btn = document.getElementById("btn-calibration-start");
                 if (btn) {
-                    // Update Button Text & Position
                     btn.textContent = "OK";
 
-                    // Style: Center horizontally, placed below text
+                    // Position below the status text
                     btn.style.position = 'absolute';
                     btn.style.left = '50%';
                     btn.style.transform = 'translateX(-50%)';
-
-                    // Place it below the text
                     btn.style.top = (y + 220) + 'px';
                     btn.style.pointerEvents = "auto";
+                    btn.style.display = "inline-block";
 
-                    btn.style.display = "inline-block"; // [MOVED]
+                    // Re-bind click handler for this specific point
+                    btn.onclick = () => {
+                        logI("cal", `OK clicked for point #${this.state.pointCount} → startCollectSamples`);
+
+                        // Hide button & status immediately
+                        btn.style.display = "none";
+                        if (statusEl) statusEl.style.display = 'none';
+
+                        // Mark running & start watchdog
+                        this.state.running = true;
+                        this.startCollection();
+
+                        // Trigger SDK sample collection
+                        try {
+                            if (typeof seeso.startCollectSamples === "function") {
+                                seeso.startCollectSamples();
+                            } else {
+                                logE("cal", "seeso.startCollectSamples is not a function!");
+                            }
+                        } catch (e) {
+                            logE("cal", "SDK startCollectSamples threw error", e);
+                        }
+                    };
                 }
             });
             logI("sdk", "addCalibrationNextPointCallback bound (CalibrationManager)");
