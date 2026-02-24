@@ -364,7 +364,8 @@ export class CalibrationManager {
         if (target === 0) {
             this.state.displayProgress = 0;
         } else {
-            this.state.displayProgress += (target - this.state.displayProgress) * 0.1;
+            // [TUNING] 0.1 → 0.28: snappier acceleration right after OK is clicked
+            this.state.displayProgress += (target - this.state.displayProgress) * 0.28;
         }
 
         const p = this.state.displayProgress;
@@ -373,7 +374,9 @@ export class CalibrationManager {
 
         if (typeof this.rotationAngle === 'undefined') this.rotationAngle = 0;
 
-        const speed = 0.05 + (p * 0.4);
+        // [TUNING] Base speed 0.05 → 0.13 (more lively while waiting)
+        //          Max bonus  0.40 → 0.50 (faster spin during collection)
+        const speed = 0.13 + (p * 0.50);
         this.rotationAngle += speed;
 
         // Color: Blue → Cyan/White as progress increases
