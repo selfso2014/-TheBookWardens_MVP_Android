@@ -1497,81 +1497,104 @@ Game.typewriter = {
                 return;
             }
 
-            // Correct Answer?
+            // ── selector: #boss-options (실제 DOM); 과거 #boss-quiz-options는 없는 ID였음 ──
+            const allBtns = document.querySelectorAll("#boss-options button");
+
             if (optionIndex === quiz.a) {
-                // [FIX] Disable ALL buttons immediately
-                const allBtns = document.querySelectorAll("#boss-options button, #boss-quiz-options button");
-                allBtns.forEach(b => b.disabled = true);
+                // ── CORRECT ──────────────────────────────────────────────────────
+                // Step 1: Lock ALL buttons
+                allBtns.forEach(b => { b.disabled = true; b.style.cursor = 'default'; });
 
-                // SUCCESS
-                // 1. Logic moved to flying resource callback if possible
+                // Step 2: Green glow on the chosen button
+                const correctBtn = allBtns[optionIndex];
+                if (correctBtn) correctBtn.classList.add("correct");
 
-                // Trigger Visuals
-                const btn = document.querySelectorAll("#boss-quiz-options button")[optionIndex];
-                if (btn && typeof Game.spawnFlyingResource === 'function') {
-                    const rect = btn.getBoundingClientRect();
+                // Step 3: Gem particle flies from button → HUD gem-count
+                if (correctBtn && typeof Game.spawnFlyingResource === 'function') {
+                    const rect = correctBtn.getBoundingClientRect();
                     Game.spawnFlyingResource(rect.left + rect.width / 2, rect.top + rect.height / 2, 10, 'gem');
                 } else {
                     Game.addGems(10);
-                    // Try Floating Text
-                    try {
-                        this.spawnFloatingText(document.querySelector(".boss-dialog-box"), "+10 Gems!", "success");
-                    } catch (e) { }
                 }
 
-                // Hide Boss UI after animation (1.0s delay)
+                // Step 4: Lock screen pointer events
                 const villainScreen = document.getElementById("screen-boss");
                 if (villainScreen) villainScreen.style.pointerEvents = "none";
 
-                // Check if Last Paragraph
+                // Step 5: Advance
                 if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                    // GO TO FINAL BOSS
                     console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
-                    setTimeout(() => {
-                        this.triggerFinalBossBattleSequence();
-                    }, 1000);
+                    setTimeout(() => { this.triggerFinalBossBattleSequence(); }, 1000);
                 } else {
-                    // GO TO NEXT PARAGRAPH
                     const villainModal = document.getElementById("villain-modal");
                     if (villainModal) villainModal.style.display = "none";
 
                     this.currentParaIndex++;
                     console.log(`[Game] Advancing to Stage ${this.currentParaIndex + 1}...`);
-
-                    // Reset State
                     this.chunkIndex = 0;
                     this.lineStats.clear();
 
-                    // [FIX-iPhone15Pro] Increased transition delay before next paragraph.
-                    // Para 1 reading + Gaze Replay + Boss battle accumulates ~50-80MB on A17.
-                    // iOS GC needs idle time (no active RAF) to reclaim memory.
-                    // Sequence: screen stays on boss (dark, low GPU) for 2500ms → switch to read → 800ms settle → play
+                    // [FIX-iPhone15Pro] Stay on dark boss screen for 2500ms → iOS GC memory reclaim
                     setTimeout(() => {
                         Game.switchScreen("screen-read");
                         setTimeout(() => {
                             this.chunkIndex = 0;
                             this.playNextParagraph();
-                        }, 800); // was 500ms — increased for DOM settle + GC time
-                    }, 2500); // was 1500ms — increased for iOS memory reclaim before next RAF burst
+                        }, 800);
+                    }, 2500);
                 }
-            } else {
-                // FAILURE
-                Game.addGems(-10);
-                try {
-                    this.spawnFloatingText(document.querySelector(".boss-dialog-box"), "-10 Gems", "error");
-                } catch (e) { console.warn("FloatingText failed", e); }
 
-                const btns = document.querySelectorAll("#boss-quiz-options button");
-                if (btns && btns[optionIndex]) {
-                    btns[optionIndex].style.background = "#c62828";
-                    btns[optionIndex].innerText += " (Wrong)";
-                    btns[optionIndex].disabled = true;
+            } else {
+                // ── WRONG ────────────────────────────────────────────────────────
+                const wrongBtn = allBtns[optionIndex];
+
+                // Step 1: Lock only the tapped button
+                if (wrongBtn) {
+                    wrongBtn.disabled = true;
+                    wrongBtn.style.cursor = 'default';
+
+                    // Step 2: Red shake via CSS class (bossShake keyframe in index.html)
+                    wrongBtn.classList.add("wrong");
+                    setTimeout(() => wrongBtn.classList.remove("wrong"), 450);
                 }
+
+                // Step 3: Deduct gems
+                Game.addGems(-10);
+
+                // Step 4: Fixed-position floating "-10 💎" rising from the button
+                if (wrongBtn) {
+                    const rect = wrongBtn.getBoundingClientRect();
+                    const floatEl = document.createElement('div');
+                    floatEl.textContent = '-10 💎';
+                    Object.assign(floatEl.style, {
+                        position: 'fixed',
+                        left: (rect.left + rect.width / 2) + 'px',
+                        top: rect.top + 'px',
+                        transform: 'translateX(-50%)',
+                        color: '#ff5252',
+                        fontSize: '1.3rem',
+                        fontWeight: 'bold',
+                        fontFamily: "'Outfit', sans-serif",
+                        textShadow: '0 0 10px rgba(255,82,82,0.8)',
+                        pointerEvents: 'none',
+                        zIndex: '999999',
+                        transition: 'transform 0.9s ease-out, opacity 0.9s ease-out',
+                        opacity: '1',
+                    });
+                    document.body.appendChild(floatEl);
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        floatEl.style.transform = 'translateX(-50%) translateY(-55px)';
+                        floatEl.style.opacity = '0';
+                    }));
+                    setTimeout(() => { if (floatEl.parentNode) floatEl.remove(); }, 950);
+                }
+
+                // Step 5: Other buttons remain clickable — retry allowed
+                console.log(`[Game] WRONG idx=${optionIndex}. Retry allowed.`);
             }
+
         } catch (e) {
             console.error("[Game] checkBossAnswer Critical Error:", e);
-            // [FIX #11] alert() 제거: iOS alert()는 async 흐름을 블록, SDK cleanup 방해
-            // forceAdvanceStage()는 그대로 유지하여 게임 진행이 멈추지 않도록 함
             this.forceAdvanceStage();
         }
     },

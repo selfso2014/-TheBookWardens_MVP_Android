@@ -105,29 +105,63 @@
     }
 
     .quiz-btn {
-      background: #333;
-      color: #fff;
-      border: 1px solid #555;
-      padding: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #e0ccff;
+      border: 1px solid rgba(180, 0, 255, 0.35);
+      padding: 14px 16px;
       font-size: 1rem;
+      font-family: 'Outfit', 'Segoe UI', sans-serif;
       cursor: pointer;
-      border-radius: 6px;
-      transition: background 0.2s;
+      border-radius: 10px;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+      text-align: left;
+      width: 100%;
     }
 
-    .quiz-btn:hover {
-      background: #444;
-      border-color: #888;
+    .quiz-btn:hover:not(:disabled) {
+      background: rgba(180, 0, 255, 0.22);
+      border-color: rgba(180, 0, 255, 0.65);
     }
 
+    /* ── 정답 ─────────────────────────── */
     .quiz-btn.correct {
-      background: #2e7d32;
-      border-color: #1b5e20;
+      background: linear-gradient(135deg, #1a7a2e, #2db84a) !important;
+      border-color: #4cff70 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 18px rgba(76, 255, 112, 0.55), 0 0 36px rgba(76, 255, 112, 0.2);
+      transform: scale(1.03);
+    }
+
+    /* ── 오답: 흔들기 keyframe + 클래스 ─ */
+    @keyframes bossShake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      15% {
+        transform: translateX(-7px);
+      }
+
+      35% {
+        transform: translateX(7px);
+      }
+
+      55% {
+        transform: translateX(-5px);
+      }
+
+      75% {
+        transform: translateX(4px);
+      }
     }
 
     .quiz-btn.wrong {
-      background: #c62828;
-      border-color: #b71c1c;
+      background: rgba(180, 30, 30, 0.42) !important;
+      border-color: rgba(255, 80, 80, 0.65) !important;
+      color: #ff9999 !important;
+      animation: bossShake 0.42s ease;
     }
 
     /* Typewriter Paragraph Style */
