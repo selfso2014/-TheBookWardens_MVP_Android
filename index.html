@@ -489,8 +489,7 @@
 
       <!-- [DEBUG] Final Quiz 바로가기 버튼 — 디버깅 완료 후 제거 -->
       <button id="btn-debug-final-quiz"
-        onclick="window.Game && window.Game.triggerFinalBossBattleSequence ? window.Game.triggerFinalBossBattleSequence() : alert('[DEV] Game not ready')"
-        style="
+        onclick="window._devFinalQuiz ? window._devFinalQuiz() : alert('[DEV] script not loaded yet')" style="
           margin-top: 16px;
           padding: 10px 24px;
           background: rgba(255,80,0,0.15);

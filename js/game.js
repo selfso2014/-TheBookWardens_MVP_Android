@@ -1723,7 +1723,29 @@ if (document.readyState === "loading") {
 }
 
 
-// End of file
 
+// ── [DEV] 디버그용 Final Quiz 바로가기 ─────────────────────────────────────
+// home screen의 ⚡ [DEV] Final Quiz 버튼에서 호출
+// FinalQuizManager가 이미 이 모듈 스코프에 import되어 있으므로 확실히 동작
+window._devFinalQuiz = function () {
+    console.log('[DEV] _devFinalQuiz() called');
+    try {
+        // 1. 화면 전환
+        Game.switchScreen('screen-final-quiz');
 
-
+        // 2. FinalQuizManager 생성/재사용 후 init
+        setTimeout(() => {
+            try {
+                if (!window.FinalQuizRef) {
+                    window.FinalQuizRef = new FinalQuizManager();
+                }
+                window.FinalQuizRef.init();
+                console.log('[DEV] FinalQuizManager.init() called ✓');
+            } catch (e) {
+                console.error('[DEV] FinalQuizManager init failed:', e);
+            }
+        }, 150);
+    } catch (e) {
+        console.error('[DEV] _devFinalQuiz error:', e);
+    }
+};

@@ -770,10 +770,10 @@ const panel = ensureLogPanel();
 
 // ── BUILD VERSION BANNER ──────────────────────────────────────────────────────
 // 로그 수집 시 어느 빌드인지 즉시 식별
-const BUILD_VERSION = 'v46';
-const BUILD_TAG = 'Debug_FinalQuiz_Button';
-const BUILD_COMMIT = 'dev-btn-home-finalquiz';
-const BUILD_DATE = '2026-02-24 15:25 KST';
+const BUILD_VERSION = 'v47';
+const BUILD_TAG = 'Debug_btn_fix';
+const BUILD_COMMIT = 'devFinalQuiz-window-fn';
+const BUILD_DATE = '2026-02-24 16:34 KST';
 const BUILD_BANNER = `[BUILD] ${BUILD_VERSION} | ${BUILD_TAG} | ${BUILD_COMMIT} | ${BUILD_DATE}`;
 // Panel에 즉시 삽입 (logBase 정의 이전이므로 직접 push)
 if (panel) {
