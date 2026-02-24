@@ -421,7 +421,8 @@ const Game = {
         // Create Element
         const p = document.createElement('div');
         p.className = 'flying-resource';
-        p.innerText = type === 'ink' ? `+${amount}` : `+${amount}`;
+        // amount=0이면 숫자 텍스트 숨김 (점수는 이미 반영, 시각 효과만)
+        p.innerText = amount > 0 ? `+${amount}` : '';
         p.style.position = 'fixed';
         p.style.left = startX + 'px';
         p.style.top = startY + 'px';
@@ -1509,12 +1510,18 @@ Game.typewriter = {
                 const correctBtn = allBtns[optionIndex];
                 if (correctBtn) correctBtn.classList.add("correct");
 
-                // Step 3: Gem particle flies from button → HUD gem-count
+                // Step 3: 점수 즉시 반영 (동기 호출 — 화면 전환 전에 반드시 실행)
+                // ⚠️ spawnFlyingResource 내부의 addGems 콜백은 RAF 완료 시 실행되므로
+                //    화면 전환으로 RAF가 취소되면 점수가 누락된다. 여기서 먼저 호출한다.
+                Game.addGems(10);
+                console.log('[BossQuiz] CORRECT +10 gems applied immediately.');
+
+                // Step 3b: 시각 효과 — 버튼에서 HUD gem-count 로 파티클 (순수 장식)
+                // spawnFlyingResource 내부에도 addGems 호출이 있으나, 이미 위에서 처리했으므로
+                // 중복 차감이 발생하지 않도록 amount=0 으로 전달한다.
                 if (correctBtn && typeof Game.spawnFlyingResource === 'function') {
                     const rect = correctBtn.getBoundingClientRect();
-                    Game.spawnFlyingResource(rect.left + rect.width / 2, rect.top + rect.height / 2, 10, 'gem');
-                } else {
-                    Game.addGems(10);
+                    Game.spawnFlyingResource(rect.left + rect.width / 2, rect.top + rect.height / 2, 0, 'gem');
                 }
 
                 // Step 4: Lock screen pointer events
