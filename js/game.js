@@ -1,17 +1,17 @@
-import { storyParagraphs } from './data/StoryContent.js?v=FINAL_FIX_NOW';
-import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=FINAL_FIX_NOW';
-import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=FINAL_FIX_NOW';
-import { ScoreManager } from './managers/ScoreManager.js?v=FINAL_FIX_NOW';
-import { SceneManager } from './managers/SceneManager.js?v=FINAL_FIX_NOW';
-import { bus } from './core/EventBus.js?v=FINAL_FIX_NOW';
-import { TextRenderer } from './TextRendererV2.js?v=FINAL_FIX_NOW';
-import { WardenManager } from './managers/WardenManager.js?v=FINAL_FIX_NOW';
-import { IntroManager } from './managers/IntroManager.js?v=FINAL_FIX_NOW';
-import { VocabManager } from './managers/VocabManager.js?v=FINAL_FIX_NOW';
-import { UIManager } from './core/UIManager.js?v=FINAL_FIX_NOW';
-import { GameLogic } from './core/GameLogic.js?v=FINAL_FIX_NOW';
-import { DOMManager } from './core/DOMManager.js?v=FINAL_FIX_NOW';
-import { FinalQuizManager } from './managers/FinalQuizManager.js?v=FINAL_FIX_NOW';
+import { storyParagraphs } from './data/StoryContent.js?v=20260224-FQ';
+import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=20260224-FQ';
+import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=20260224-FQ';
+import { ScoreManager } from './managers/ScoreManager.js?v=20260224-FQ';
+import { SceneManager } from './managers/SceneManager.js?v=20260224-FQ';
+import { bus } from './core/EventBus.js?v=20260224-FQ';
+import { TextRenderer } from './TextRendererV2.js?v=20260224-FQ';
+import { WardenManager } from './managers/WardenManager.js?v=20260224-FQ';
+import { IntroManager } from './managers/IntroManager.js?v=20260224-FQ';
+import { VocabManager } from './managers/VocabManager.js?v=20260224-FQ';
+import { UIManager } from './core/UIManager.js?v=20260224-FQ';
+import { GameLogic } from './core/GameLogic.js?v=20260224-FQ';
+import { DOMManager } from './core/DOMManager.js?v=20260224-FQ';
+import { FinalQuizManager } from './managers/FinalQuizManager.js?v=20260224-FQ';
 
 // ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
