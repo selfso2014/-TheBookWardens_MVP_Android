@@ -131,9 +131,23 @@ export class GameLogic {
         this.game.switchScreen("screen-boss");
     }
 
-    // --- Alice Battle Logic (Final Boss) ---
+    // --- Final Boss Logic ---
+    // [UPDATED] Routes to new FinalQuizManager screen instead of alice-battle
     triggerFinalBossBattle() {
-        console.log("[GameLogic] Triggering Alice Battle...");
+        console.log("[GameLogic] triggerFinalBossBattle → delegating to triggerFinalBossBattleSequence()");
+
+        // Delegate entirely to game.triggerFinalBossBattleSequence()
+        // which routes to screen-final-quiz and initializes FinalQuizManager
+        if (this.game && typeof this.game.triggerFinalBossBattleSequence === 'function') {
+            this.game.triggerFinalBossBattleSequence();
+        } else {
+            console.error("[GameLogic] triggerFinalBossBattleSequence not found on game!");
+        }
+    }
+
+    // --- Alice Battle Logic (Legacy — preserved, not called from main flow) ---
+    triggerFinalBossBattle_legacy() {
+        console.log("[GameLogic-Legacy] Triggering Alice Battle...");
 
         // 1. Blockers
         ['output', 'preview', 'calibration-overlay'].forEach(id => {
@@ -143,30 +157,22 @@ export class GameLogic {
         const hud = document.getElementById('hud-top');
         if (hud) hud.style.display = 'none';
 
-        // 2. Switch Screen
-        // We use game.switchScreen but need specific setup for Alice
+        // 2. Switch to alice-battle (legacy path)
         this.game.switchScreen("screen-alice-battle");
 
         const screen = document.getElementById("screen-alice-battle");
         if (screen) {
             screen.classList.add('alice-battle-mode');
-
-            // 3. Delayed Init
             setTimeout(() => {
                 if (window.AliceBattleRef) {
-                    console.log("[GameLogic] Initializing AliceBattleRef...");
+                    console.log("[GameLogic-Legacy] Initializing AliceBattleRef...");
                     if (window.Game) window.Game.AliceBattle = window.AliceBattleRef;
-
                     window.AliceBattleRef.init();
-
-                    // Pointer Events Fix
                     setTimeout(() => {
                         const canvas = document.getElementById('alice-canvas');
                         if (canvas) canvas.style.pointerEvents = 'none';
-
                         const cards = screen.querySelectorAll('.warden .card');
                         cards.forEach(c => { c.style.cursor = 'pointer'; c.style.pointerEvents = 'auto'; });
-
                         const uiContainer = document.getElementById('alice-game-ui');
                         if (uiContainer) {
                             uiContainer.style.pointerEvents = 'none';
@@ -174,12 +180,11 @@ export class GameLogic {
                         }
                     }, 50);
                 } else {
-                    console.warn("[GameLogic] AliceBattleRef not found. Using simple fallback?");
-                    // Keep fallback logic if requested, or assume module exists for Phase 1 cleanup
+                    console.warn("[GameLogic-Legacy] AliceBattleRef not found.");
                 }
             }, 100);
         } else {
-            console.error("Screen screen-alice-battle not found");
+            console.error("[GameLogic-Legacy] screen-alice-battle not found");
         }
     }
 
