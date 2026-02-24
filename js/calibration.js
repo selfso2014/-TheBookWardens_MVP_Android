@@ -334,6 +334,12 @@ export class CalibrationManager {
 
         this.ctx.requestRender();
 
+        // [FIX] Mark calibration as finished so heartbeat stops treating this as active calibration.
+        // Without this, state.cal stays "running (97%)" forever and heartbeat WARNs every 2s.
+        if (typeof this.ctx.setState === 'function') {
+            this.ctx.setState('cal', 'finished');
+        }
+
         const stage = document.getElementById("stage");
         if (stage) stage.classList.remove("visible");
 

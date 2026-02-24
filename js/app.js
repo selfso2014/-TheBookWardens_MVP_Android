@@ -1649,7 +1649,8 @@ function startActualCalibration() {
 window.startCalibrationRoutine = startCalibration;
 
 // ---------- Watchdog ----------
-setInterval(() => {
+let _heartbeatInterval = null; // [FIX] Store ID so we can clear it on shutdown
+_heartbeatInterval = setInterval(() => {
   const now = performance.now();
   const hb = {
     perm: state.perm,
@@ -1846,6 +1847,13 @@ window.setSeesoTracking = function (on, reason) {
  *   - When the user reaches the final score/share screen (optional: camera no longer needed)
  */
 function shutdownEyeTracking() {
+  // [FIX] Stop heartbeat watchdog — prevents stale WARN spam after session ends
+  if (_heartbeatInterval) {
+    clearInterval(_heartbeatInterval);
+    _heartbeatInterval = null;
+    logI('sys', '[Shutdown] Heartbeat watchdog cleared.');
+  }
+
   try {
     if (seeso && typeof seeso.stopTracking === 'function') {
       seeso.stopTracking();
