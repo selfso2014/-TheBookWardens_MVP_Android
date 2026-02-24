@@ -240,6 +240,141 @@ body {
   background: radial-gradient(circle at center, #2e1045 0%, #0f0c15 70%);
   text-align: center;
   color: #f0c420;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 24px 40px;
+  gap: 0;
+}
+
+/* ── A: Calibration Complete Badge ── */
+.owl-cal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 220, 120, 0.12);
+  border: 1.5px solid rgba(0, 220, 120, 0.55);
+  border-radius: 40px;
+  padding: 10px 22px;
+  animation: owlBadgeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  margin-bottom: 24px;
+}
+
+@keyframes owlBadgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.owl-cal-check {
+  font-size: 1.3rem;
+  color: #00dc78;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(0, 220, 120, 0.8);
+}
+
+.owl-cal-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #00dc78;
+  letter-spacing: 0.04em;
+  font-family: 'Outfit', 'Inter', sans-serif;
+}
+
+/* ── Eye Demo Block ── */
+.owl-eye-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.owl-hint {
+  font-size: 0.9rem;
+  color: #bba8d0;
+  margin-top: 14px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-style: italic;
+  opacity: 0;
+  animation: owlHintIn 0.7s ease 0.5s both;
+}
+
+@keyframes owlHintIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── D: Footer — Progress Bar + Skip ── */
+.owl-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.owl-progress-wrap {
+  width: 80%;
+  max-width: 280px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.owl-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6200ea, #00dc78);
+  border-radius: 4px;
+  transition: width linear;
+  /* duration set by JS */
+}
+
+.owl-skip-btn {
+  background: transparent;
+  border: 1.5px solid rgba(162, 85, 247, 0.5);
+  color: #c4a0f5;
+  padding: 11px 32px;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  position: relative;
+  z-index: 10001;
+  pointer-events: auto;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+@media (hover: hover) {
+  .owl-skip-btn:hover {
+    background: rgba(162, 85, 247, 0.15);
+    border-color: rgba(162, 85, 247, 0.9);
+    transform: scale(1.04);
+  }
+}
+
+.owl-countdown-label {
+  font-size: 0.82rem;
+  color: #7a6a8a;
+  margin: 0;
+  font-family: 'Outfit', 'Inter', sans-serif;
 }
 
 .screen.active {

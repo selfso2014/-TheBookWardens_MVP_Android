@@ -122,6 +122,59 @@ export class GameLogic {
         this.game.state.isOwlTracker = true;
         this.game.switchScreen("screen-owl");
         if (typeof window.setGazeDotState === "function") window.setGazeDotState(false);
+
+        // ── D: 3-second auto-advance ──────────────────────────────────
+        const DURATION_MS = 3000;
+        let _advanced = false;
+        let _t1, _t2, _autoTimer;
+
+        const advance = () => {
+            if (_advanced) return;
+            _advanced = true;
+            clearTimeout(_t1);
+            clearTimeout(_t2);
+            clearTimeout(_autoTimer);
+            // Stop progress bar where it is
+            if (bar) { bar.style.transition = 'none'; }
+            this.startReadingFromOwl();
+        };
+
+        // Progress bar — kick off after one frame so CSS transition fires
+        const bar = document.getElementById('owl-progress-bar');
+        if (bar) {
+            requestAnimationFrame(() => {
+                bar.style.transition = `width ${DURATION_MS}ms linear`;
+                bar.style.width = '100%';
+            });
+        }
+
+        // Countdown label: 3 → 2 → 1
+        const numEl = document.getElementById('owl-countdown-num');
+        let remaining = 3;
+        const tick = () => {
+            remaining--;
+            if (numEl) numEl.textContent = remaining;
+        };
+        _t1 = setTimeout(tick, 1000);
+        _t2 = setTimeout(tick, 2000);
+
+        // Auto-advance at 3s
+        _autoTimer = setTimeout(advance, DURATION_MS);
+
+        // Tap-to-skip: DOMManager already bound btn-owl-start → startReadingFromOwl()
+        // But we need to intercept to also cancel the timer.
+        // Override the btn handler temporarily.
+        const btn = document.getElementById('btn-owl-start');
+        if (btn) {
+            // Remove old listener by replacing with a new one-shot
+            const handler = (e) => {
+                e.stopImmediatePropagation();
+                advance();
+            };
+            btn.addEventListener('click', handler, { once: true });
+            btn.addEventListener('touchstart', handler, { passive: false, once: true });
+        }
+
     }
 
     startReadingFromOwl() {
