@@ -2,13 +2,14 @@
  * FinalQuizManager.js
  * 최종빌런 화면: 지문 스트리밍(TextRenderer 방식) → 문제 표시 → 4지선다 → score 화면
  *
- * [텍스트 스트리밍]
- *  - TextRenderer(TextRendererV2.js)와 동일한 방식:
- *    span.className = "tr-word", opacity:"0" 으로 생성 → opacity:"1" + classList.add("revealed") 로 reveal
- *  - 새로운 CSS animation 없이 기존 인프라 재사용
+ * [타이머]
+ *  - 2분(120초) 카운트다운 — 우측 상단 표시
+ *  - 시간 종료 → 자동 score 화면 이동
+ *  - 정답 선택 시 타이머 중단 → 1.5초 후 score 이동
  *
- * [Score Fix]
- *  - Game.scoreManager 에서 실제 누적값(ink, rune, gem, wpm) 읽어서 Game.goToNewScore(scoreData) 전달
+ * [오답 처리]
+ *  - 오답 선택: -10 💎, 정답 초록 표시, 화면 유지 (타이머는 계속)
+ *  - 타이머 종료 or 정답 선택 시만 score 화면으로 이동
  */
 export class FinalQuizManager {
     constructor() {
@@ -16,7 +17,10 @@ export class FinalQuizManager {
         this._streamTimer = null;
         this._wordIndex = 0;
         this._words = [];
-        this._spans = []; // DOM span 참조 배열
+        this._spans = [];
+        // ── 카운트다운 타이머 ──
+        this._countdownInterval = null;
+        this._secondsLeft = 120;
     }
 
     // ── 진입점 ──────────────────────────────────────────────────────────────
@@ -26,15 +30,15 @@ export class FinalQuizManager {
 
             this.phase = 'idle';
             this._clearTimer();
+            this._clearCountdown();
+            this._secondsLeft = 120;
             this._wordIndex = 0;
             this._words = [];
             this._spans = [];
 
-            // 1. WPM 취득 (HUD 실측값) — TextRenderer revealChunk interval 계산과 동일 방식
+            // 1. WPM 취득 (HUD 실측값)
             const rawWPM = (window.Game?.scoreManager?.wpmDisplay) ?? 0;
             const wpm = (rawWPM > 30) ? Math.round(rawWPM) : 150;
-            // TextRenderer.revealChunk의 default interval 150ms에 맞춤
-            // WPM 150 → 400ms/word, WPM 300 → 200ms/word (읽기 속도에 비례)
             const msPerWord = Math.max(100, Math.round(60000 / wpm * 0.6));
             console.log(`[FinalQuiz] wpm=${wpm} (raw=${rawWPM}), msPerWord=${msPerWord}ms`);
 
@@ -43,7 +47,10 @@ export class FinalQuizManager {
             this._resetUI();
             console.log('[FinalQuiz] UI ensured + reset');
 
-            // 3. 스트리밍 시작 (TextRenderer 방식 — tr-word span + opacity reveal)
+            // 타이머 초기 표시 (2:00) — 아직 시작 안 함
+            this._updateTimerDisplay();
+
+            // 3. 스트리밍 시작
             this.phase = 'reading';
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
                 setTimeout(() => {
@@ -51,7 +58,7 @@ export class FinalQuizManager {
                     catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
                 }, 800);
             });
-            console.log('[FinalQuiz] ▶ streaming started (TextRenderer style)');
+            console.log('[FinalQuiz] ▶ streaming started');
 
         } catch (e) {
             console.error('[FinalQuiz] FATAL in init():', e);
@@ -79,6 +86,7 @@ export class FinalQuizManager {
         section.className = 'screen';
         Object.assign(section.style, {
             display: 'none',
+            position: 'relative',
             background: 'radial-gradient(circle at center, #1a0830 0%, #0a0515 100%)',
             flexDirection: 'column',
             alignItems: 'center',
@@ -94,30 +102,58 @@ export class FinalQuizManager {
 
     _buildInnerHTML() {
         return `
-        <div style="display:flex;flex-direction:column;align-items:center;padding:16px 16px 8px 16px;width:100%;box-sizing:border-box;
-                    background:linear-gradient(180deg,rgba(60,0,100,0.5) 0%,transparent 100%);flex-shrink:0;">
+        <style>
+          @keyframes fqTimerPulse {
+            from { opacity:1; transform:scale(1); }
+            to   { opacity:0.5; transform:scale(1.08); }
+          }
+        </style>
+        <!-- 타이머: 우측 상단 고정 -->
+        <div id="fq-timer"
+          style="position:absolute;top:10px;right:12px;z-index:10;
+                 font-family:'Outfit',monospace;font-size:1.1rem;font-weight:700;
+                 color:#00e5ff;text-shadow:0 0 8px rgba(0,229,255,0.7);
+                 background:rgba(0,0,0,0.45);border:1px solid rgba(0,229,255,0.3);
+                 border-radius:8px;padding:4px 10px;letter-spacing:2px;">
+          2:00
+        </div>
+
+        <!-- 헤더: 빌런 이미지 + 타이틀 -->
+        <div style="display:flex;flex-direction:column;align-items:center;
+                    padding:16px 16px 8px 16px;width:100%;box-sizing:border-box;
+                    background:linear-gradient(180deg,rgba(60,0,100,0.5) 0%,transparent 100%);
+                    flex-shrink:0;">
           <img src="./finalredvillain.png" alt="Final Villain"
             style="width:72px;height:auto;object-fit:contain;margin-bottom:8px;
                    filter:drop-shadow(0 0 14px rgba(180,0,255,0.8));"
             onerror="this.style.display='none'">
-          <p style="font-family:'Cinzel',serif;color:#c060ff;font-size:0.9rem;letter-spacing:3px;margin:0;text-shadow:0 0 12px rgba(180,0,255,0.9);">
+          <p style="font-family:'Cinzel',serif;color:#c060ff;font-size:0.9rem;
+                    letter-spacing:3px;margin:0;text-shadow:0 0 12px rgba(180,0,255,0.9);">
             FINAL CHALLENGE
           </p>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;width:100%;padding:8px 12px 24px 12px;box-sizing:border-box;gap:12px;">
-          <div style="width:100%;max-width:680px;background:rgba(255,255,255,0.05);border:1px solid rgba(180,0,255,0.3);
-                      border-radius:14px;padding:18px 20px;box-sizing:border-box;min-height:80px;">
+
+        <!-- 콘텐츠: 지문 + 문제 + 선택지 -->
+        <div style="display:flex;flex-direction:column;align-items:center;width:100%;
+                    padding:8px 12px 24px 12px;box-sizing:border-box;gap:12px;">
+          <div style="width:100%;max-width:680px;background:rgba(255,255,255,0.05);
+                      border:1px solid rgba(180,0,255,0.3);border-radius:14px;
+                      padding:18px 20px;box-sizing:border-box;min-height:80px;">
             <p id="fq-passage-text"
-              style="font-family:'Crimson Text',serif;font-size:1.0rem;line-height:1.85;color:#e0e0e0;margin:0;text-align:left;transition:opacity 0.5s ease;"></p>
+              style="font-family:'Crimson Text',serif;font-size:1.0rem;line-height:1.85;
+                     color:#e0e0e0;margin:0;text-align:left;transition:opacity 0.5s ease;"></p>
           </div>
           <p id="fq-question"
-            style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;color:#f0e0ff;text-align:center;
-                   width:100%;max-width:680px;margin:0;font-weight:700;line-height:1.6;padding:10px 4px;
+            style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
+                   color:#f0e0ff;text-align:center;width:100%;max-width:680px;margin:0;
+                   font-weight:700;line-height:1.6;padding:10px 4px;
                    border-top:1px solid rgba(180,0,255,0.2);"></p>
           <p id="fq-result"
-            style="display:none;font-size:1.1rem;font-weight:bold;margin:0;text-shadow:0 0 10px currentColor;"></p>
+            style="display:none;font-size:1.0rem;font-weight:bold;margin:0;
+                   text-shadow:0 0 10px currentColor;"></p>
           <div id="fq-choices"
-            style="display:none;opacity:0;flex-direction:column;gap:10px;width:100%;max-width:680px;transition:opacity 0.4s ease;padding-bottom:12px;">
+            style="display:none;opacity:0;flex-direction:column;gap:10px;
+                   width:100%;max-width:680px;transition:opacity 0.4s ease;padding-bottom:12px;">
           </div>
         </div>
         `;
@@ -129,19 +165,89 @@ export class FinalQuizManager {
         const questionEl = document.getElementById('fq-question');
         const choicesEl = document.getElementById('fq-choices');
         const resultEl = document.getElementById('fq-result');
+        const timerEl = document.getElementById('fq-timer');
 
         if (textEl) { textEl.innerHTML = ''; textEl.style.opacity = '1'; }
         if (questionEl) { questionEl.style.display = 'none'; questionEl.textContent = ''; }
         if (choicesEl) { choicesEl.style.display = 'none'; choicesEl.style.opacity = '0'; choicesEl.innerHTML = ''; }
         if (resultEl) { resultEl.style.display = 'none'; resultEl.textContent = ''; }
+        if (timerEl) { timerEl.style.color = '#00e5ff'; timerEl.style.animation = 'none'; timerEl.style.borderColor = 'rgba(0,229,255,0.3)'; }
 
         if (!textEl) console.error('[FinalQuiz] fq-passage-text still missing after ensureUI!');
         if (!choicesEl) console.error('[FinalQuiz] fq-choices still missing after ensureUI!');
     }
 
+    // ── 카운트다운 타이머 ────────────────────────────────────────────────────
+    _startCountdown(seconds) {
+        this._secondsLeft = seconds;
+        this._clearCountdown();
+        this._updateTimerDisplay();
+
+        this._countdownInterval = setInterval(() => {
+            this._secondsLeft--;
+            this._updateTimerDisplay();
+
+            if (this._secondsLeft <= 0) {
+                this._clearCountdown();
+                console.log('[FinalQuiz] ⏰ Timer expired → goToNewScore()');
+                if (this.phase !== 'done') {
+                    this.phase = 'done';
+                    this._goToScore();
+                }
+            }
+        }, 1000);
+    }
+
+    _clearCountdown() {
+        if (this._countdownInterval !== null) {
+            clearInterval(this._countdownInterval);
+            this._countdownInterval = null;
+        }
+    }
+
+    _updateTimerDisplay() {
+        const el = document.getElementById('fq-timer');
+        if (!el) return;
+
+        const m = Math.floor(this._secondsLeft / 60);
+        const s = this._secondsLeft % 60;
+        el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+
+        if (this._secondsLeft <= 10) {
+            el.style.color = '#ff4444';
+            el.style.textShadow = '0 0 10px rgba(255,68,68,0.9)';
+            el.style.borderColor = 'rgba(255,68,68,0.5)';
+            el.style.animation = 'fqTimerPulse 0.5s ease-in-out infinite alternate';
+        } else if (this._secondsLeft <= 30) {
+            el.style.color = '#ff9944';
+            el.style.textShadow = '0 0 8px rgba(255,153,68,0.8)';
+            el.style.borderColor = 'rgba(255,153,68,0.4)';
+            el.style.animation = 'none';
+        } else {
+            el.style.color = '#00e5ff';
+            el.style.textShadow = '0 0 8px rgba(0,229,255,0.6)';
+            el.style.borderColor = 'rgba(0,229,255,0.3)';
+            el.style.animation = 'none';
+        }
+    }
+
+    // ── Score 화면 이동 헬퍼 ────────────────────────────────────────────────
+    _goToScore() {
+        console.log('[FinalQuiz] → goToNewScore()');
+        if (window.Game?.goToNewScore) {
+            const sm = window.Game.scoreManager;
+            const scoreData = {
+                ink: sm?.ink ?? window.Game.state?.ink ?? 0,
+                rune: sm?.rune ?? sm?.runes ?? window.Game.state?.rune ?? 0,
+                gem: sm?.gems ?? window.Game.state?.gems ?? 0,
+                wpm: sm?.wpmDisplay ?? sm?.wpm ?? window.Game.state?.wpmDisplay ?? 150,
+            };
+            console.log('[FinalQuiz] scoreData =', JSON.stringify(scoreData));
+            window.Game.goToNewScore(scoreData);
+        }
+    }
+
     // ── TextRenderer 방식 텍스트 스트리밍 ──────────────────────────────────
-    // TextRendererV2.js prepareDynamic() / revealChunk() 와 동일한 패턴:
-    //   span.className = "tr-word", opacity = "0" → 시간 경과 후 opacity = "1" + classList.add("revealed")
     _streamTextTR(passage, msPerWord, onComplete) {
         const textEl = document.getElementById('fq-passage-text');
         if (!textEl) {
@@ -155,30 +261,30 @@ export class FinalQuizManager {
         this._spans = [];
         textEl.innerHTML = '';
 
-        // Step 1: 모든 단어를 tr-word span으로 생성 (opacity=0) — TextRenderer.prepareDynamic와 동일
+        // Step 1: 모든 단어를 tr-word span으로 생성 (opacity=0)
         words.forEach((word, i) => {
             const span = document.createElement('span');
-            span.className = 'tr-word';                    // TextRenderer와 동일한 class
-            span.style.opacity = '0';                      // TextRenderer: span.style.opacity = "0"
-            span.style.display = 'inline-block';           // TextRenderer와 동일
-            span.style.marginRight = '0.3em';              // TextRenderer: this.options.wordSpacing
+            span.className = 'tr-word';
+            span.style.opacity = '0';
+            span.style.display = 'inline-block';
+            span.style.marginRight = '0.3em';
             span.style.lineHeight = '1.85';
             span.style.fontSize = '1.0rem';
             span.style.verticalAlign = 'middle';
             span.style.color = '#e0e0e0';
-            span.style.transition = 'opacity 0.15s ease'; // 부드러운 reveal
+            span.style.transition = 'opacity 0.15s ease';
             span.dataset.index = i;
             span.textContent = word;
             textEl.appendChild(span);
             this._spans.push(span);
         });
 
-        console.log(`[FinalQuiz] streaming ${words.length} words @ ${msPerWord}ms/word (TextRenderer style)`);
+        console.log(`[FinalQuiz] streaming ${words.length} words @ ${msPerWord}ms/word`);
 
-        // Step 2: 순차 reveal — TextRenderer.revealChunk의 opacity="1" + classList.add("revealed")
+        // Step 2: 순차 reveal
         let idx = 0;
         const revealNext = () => {
-            if (this.phase !== 'reading') return; // 화면 이탈 시 중단
+            if (this.phase !== 'reading') return;
 
             if (idx >= this._spans.length) {
                 this._clearTimer();
@@ -188,8 +294,8 @@ export class FinalQuizManager {
             }
 
             const span = this._spans[idx++];
-            span.style.opacity = '1';                    // TextRenderer: w.element.style.opacity = "1"
-            span.classList.add('revealed');              // TextRenderer: w.element.classList.add("revealed")
+            span.style.opacity = '1';
+            span.classList.add('revealed');
 
             this._streamTimer = setTimeout(revealNext, msPerWord);
         };
@@ -197,7 +303,7 @@ export class FinalQuizManager {
         this._streamTimer = setTimeout(revealNext, 0);
     }
 
-    // ── 문제 표시 (지문 유지 + 문제·선택지 fade-in) ──────────────────────────
+    // ── 문제 표시 ────────────────────────────────────────────────────────────
     _showQuestion() {
         if (this.phase !== 'reading') return;
         this.phase = 'choosing';
@@ -205,7 +311,7 @@ export class FinalQuizManager {
         const questionEl = document.getElementById('fq-question');
         const choicesEl = document.getElementById('fq-choices');
 
-        // ⬇ 지문은 사라지지 않음 — 바로 문제 텍스트 표시
+        // 문제 텍스트 fade-in
         if (questionEl) {
             questionEl.textContent = FINAL_QUIZ_DATA.question;
             questionEl.style.opacity = '0';
@@ -219,7 +325,7 @@ export class FinalQuizManager {
         }
 
         if (!choicesEl) {
-            console.error('[FinalQuiz] fq-choices not found — cannot show buttons');
+            console.error('[FinalQuiz] fq-choices not found');
             return;
         }
 
@@ -242,9 +348,10 @@ export class FinalQuizManager {
                 textAlign: 'left',
                 cursor: 'pointer',
                 marginBottom: '0',
+                transition: 'background 0.2s ease',
             });
-            btn.onmouseover = () => { btn.style.background = 'rgba(130,30,220,0.35)'; };
-            btn.onmouseout = () => { btn.style.background = 'rgba(130,30,220,0.15)'; };
+            btn.onmouseover = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.35)'; };
+            btn.onmouseout = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.15)'; };
             btn.onclick = () => this._onAnswer(i, FINAL_QUIZ_DATA.answer);
             choicesEl.appendChild(btn);
         });
@@ -259,32 +366,42 @@ export class FinalQuizManager {
             });
         });
 
-        console.log('[FinalQuiz] question + choices displayed (passage kept visible)');
+        // ── 2분 카운트다운 시작 (문제 표시 시점부터) ──
+        this._startCountdown(120);
+
+        console.log('[FinalQuiz] question + choices displayed. Timer started (120s).');
     }
 
     // ── 정답 처리 ────────────────────────────────────────────────────────────
     _onAnswer(selectedIdx, correctIdx) {
         if (this.phase !== 'choosing') return;
-        this.phase = 'done';
 
         console.log(`[FinalQuiz] answer: selected=${selectedIdx}, correct=${correctIdx}`);
 
         const btns = document.querySelectorAll('.fq-option-btn');
         const resultEl = document.getElementById('fq-result');
 
-        btns.forEach(b => { b.style.pointerEvents = 'none'; });
+        // 모든 버튼 즉시 클릭 차단
+        btns.forEach(b => { b.style.pointerEvents = 'none'; b.onmouseover = null; b.onmouseout = null; });
 
         const isCorrect = (selectedIdx === correctIdx);
 
         if (isCorrect) {
+            // ✅ 정답: 타이머 중단, 1.5초 후 score 이동
+            this.phase = 'done';
+            this._clearCountdown();
+
             btns[selectedIdx].style.background = 'linear-gradient(135deg,#1a7a2e,#2db84a)';
             btns[selectedIdx].style.borderColor = '#2db84a';
             btns[selectedIdx].style.boxShadow = '0 0 20px rgba(45,184,74,0.6)';
+
             if (resultEl) {
                 resultEl.textContent = '✓ Correct!  +50 💎';
                 resultEl.style.color = '#2db84a';
                 resultEl.style.display = 'block';
             }
+
+            // 젬 지급
             const btn = btns[selectedIdx];
             if (btn && window.Game?.spawnFlyingResource) {
                 const r = btn.getBoundingClientRect();
@@ -292,42 +409,34 @@ export class FinalQuizManager {
             } else if (window.Game?.addGems) {
                 window.Game.addGems(50);
             }
-            console.log('[FinalQuiz] CORRECT +50 gems');
+            console.log('[FinalQuiz] CORRECT +50 gems → score in 1.5s');
+
+            setTimeout(() => this._goToScore(), 1500);
 
         } else {
+            // ❌ 오답: -10젬, 정답 표시, 화면 유지 (타이머 계속)
+            // phase는 'choosing' 유지 → 타이머 만료 시 자동 score 이동
+
             btns[selectedIdx].style.background = 'linear-gradient(135deg,#7a1a1a,#b82d2d)';
             btns[selectedIdx].style.borderColor = '#b82d2d';
-            btns[selectedIdx].style.boxShadow = '0 0 20px rgba(184,45,45,0.6)';
+            btns[selectedIdx].style.boxShadow = '0 0 16px rgba(184,45,45,0.6)';
+
+            // 정답 버튼 초록으로 표시 (학습용)
             if (correctIdx < btns.length) {
                 btns[correctIdx].style.background = 'linear-gradient(135deg,#1a7a2e,#2db84a)';
                 btns[correctIdx].style.borderColor = '#2db84a';
+                btns[correctIdx].style.boxShadow = '0 0 14px rgba(45,184,74,0.5)';
             }
+
             if (resultEl) {
-                resultEl.textContent = '✗ Wrong!  -30 💎';
-                resultEl.style.color = '#e05555';
+                resultEl.textContent = '✗ Wrong!  −10 💎  ·  정답이 위에 표시되었습니다.';
+                resultEl.style.color = '#ff7755';
                 resultEl.style.display = 'block';
             }
-            if (window.Game?.addGems) window.Game.addGems(-30);
-            console.log('[FinalQuiz] WRONG -30 gems');
-        }
 
-        // 1.5초 후 score 화면으로 이동
-        // [Score Fix] Game.state 는 playNextParagraph()에서 ink=0 리셋되므로
-        // scoreManager(ScoreManager 인스턴스)의 실제 누적값을 읽어서 전달
-        setTimeout(() => {
-            console.log('[FinalQuiz] → goToNewScore()');
-            if (window.Game?.goToNewScore) {
-                const sm = window.Game.scoreManager;
-                const scoreData = {
-                    ink: sm?.ink ?? window.Game.state?.ink ?? 0,
-                    rune: sm?.rune ?? sm?.runes ?? window.Game.state?.rune ?? 0,
-                    gem: sm?.gems ?? window.Game.state?.gems ?? 0,
-                    wpm: sm?.wpmDisplay ?? sm?.wpm ?? window.Game.state?.wpmDisplay ?? 150,
-                };
-                console.log('[FinalQuiz] scoreData =', JSON.stringify(scoreData));
-                window.Game.goToNewScore(scoreData);
-            }
-        }, 1500);
+            if (window.Game?.addGems) window.Game.addGems(-10);
+            console.log('[FinalQuiz] WRONG -10 gems — staying on screen, timer continues');
+        }
     }
 
     // ── 정리 ────────────────────────────────────────────────────────────────
@@ -340,6 +449,7 @@ export class FinalQuizManager {
 
     destroy() {
         this._clearTimer();
+        this._clearCountdown();
         this.phase = 'idle';
         this._wordIndex = 0;
         this._words = [];
@@ -348,7 +458,7 @@ export class FinalQuizManager {
     }
 }
 
-// ── 퀴즈 데이터 (이상한 나라의 앨리스 지문 1·2·3 종합) ──────────────────────
+// ── 퀴즈 데이터 ─────────────────────────────────────────────────────────────
 export const FINAL_QUIZ_DATA = {
     passage:
         "Alice had always found the world perfectly ordinary— " +
