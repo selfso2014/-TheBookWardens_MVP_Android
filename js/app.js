@@ -770,10 +770,10 @@ const panel = ensureLogPanel();
 
 // ── BUILD VERSION BANNER ──────────────────────────────────────────────────────
 // 로그 수집 시 어느 빌드인지 즉시 식별
-const BUILD_VERSION = 'v40';
-const BUILD_TAG = 'DOM_Diagnostics';
-const BUILD_COMMIT = 'pending';
-const BUILD_DATE = '2026-02-23 10:26 KST';
+const BUILD_VERSION = 'v41';
+const BUILD_TAG = 'FinalQuiz_Fix';
+const BUILD_COMMIT = 'GameLogic-delegate';
+const BUILD_DATE = '2026-02-24 14:40 KST';
 const BUILD_BANNER = `[BUILD] ${BUILD_VERSION} | ${BUILD_TAG} | ${BUILD_COMMIT} | ${BUILD_DATE}`;
 // Panel에 즉시 삽입 (logBase 정의 이전이므로 직접 push)
 if (panel) {
