@@ -18,6 +18,7 @@ export class FinalQuizManager {
         this._wordIndex = 0;
         this._words = [];
         this._spans = [];
+        this._riftTimers = [];           // ── 잉크 리프트 타이머 ──
         // ── 카운트다운 타이머 ──
         this._countdownInterval = null;
         this._secondsLeft = 60;
@@ -54,10 +55,13 @@ export class FinalQuizManager {
             this.phase = 'reading';
             this._startCountdown(60); // ← 지문 표시 시작과 동시에 카운트다운
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
-                setTimeout(() => {
+                // 5초 읽기 시간 → 잉크 리프트 시작 → 0.5초 후 문제 표시
+                const tRift = setTimeout(() => this._startRiftEffect(), 5000);
+                const tQ = setTimeout(() => {
                     try { this._showQuestion(); }
                     catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
-                }, 800);
+                }, 5500);
+                this._riftTimers.push(tRift, tQ);
             });
             console.log('[FinalQuiz] ▶ streaming started + timer running');
 
@@ -180,6 +184,7 @@ export class FinalQuizManager {
         if (choicesEl) { choicesEl.style.display = 'none'; choicesEl.style.opacity = '0'; choicesEl.innerHTML = ''; }
         if (resultEl) { resultEl.style.display = 'none'; resultEl.textContent = ''; }
         if (timerEl) { timerEl.style.color = '#00e5ff'; timerEl.style.animation = 'none'; timerEl.style.borderColor = 'rgba(0,229,255,0.3)'; }
+        document.getElementById('fq-rift-msg')?.remove();
 
         if (!textEl) console.error('[FinalQuiz] fq-passage-text still missing after ensureUI!');
         if (!choicesEl) console.error('[FinalQuiz] fq-choices still missing after ensureUI!');
@@ -211,6 +216,59 @@ export class FinalQuizManager {
             clearInterval(this._countdownInterval);
             this._countdownInterval = null;
         }
+    }
+
+    // ── 잉크 리프트 타이머 정리 ────────────────────────────────────────────
+    _clearRiftTimers() {
+        this._riftTimers.forEach(t => clearTimeout(t));
+        this._riftTimers = [];
+        const msgEl = document.getElementById('fq-rift-msg');
+        if (msgEl) msgEl.remove();
+    }
+
+    // ── 잉크 번짐 리프트 효과 ───────────────────────────────────────────────
+    _startRiftEffect() {
+        if (this.phase === 'done') return;
+
+        const spans = [...this._spans];
+        if (spans.length === 0) return;
+
+        // 랜덤 셔플 (Fisher-Yates)
+        for (let i = spans.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [spans[i], spans[j]] = [spans[j], spans[i]];
+        }
+
+        // 빌런 메시지 오버레이
+        const msgEl = document.createElement('div');
+        msgEl.id = 'fq-rift-msg';
+        msgEl.style.cssText =
+            'position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);' +
+            'background:rgba(120,0,40,0.88);border:1px solid rgba(255,0,80,0.5);' +
+            'color:#ff6688;font-family:\'Cinzel\',serif;font-size:0.9rem;' +
+            'padding:10px 24px;border-radius:10px;z-index:9999;' +
+            'text-align:center;letter-spacing:1px;pointer-events:none;' +
+            'animation:fqTimerPulse 0.5s ease-in-out infinite alternate;';
+        msgEl.textContent = '⚡ The Ink Shadow tears at your memory...';
+        document.body.appendChild(msgEl);
+        const tMsg = setTimeout(() => {
+            const e = document.getElementById('fq-rift-msg');
+            if (e) e.remove();
+        }, 3000);
+        this._riftTimers.push(tMsg);
+
+        // 1초에 한 단어씩 blur + fade (잉크 번짐)
+        spans.forEach((span, idx) => {
+            const t = setTimeout(() => {
+                if (this.phase === 'done') return;
+                span.style.transition = 'filter 0.9s ease, opacity 0.9s ease';
+                span.style.filter = 'blur(8px)';
+                span.style.opacity = '0';
+            }, idx * 1000);
+            this._riftTimers.push(t);
+        });
+
+        console.log(`[FinalQuiz] ⚡ Ink Bleed Rift started — ${spans.length} words`);
     }
 
     _updateTimerDisplay() {
@@ -391,6 +449,7 @@ export class FinalQuizManager {
             // ✅ Correct: lock, clear timer, go to score
             this.phase = 'done';
             this._clearCountdown();
+            this._clearRiftTimers();
             btns.forEach(b => { b.style.pointerEvents = 'none'; b.onmouseover = null; b.onmouseout = null; });
 
             btns[selectedIdx].style.background = 'linear-gradient(135deg,#1a7a2e,#2db84a)';
@@ -462,10 +521,12 @@ export class FinalQuizManager {
     destroy() {
         this._clearTimer();
         this._clearCountdown();
+        this._clearRiftTimers();
         this.phase = 'idle';
         this._wordIndex = 0;
         this._words = [];
         this._spans = [];
+        this._riftTimers = [];
         console.log('[FinalQuiz] destroyed');
     }
 }
