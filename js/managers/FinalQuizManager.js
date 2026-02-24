@@ -50,15 +50,16 @@ export class FinalQuizManager {
             // 타이머 초기 표시 (2:00) — 아직 시작 안 함
             this._updateTimerDisplay();
 
-            // 3. 스트리밍 시작
+            // 3. 스트리밍 시작 (타이머는 지문이 나오자마자 시작)
             this.phase = 'reading';
+            this._startCountdown(120); // ← 지문 표시 시작과 동시에 카운트다운
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
                 setTimeout(() => {
                     try { this._showQuestion(); }
                     catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
                 }, 800);
             });
-            console.log('[FinalQuiz] ▶ streaming started');
+            console.log('[FinalQuiz] ▶ streaming started + timer running');
 
         } catch (e) {
             console.error('[FinalQuiz] FATAL in init():', e);
@@ -106,6 +107,13 @@ export class FinalQuizManager {
           @keyframes fqTimerPulse {
             from { opacity:1; transform:scale(1); }
             to   { opacity:0.5; transform:scale(1.08); }
+          }
+          @keyframes fqShake {
+            0%,100% { transform:translateX(0); }
+            15%     { transform:translateX(-8px); }
+            35%     { transform:translateX(8px); }
+            55%     { transform:translateX(-6px); }
+            75%     { transform:translateX(5px); }
           }
         </style>
         <!-- 타이머: 우측 상단 고정 -->
@@ -366,10 +374,7 @@ export class FinalQuizManager {
             });
         });
 
-        // ── 2분 카운트다운 시작 (문제 표시 시점부터) ──
-        this._startCountdown(120);
-
-        console.log('[FinalQuiz] question + choices displayed. Timer started (120s).');
+        console.log('[FinalQuiz] question + choices displayed (timer already running).');
     }
 
     // ── 정답 처리 ────────────────────────────────────────────────────────────
@@ -380,16 +385,13 @@ export class FinalQuizManager {
 
         const btns = document.querySelectorAll('.fq-option-btn');
         const resultEl = document.getElementById('fq-result');
-
-        // 모든 버튼 즉시 클릭 차단
-        btns.forEach(b => { b.style.pointerEvents = 'none'; b.onmouseover = null; b.onmouseout = null; });
-
         const isCorrect = (selectedIdx === correctIdx);
 
         if (isCorrect) {
-            // ✅ 정답: 타이머 중단, 1.5초 후 score 이동
+            // ✅ Correct: lock, clear timer, go to score
             this.phase = 'done';
             this._clearCountdown();
+            btns.forEach(b => { b.style.pointerEvents = 'none'; b.onmouseover = null; b.onmouseout = null; });
 
             btns[selectedIdx].style.background = 'linear-gradient(135deg,#1a7a2e,#2db84a)';
             btns[selectedIdx].style.borderColor = '#2db84a';
@@ -401,7 +403,6 @@ export class FinalQuizManager {
                 resultEl.style.display = 'block';
             }
 
-            // 젬 지급
             const btn = btns[selectedIdx];
             if (btn && window.Game?.spawnFlyingResource) {
                 const r = btn.getBoundingClientRect();
@@ -410,32 +411,43 @@ export class FinalQuizManager {
                 window.Game.addGems(50);
             }
             console.log('[FinalQuiz] CORRECT +50 gems → score in 1.5s');
-
             setTimeout(() => this._goToScore(), 1500);
 
         } else {
-            // ❌ 오답: -10젬, 정답 표시, 화면 유지 (타이머 계속)
-            // phase는 'choosing' 유지 → 타이머 만료 시 자동 score 이동
+            // ❌ Wrong: shake the clicked button, keep others clickable, English-only message
 
-            btns[selectedIdx].style.background = 'linear-gradient(135deg,#7a1a1a,#b82d2d)';
-            btns[selectedIdx].style.borderColor = '#b82d2d';
-            btns[selectedIdx].style.boxShadow = '0 0 16px rgba(184,45,45,0.6)';
-
-            // 정답 버튼 초록으로 표시 (학습용)
-            if (correctIdx < btns.length) {
-                btns[correctIdx].style.background = 'linear-gradient(135deg,#1a7a2e,#2db84a)';
-                btns[correctIdx].style.borderColor = '#2db84a';
-                btns[correctIdx].style.boxShadow = '0 0 14px rgba(45,184,74,0.5)';
+            // 1. 클릭한 버튼만 비활성화 + 흔들기 애니메이션
+            const wrongBtn = btns[selectedIdx];
+            if (wrongBtn) {
+                wrongBtn.style.pointerEvents = 'none';
+                wrongBtn.onmouseover = null;
+                wrongBtn.onmouseout = null;
+                wrongBtn.style.background = 'rgba(180,30,30,0.35)';
+                wrongBtn.style.borderColor = 'rgba(255,80,80,0.55)';
+                wrongBtn.style.color = '#ff9999';
+                wrongBtn.style.animation = 'fqShake 0.42s ease';
+                setTimeout(() => { wrongBtn.style.animation = 'none'; }, 450);
             }
 
+            // 2. 조건부 젬 차감: 현재 보유 젬 >= 10일 때만
+            const currentGems = window.Game?.scoreManager?.gems
+                ?? window.Game?.state?.gems
+                ?? 0;
+            let resultMsg = '✗ Wrong!';
+            if (currentGems >= 10 && window.Game?.addGems) {
+                window.Game.addGems(-10);
+                resultMsg = '✗ Wrong!  −10 💎';
+            }
+
+            // 3. 결과 메시지 (영문만, 1.5초 후 자동 숨김)
             if (resultEl) {
-                resultEl.textContent = '✗ Wrong!  −10 💎  ·  정답이 위에 표시되었습니다.';
+                resultEl.textContent = resultMsg;
                 resultEl.style.color = '#ff7755';
                 resultEl.style.display = 'block';
+                setTimeout(() => { if (resultEl) resultEl.style.display = 'none'; }, 1800);
             }
 
-            if (window.Game?.addGems) window.Game.addGems(-10);
-            console.log('[FinalQuiz] WRONG -10 gems — staying on screen, timer continues');
+            console.log(`[FinalQuiz] WRONG idx=${selectedIdx} — gems=${currentGems}, deducted=${currentGems >= 10}. Retry allowed.`);
         }
     }
 

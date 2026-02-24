@@ -748,6 +748,30 @@
           transform: scale(1.08);
         }
       }
+
+      @keyframes fqShake {
+
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+
+        15% {
+          transform: translateX(-8px);
+        }
+
+        35% {
+          transform: translateX(8px);
+        }
+
+        55% {
+          transform: translateX(-6px);
+        }
+
+        75% {
+          transform: translateX(5px);
+        }
+      }
     </style>
     <section id="screen-final-quiz" class="screen" style="position:relative;
              background: radial-gradient(circle at center, #1a0830 0%, #0a0515 100%);
