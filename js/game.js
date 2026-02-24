@@ -1597,18 +1597,36 @@ Game.typewriter = {
             console.log('[FinalBoss] TextRenderer released (word spans eligible for GC).');
         }
 
-        // ── NEW: Route to screen-final-quiz (old alice-battle code preserved below) ──
+        // ── Route to screen-final-quiz ──
         Game.switchScreen('screen-final-quiz');
 
         setTimeout(() => {
-            // FinalQuizManager 초기화
-            if (!window.FinalQuizRef) {
-                window.FinalQuizRef = new FinalQuizManager();
+            try {
+                // FinalQuizManager 초기화 + 필요시 DOM 주입
+                if (!window.FinalQuizRef) {
+                    window.FinalQuizRef = new FinalQuizManager();
+                }
+                window.FinalQuizRef.init();
+
+                // DOM 주입 후 switchScreen이 요소를 못찾았을 수 있으므로 재활성화
+                const fqScreen = document.getElementById('screen-final-quiz');
+                if (fqScreen && !fqScreen.classList.contains('active')) {
+                    console.warn('[FinalBoss] screen-final-quiz was not active — forcing display');
+                    document.querySelectorAll('.screen').forEach(el => {
+                        el.classList.remove('active');
+                        el.style.display = 'none';
+                    });
+                    fqScreen.style.display = 'flex';
+                    requestAnimationFrame(() => fqScreen.classList.add('active'));
+                }
+
+                console.log('[FinalBoss] FinalQuizManager.init() called ✓');
+            } catch (e) {
+                console.error('[FinalBoss] FinalQuizManager init FAILED:', e);
             }
-            window.FinalQuizRef.init();
-            console.log('[FinalBoss] FinalQuizManager.init() called');
         }, 150);
     },
+
 
     // (Legacy) Old Final Boss via Alice Battle — preserved, not called from main flow
     triggerFinalBossBattleSequence_legacy() {
