@@ -74,19 +74,34 @@ export class GameLogic {
 
         // Flow Transition
         setTimeout(async () => {
-            // Check SDK Status
-            if (this.game.state.sdkLoading && !this.game.state.sdkLoading.isReady) {
-                console.log("SDK not ready, showing modal...");
-                const modal = document.getElementById("sdk-loading-modal");
-                if (modal) modal.style.display = "flex";
-                this.game.pendingWPMAction = () => this.selectWPM(wpm, btnElement); // Retry closure
-                return;
-            }
+            // [NON-BLOCKING BOOT] Wait for background SDK boot to complete before calibration.
+            // SDK was fired without await in IntroManager. By WPM selection the user has gone through
+            // Rift Intro (~10s) + Vocab (~varies), so SDK is likely already done.
+            // If not, show a brief waiting message (instead of a frozen button).
+            if (window._eyeTrackingBootPromise) {
+                const isDone = await Promise.race([
+                    window._eyeTrackingBootPromise.then(() => true).catch(() => false),
+                    new Promise(r => setTimeout(() => r('timeout'), 100)) // non-blocking check
+                ]);
 
-            // Tracking Init Check
-            if (this.game.trackingInitPromise) {
-                const timeout = new Promise(r => setTimeout(() => r(false), 3000));
-                await Promise.race([this.game.trackingInitPromise, timeout]);
+                if (isDone === 'timeout') {
+                    // SDK still loading — show status and wait up to 15s more
+                    console.log("[GameLogic] SDK still loading at WPM selection — waiting...");
+                    if (typeof window.setStatus === 'function') window.setStatus("⏳ Loading eye-tracking model...");
+
+                    const sdkResult = await Promise.race([
+                        window._eyeTrackingBootPromise.then(() => true).catch(() => false),
+                        new Promise(r => setTimeout(() => r(false), 15000))
+                    ]);
+
+                    if (typeof window.setStatus === 'function') window.setStatus("");
+
+                    if (!sdkResult) {
+                        console.warn("[GameLogic] SDK boot timed out or failed at WPM gate. Proceeding anyway.");
+                    } else {
+                        console.log("[GameLogic] SDK boot completed just in time.");
+                    }
+                }
             }
 
             this.game.switchScreen("screen-calibration");

@@ -25,53 +25,29 @@ export class IntroManager {
                     return;
                 }
 
-                /* 
-                // 2. Fullscreen Request (REMOVED per user preference)
-                // Restoration of original behavior: Do not force fullscreen.
-                try {
-                    if (document.documentElement.requestFullscreen) {
-                        await document.documentElement.requestFullscreen();
-                    }
-                } catch (e) {
-                    console.warn("Fullscreen deferred: " + e.message);
-                }
-                */
+                // 2. [NON-BLOCKING] Fire SDK boot in background — do NOT await.
+                //    The WASM model download can take 5~30s on mobile.
+                //    Waiting here makes the button feel frozen. Instead:
+                //    - Store the Promise so calibration can await it later.
+                //    - Proceed to the game screens immediately after 1s.
+                if (typeof window.startEyeTracking === 'function') {
+                    console.log("[IntroManager] Starting SDK boot in background (non-blocking)...");
+                    window._eyeTrackingBootPromise = window.startEyeTracking();
 
-                // 3. Initialize Eye Tracking SDK
-                try {
-                    console.log("[IntroManager] Requesting Eye Tracking Boot...");
-                    if (typeof window.startEyeTracking === 'function') {
-                        // Must be called DIRECTLY in event handler for mobile permissions
-                        const success = await window.startEyeTracking();
-                        if (!success) {
-                            console.error("[IntroManager] Eye Tracking Init Failed!");
-                            // [FIX #7] alert() → 논블로킹 메시지: iOS alert()는 async 흐름 블로킹
-                            if (typeof window.setStatus === 'function') {
-                                window.setStatus("⚠️ 카메라 초기화 실패. 카메라 권한을 확인해주세요.");
-                            }
-                            this.resetStartBtn(startBtn);
-                            return; // Stop here
-                        }
-                    } else {
-                        console.error("[IntroManager] startEyeTracking function not found!");
-                        // [FIX #7] alert() → 논블로킹 메시지
-                        if (typeof window.setStatus === 'function') {
-                            window.setStatus("⚠️ 시스템 오류: 추적 모듈을 찾을 수 없습니다.");
-                        }
-                        this.resetStartBtn(startBtn);
-                        return;
-                    }
-                } catch (e) {
-                    console.error("[IntroManager] SDK Boot Error:", e);
-                    // [FIX #7] alert() → 논블로킹 메시지
-                    if (typeof window.setStatus === 'function') {
-                        window.setStatus("⚠️ 시선 추적 초기화 오류: " + (e.message || e));
-                    }
-                    this.resetStartBtn(startBtn);
-                    return;
+                    // Attach a catch so unhandled rejection doesn't surface as a crash
+                    window._eyeTrackingBootPromise.catch(e => {
+                        console.error("[IntroManager] Background SDK boot failed:", e);
+                    });
+                } else {
+                    console.error("[IntroManager] startEyeTracking function not found!");
+                    // Resolve immediately so selectWPM await doesn't hang
+                    window._eyeTrackingBootPromise = Promise.resolve(false);
                 }
 
-                // 4. Start Rift Intro
+                // 3. Wait 1s to let the SDK kick off, then proceed to next screen
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // 4. Start Rift Intro (SDK continues downloading in background)
                 this.startRiftIntro();
             };
         }
