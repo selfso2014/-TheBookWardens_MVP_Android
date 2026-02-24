@@ -84,18 +84,20 @@ export class WardenManager {
                 runes: score.runes || 0,
                 gems: score.gems || 0,
                 chapter: 'The Rabbit Hole',
-                timestamp: (window.firebase && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+                timestamp: (window.firebase && firebase.firestore)
+                    ? firebase.firestore.FieldValue.serverTimestamp()
+                    : new Date().toISOString(),
                 device: navigator.userAgent
             };
 
             if (window.firebase && firebase.firestore) {
-                await firebase.firestore().collection("wardens").add(wardenData);
-                console.log("[WardenManager] Data saved to Firebase.");
+                await firebase.firestore().collection('wardens').add(wardenData);
+                console.log('[WardenManager] ✅ Saved to Firestore:', this.email);
             } else {
-                console.warn("[WardenManager] Firebase SDK not ready. Data stored locally only.");
+                console.warn('[WardenManager] Firestore SDK not ready. Data stored locally only.');
             }
         } catch (e) {
-            console.error("[WardenManager] Firebase Save Error:", e);
+            console.error('[WardenManager] Firebase Save Error:', e);
         }
     }
 }

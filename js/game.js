@@ -34,8 +34,9 @@ function loadFirebaseSDK() {
 
     _firebaseLoading = loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js')
         .then(() => loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'))
+        .then(() => loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js'))
         .then(() => loadScript('./js/firebase-config.js'))
-        .then(() => { console.log('[Firebase] SDK dynamically loaded on demand.'); })
+        .then(() => { console.log('[Firebase] SDK dynamically loaded (app + database + firestore).'); })
         .catch((e) => { _firebaseLoading = null; throw e; });
 
     return _firebaseLoading;
