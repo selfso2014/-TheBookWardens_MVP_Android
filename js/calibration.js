@@ -508,9 +508,40 @@ export class CalibrationManager {
 
     // Draw Logic
     render(ctx, width, height, toCanvasLocalPoint) {
-        if (!this.state.running || !this.state.point) return;
+        // No point at all — nothing to draw
+        if (!this.state.point) return;
 
         const pt = toCanvasLocalPoint(this.state.point.x, this.state.point.y) || this.state.point;
+
+        // ── WAITING STATE (running=false, point set): draw static dot while user reads instruction ──
+        if (!this.state.running) {
+            const cx = pt.x;
+            const cy = pt.y;
+            const now = performance.now();
+            const pulse = 0.5 + 0.5 * Math.sin(now / 450);
+
+            // Outer pulse ring
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 16 + pulse * 6, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.25 + pulse * 0.35})`;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = 'rgba(255,255,255,0.5)';
+            ctx.stroke();
+            ctx.restore();
+
+            // Center dot
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'white';
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
 
         // Smooth lerp for progress
         const target = this.state.progress || 0;
