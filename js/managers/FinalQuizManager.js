@@ -82,8 +82,10 @@ export class FinalQuizManager {
             background: 'radial-gradient(circle at center, #1a0830 0%, #0a0515 100%)',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            padding: '30px 20px',
+            justifyContent: 'flex-start',
+            padding: '0',
+            overflowY: 'auto',
+            overflowX: 'hidden',
         });
         section.innerHTML = this._buildInnerHTML();
         gameUI.appendChild(section);
@@ -92,23 +94,31 @@ export class FinalQuizManager {
 
     _buildInnerHTML() {
         return `
-        <img src="./finalredvillain.png" alt="Final Villain"
-          style="width:100px;height:auto;object-fit:contain;margin-bottom:16px;
-                 filter:drop-shadow(0 0 16px rgba(180,0,255,0.7));"
-          onerror="this.style.display='none'">
-        <p style="font-family:'Cinzel',serif;color:#c060ff;font-size:1.0rem;letter-spacing:2px;margin:0 0 18px 0;text-shadow:0 0 12px rgba(180,0,255,0.8);">
-          FINAL CHALLENGE
-        </p>
-        <div style="max-width:480px;width:90%;background:rgba(255,255,255,0.04);border:1px solid rgba(180,0,255,0.25);border-radius:16px;padding:24px;margin-bottom:24px;min-height:120px;">
-          <p id="fq-passage-text"
-            style="font-family:'Crimson Text',serif;font-size:1.15rem;line-height:1.9;color:#ddd;margin:0;transition:opacity 0.5s ease;"></p>
+        <div style="display:flex;flex-direction:column;align-items:center;padding:16px 16px 8px 16px;width:100%;box-sizing:border-box;
+                    background:linear-gradient(180deg,rgba(60,0,100,0.5) 0%,transparent 100%);flex-shrink:0;">
+          <img src="./finalredvillain.png" alt="Final Villain"
+            style="width:72px;height:auto;object-fit:contain;margin-bottom:8px;
+                   filter:drop-shadow(0 0 14px rgba(180,0,255,0.8));"
+            onerror="this.style.display='none'">
+          <p style="font-family:'Cinzel',serif;color:#c060ff;font-size:0.9rem;letter-spacing:3px;margin:0;text-shadow:0 0 12px rgba(180,0,255,0.9);">
+            FINAL CHALLENGE
+          </p>
         </div>
-        <p id="fq-question"
-          style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.05rem;color:#e0d0ff;text-align:center;max-width:480px;width:90%;margin-bottom:16px;font-weight:600;line-height:1.5;"></p>
-        <p id="fq-result"
-          style="display:none;font-size:1.2rem;font-weight:bold;margin-bottom:16px;text-shadow:0 0 10px currentColor;"></p>
-        <div id="fq-choices"
-          style="display:none;opacity:0;flex-direction:column;gap:12px;width:90%;max-width:480px;transition:opacity 0.4s ease;">
+        <div style="display:flex;flex-direction:column;align-items:center;width:100%;padding:8px 12px 24px 12px;box-sizing:border-box;gap:12px;">
+          <div style="width:100%;max-width:680px;background:rgba(255,255,255,0.05);border:1px solid rgba(180,0,255,0.3);
+                      border-radius:14px;padding:18px 20px;box-sizing:border-box;min-height:80px;">
+            <p id="fq-passage-text"
+              style="font-family:'Crimson Text',serif;font-size:1.0rem;line-height:1.85;color:#e0e0e0;margin:0;text-align:left;transition:opacity 0.5s ease;"></p>
+          </div>
+          <p id="fq-question"
+            style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;color:#f0e0ff;text-align:center;
+                   width:100%;max-width:680px;margin:0;font-weight:700;line-height:1.6;padding:10px 4px;
+                   border-top:1px solid rgba(180,0,255,0.2);"></p>
+          <p id="fq-result"
+            style="display:none;font-size:1.1rem;font-weight:bold;margin:0;text-shadow:0 0 10px currentColor;"></p>
+          <div id="fq-choices"
+            style="display:none;opacity:0;flex-direction:column;gap:10px;width:100%;max-width:680px;transition:opacity 0.4s ease;padding-bottom:12px;">
+          </div>
         </div>
         `;
     }
@@ -152,10 +162,10 @@ export class FinalQuizManager {
             span.style.opacity = '0';                      // TextRenderer: span.style.opacity = "0"
             span.style.display = 'inline-block';           // TextRenderer와 동일
             span.style.marginRight = '0.3em';              // TextRenderer: this.options.wordSpacing
-            span.style.lineHeight = '1.8';
-            span.style.fontSize = '0.92rem';               // ← 기존 1.15rem의 80%
+            span.style.lineHeight = '1.85';
+            span.style.fontSize = '1.0rem';
             span.style.verticalAlign = 'middle';
-            span.style.color = '#ddd';
+            span.style.color = '#e0e0e0';
             span.style.transition = 'opacity 0.15s ease'; // 부드러운 reveal
             span.dataset.index = i;
             span.textContent = word;

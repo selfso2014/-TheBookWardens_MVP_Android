@@ -737,43 +737,51 @@
 
     <!-- SCREEN 3.7: FINAL QUIZ (FinalQuizManager 전용 화면) -->
     <section id="screen-final-quiz" class="screen" style="background: radial-gradient(circle at center, #1a0830 0%, #0a0515 100%);
-             flex-direction: column; align-items: center; justify-content: center;
-             padding: 30px 20px; text-align: center; color: #fff; overflow-y: auto;">
+             flex-direction: column; align-items: center; justify-content: flex-start;
+             padding: 0; text-align: center; color: #fff; overflow-y: auto; overflow-x: hidden;">
 
-      <!-- 빌런 이미지 -->
-      <img src="./finalredvillain.png" alt="Final Villain" style="width: 100px; height: auto; object-fit: contain; margin-bottom: 16px;
-               filter: drop-shadow(0 0 16px rgba(180,0,255,0.7));" onerror="this.style.display='none'">
-
-      <!-- 타이틀 -->
-      <p style="font-family:'Cinzel',serif; color:#c060ff; font-size:1.0rem;
-                letter-spacing:2px; margin:0 0 18px 0; text-shadow:0 0 12px rgba(180,0,255,0.8);">
-        FINAL CHALLENGE
-      </p>
-
-      <!-- 지문 스트리밍 영역 (tr-word span이 주입됨 — TextRenderer 방식) -->
-      <div style="max-width:640px; width:96%; background:rgba(255,255,255,0.04);
-                  border:1px solid rgba(180,0,255,0.25); border-radius:16px;
-                  padding:24px; margin-bottom:12px; min-height:100px;">
-        <p id="fq-passage-text" style="font-family:'Crimson Text',serif; font-size:0.92rem; line-height:1.8;
-                 color:#ddd; margin:0; transition:opacity 0.5s ease;">
+      <!-- 상단 헤더 영역: 빌런 이미지 + 타이틀 (컴팩트) -->
+      <div style="display:flex; flex-direction:column; align-items:center; padding: 16px 16px 8px 16px; width:100%; box-sizing:border-box;
+                  background: linear-gradient(180deg, rgba(60,0,100,0.5) 0%, transparent 100%); flex-shrink:0;">
+        <img src="./finalredvillain.png" alt="Final Villain" style="width: 72px; height: auto; object-fit: contain; margin-bottom: 8px;
+                    filter: drop-shadow(0 0 14px rgba(180,0,255,0.8));" onerror="this.style.display='none'">
+        <p style="font-family:'Cinzel',serif; color:#c060ff; font-size:0.9rem;
+                  letter-spacing:3px; margin:0; text-shadow:0 0 12px rgba(180,0,255,0.9);">
+          FINAL CHALLENGE
         </p>
       </div>
 
-      <!-- 문제 텍스트 (지문 스트리밍 완료 후 표시) -->
-      <p id="fq-question" style="display:none; font-family:'Outfit','Segoe UI',sans-serif; font-size:0.95rem; color:#e0d0ff;
-               text-align:center; max-width:640px; width:96%; margin-bottom:12px;
-               font-weight:600; line-height:1.5;">
-      </p>
+      <!-- 콘텐츠 영역: 지문 + 문제 + 선택지 (세로 흐름) -->
+      <div style="display:flex; flex-direction:column; align-items:center; width:100%;
+                  padding: 8px 12px 24px 12px; box-sizing:border-box; gap:12px;">
 
-      <!-- 정답/오답 결과 메시지 -->
-      <p id="fq-result" style="display:none; font-size:1.1rem; font-weight:bold;
-               margin-bottom:12px; text-shadow:0 0 10px currentColor;">
-      </p>
+        <!-- 지문 스트리밍 영역 -->
+        <div style="width:100%; max-width:680px; background:rgba(255,255,255,0.05);
+                    border:1px solid rgba(180,0,255,0.3); border-radius:14px;
+                    padding:18px 20px; box-sizing:border-box; min-height:80px;">
+          <p id="fq-passage-text" style="font-family:'Crimson Text',serif; font-size:1.0rem; line-height:1.85;
+                   color:#e0e0e0; margin:0; text-align:left; transition:opacity 0.5s ease;">
+          </p>
+        </div>
 
-      <!-- 4지선다 버튼 영역 -->
-      <div id="fq-choices" style="display:none; opacity:0; flex-direction:column; gap:10px;
-               width:96%; max-width:640px; transition:opacity 0.4s ease;">
-        <!-- FinalQuizManager가 동적으로 버튼 주입 -->
+        <!-- 문제 텍스트 (지문 스트리밍 완료 후 표시) -->
+        <p id="fq-question" style="display:none; font-family:'Outfit','Segoe UI',sans-serif; font-size:1.0rem; color:#f0e0ff;
+                 text-align:center; width:100%; max-width:680px; margin:0;
+                 font-weight:700; line-height:1.6; padding: 10px 4px;
+                 border-top: 1px solid rgba(180,0,255,0.2);">
+        </p>
+
+        <!-- 정답/오답 결과 메시지 -->
+        <p id="fq-result" style="display:none; font-size:1.1rem; font-weight:bold;
+                 margin:0; text-shadow:0 0 10px currentColor;">
+        </p>
+
+        <!-- 4지선다 버튼 영역 -->
+        <div id="fq-choices" style="display:none; opacity:0; flex-direction:column; gap:10px;
+                 width:100%; max-width:680px; transition:opacity 0.4s ease; padding-bottom:12px;">
+          <!-- FinalQuizManager가 동적으로 버튼 주입 -->
+        </div>
+
       </div>
     </section>
 
