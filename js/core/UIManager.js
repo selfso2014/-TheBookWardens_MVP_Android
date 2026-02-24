@@ -126,6 +126,10 @@ export class UIManager {
                     const idx = this._animRafs.indexOf(rafId);
                     if (idx === -1) this._animRafs.push(rafId);
                 } else {
+                    // [FIX] Force-write the exact final value.
+                    // The 60fps gate (line 117) may have skipped the last DOM update,
+                    // leaving Math.floor(ease * range) = end-1 instead of end.
+                    obj.innerText = prefix + end.toLocaleString() + suffix;
                     this._animRafs = this._animRafs.filter(r => r !== rafId);
                 }
             };
