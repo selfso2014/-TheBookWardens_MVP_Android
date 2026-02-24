@@ -1137,11 +1137,46 @@
     </div>
   </div>
 
+
+  <!-- SCREEN: Final Quiz (New Final Villain — Reading Comprehension) -->
+  <section id="screen-final-quiz" class="screen"
+    style="display:none; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle at center, #1a0830 0%, #0a0515 100%); padding:30px 20px;">
+
+    <!-- Villain Image (small) -->
+    <img src="./finalredvillain.png" alt="Final Villain" style="width:100px; height:auto; object-fit:contain; margin-bottom:16px;
+             filter: drop-shadow(0 0 16px rgba(180,0,255,0.7)); animation: fq-float 3s ease-in-out infinite;">
+
+    <!-- Title -->
+    <p
+      style="font-family:'Cinzel',serif; color:#c060ff; font-size:1.0rem; letter-spacing:2px; margin:0 0 18px 0; text-shadow:0 0 12px rgba(180,0,255,0.8);">
+      FINAL CHALLENGE
+    </p>
+
+    <!-- Passage Text (word-by-word stream) -->
+    <div
+      style="max-width:480px; width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(180,0,255,0.25); border-radius:16px; padding:24px 24px; margin-bottom:24px; min-height:120px; position:relative;">
+      <p id="fq-passage-text"
+        style="font-family:'Georgia',serif; font-size:1.05rem; line-height:1.9; color:#ddd; margin:0; white-space:pre-wrap; transition:opacity 0.5s ease;">
+      </p>
+    </div>
+
+    <!-- Result feedback -->
+    <p id="fq-result"
+      style="display:none; font-size:1.2rem; font-weight:bold; margin-bottom:16px; text-shadow:0 0 10px currentColor;">
+    </p>
+
+    <!-- Answer Choices -->
+    <div id="fq-choices"
+      style="display:none; opacity:0; flex-direction:column; gap:12px; width:100%; max-width:480px; transition:opacity 0.4s ease;">
+    </div>
+  </section>
+
   <!-- SCREEN: Alice Battlefield (Reordered Conflict) -->
   <div id="screen-alice-battle" class="screen"
     style="display:none; flex-direction: column; overflow: hidden; background: #000; width: 100%; height: 100vh; align-items: center; justify-content: space-between;">
     <canvas id="alice-canvas"
       style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;"></canvas>
+
 
     <div id="alice-game-ui"
       style="position: relative; z-index: 10; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">

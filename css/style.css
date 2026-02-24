@@ -1009,3 +1009,58 @@ span.tr-word.chunk-fade-out {
   /* Subtle Pop */
   display: inline-block;
 }
+
+/* ── Final Quiz Screen ───────────────────────────────────────────────────── */
+
+/* Villain floating animation */
+@keyframes fq-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Answer option button */
+.fq-option-btn {
+  display: block;
+  width: 100%;
+  background: rgba(130, 30, 220, 0.12);
+  border: 1px solid rgba(180, 0, 255, 0.35);
+  color: #e0ccff;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 1.0rem;
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  animation: fq-choice-in 0.4s both ease-out;
+}
+
+@keyframes fq-choice-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fq-option-btn:hover {
+  background: rgba(130, 30, 220, 0.32);
+  border-color: rgba(180, 0, 255, 0.7);
+  transform: translateX(4px);
+  box-shadow: 0 0 12px rgba(180, 0, 255, 0.35);
+}
+
+.fq-option-btn:active {
+  transform: scale(0.97);
+}

@@ -11,6 +11,7 @@ import { VocabManager } from './managers/VocabManager.js?v=FINAL_FIX_NOW';
 import { UIManager } from './core/UIManager.js?v=FINAL_FIX_NOW';
 import { GameLogic } from './core/GameLogic.js?v=FINAL_FIX_NOW';
 import { DOMManager } from './core/DOMManager.js?v=FINAL_FIX_NOW';
+import { FinalQuizManager } from './managers/FinalQuizManager.js?v=FINAL_FIX_NOW';
 
 // ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
@@ -267,6 +268,14 @@ const Game = {
             // This is already called by CalibrationManager.finishSequence().
             // Nothing extra needed here — cal cleanup is handled at the app.js level.
             console.log('[Lifecycle] screen-calibration: (managed by app.js)');
+        },
+
+        // ── Final Quiz Screen (New Final Villain) ────────────────────────
+        'screen-final-quiz': () => {
+            if (window.FinalQuizRef && typeof window.FinalQuizRef.destroy === 'function') {
+                window.FinalQuizRef.destroy();
+                console.log('[Lifecycle] screen-final-quiz: FinalQuizManager destroyed');
+            }
         },
 
         // ── Alice Battle Screen ──────────────────────────────────────────
@@ -1577,12 +1586,9 @@ Game.typewriter = {
 
     // Extracted Helper: Trigger Final Boss
     triggerFinalBossBattleSequence() {
-        console.log("[FinalBoss] Triggering Final Boss via switchScreen() lifecycle (v26)");
+        console.log("[FinalBoss] Triggering NEW Final Quiz screen");
 
-        // [FIX-MEM A] Release TextRenderer before Final Boss to free word-span DOM memory.
-        // switchScreen().clearAllResources() only cancels RAF/Intervals.
-        // The renderer itself holds ~300 word span references + line/chunk arrays in heap.
-        // Nulling here makes them GC-eligible before AliceBattle canvas allocates.
+        // [FIX-MEM A] Release TextRenderer to free word-span DOM memory.
         if (Game.typewriter && Game.typewriter.renderer) {
             if (typeof Game.typewriter.renderer.cancelAllAnimations === 'function') {
                 Game.typewriter.renderer.cancelAllAnimations();
@@ -1591,11 +1597,29 @@ Game.typewriter = {
             console.log('[FinalBoss] TextRenderer released (word spans eligible for GC).');
         }
 
-        // [FIX #4] Use switchScreen() instead of direct DOM manipulation.
-        // switchScreen() enforces: UNMOUNT prev → DOM transition → MOUNT next.
-        Game.switchScreen('screen-alice-battle');
+        // ── NEW: Route to screen-final-quiz (old alice-battle code preserved below) ──
+        Game.switchScreen('screen-final-quiz');
 
-        // Init AliceBattle after a short frame delay (screen needs to layout first)
+        setTimeout(() => {
+            // FinalQuizManager 초기화
+            if (!window.FinalQuizRef) {
+                window.FinalQuizRef = new FinalQuizManager();
+            }
+            window.FinalQuizRef.init();
+            console.log('[FinalBoss] FinalQuizManager.init() called');
+        }, 150);
+    },
+
+    // (Legacy) Old Final Boss via Alice Battle — preserved, not called from main flow
+    triggerFinalBossBattleSequence_legacy() {
+        console.log("[FinalBoss-Legacy] Routing to screen-alice-battle");
+        if (Game.typewriter && Game.typewriter.renderer) {
+            if (typeof Game.typewriter.renderer.cancelAllAnimations === 'function') {
+                Game.typewriter.renderer.cancelAllAnimations();
+            }
+            Game.typewriter.renderer = null;
+        }
+        Game.switchScreen('screen-alice-battle');
         setTimeout(() => {
             if (window.AliceBattleRef) {
                 const currentStats = {
@@ -1604,11 +1628,11 @@ Game.typewriter = {
                     gem: Game.state.gems
                 };
                 window.AliceBattleRef.init(currentStats);
-                console.log("[FinalBoss] AliceBattleRef.init() called with stats:", currentStats);
+                console.log("[FinalBoss-Legacy] AliceBattleRef.init() called with stats:", currentStats);
             } else {
-                console.error("[FinalBoss] FATAL: AliceBattleRef NOT FOUND!");
+                console.error("[FinalBoss-Legacy] FATAL: AliceBattleRef NOT FOUND!");
             }
-        }, 150); // 150ms: enough for switchScreen RAF to apply 'active' class
+        }, 150);
     },
 
     // [State] Simple Battle System (Delegated to GameLogic)
