@@ -487,7 +487,24 @@
         Start Game
       </button>
 
-      <!-- Debug Button Removed -->
+      <!-- [DEBUG] Final Quiz 바로가기 버튼 — 디버깅 완료 후 제거 -->
+      <button id="btn-debug-final-quiz"
+        onclick="window.Game && window.Game.triggerFinalBossBattleSequence ? window.Game.triggerFinalBossBattleSequence() : alert('[DEV] Game not ready')"
+        style="
+          margin-top: 16px;
+          padding: 10px 24px;
+          background: rgba(255,80,0,0.15);
+          border: 1px dashed rgba(255,120,0,0.6);
+          color: #ff9944;
+          font-family: 'Outfit', monospace;
+          font-size: 0.85rem;
+          border-radius: 8px;
+          cursor: pointer;
+          letter-spacing: 1px;
+          opacity: 0.75;
+        ">
+        ⚡ [DEV] Final Quiz
+      </button>
     </section>
 
     <!-- SCREEN 0.4: FACE CHECK (NEW) -->
