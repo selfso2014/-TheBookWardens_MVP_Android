@@ -719,6 +719,42 @@
     </section>
 
 
+    <!-- SCREEN 3.7: FINAL QUIZ (FinalQuizManager 전용 화면) -->
+    <section id="screen-final-quiz" class="screen" style="background: radial-gradient(circle at center, #1a0830 0%, #0a0515 100%);
+             flex-direction: column; align-items: center; justify-content: center;
+             padding: 30px 20px; text-align: center; color: #fff; overflow-y: auto;">
+
+      <!-- 빌런 이미지 -->
+      <img src="./finalredvillain.png" alt="Final Villain" style="width: 100px; height: auto; object-fit: contain; margin-bottom: 16px;
+               filter: drop-shadow(0 0 16px rgba(180,0,255,0.7));" onerror="this.style.display='none'">
+
+      <!-- 타이틀 -->
+      <p style="font-family:'Cinzel',serif; color:#c060ff; font-size:1.0rem;
+                letter-spacing:2px; margin:0 0 18px 0; text-shadow:0 0 12px rgba(180,0,255,0.8);">
+        FINAL CHALLENGE
+      </p>
+
+      <!-- 지문 스트리밍 영역 -->
+      <div style="max-width:480px; width:90%; background:rgba(255,255,255,0.04);
+                  border:1px solid rgba(180,0,255,0.25); border-radius:16px;
+                  padding:24px; margin-bottom:24px; min-height:120px;">
+        <p id="fq-passage-text" style="font-family:'Georgia',serif; font-size:1.05rem; line-height:1.9;
+                 color:#ddd; margin:0; white-space:pre-wrap; transition:opacity 0.5s ease;">
+        </p>
+      </div>
+
+      <!-- 정답/오답 결과 메시지 -->
+      <p id="fq-result" style="display:none; font-size:1.2rem; font-weight:bold;
+               margin-bottom:16px; text-shadow:0 0 10px currentColor;">
+      </p>
+
+      <!-- 4지선다 버튼 영역 -->
+      <div id="fq-choices" style="display:none; opacity:0; flex-direction:column; gap:12px;
+               width:90%; max-width:480px; transition:opacity 0.4s ease;">
+        <!-- FinalQuizManager가 동적으로 버튼 주입 -->
+      </div>
+    </section>
+
     <!-- SCREEN 3.5: FINAL BOSS (Comprehension Challenge) -> REPLACED WITH ALICE BATTLE VISUAL -->
     <section id="screen-final-boss" class="screen alice-battle-mode"
       style="background: linear-gradient(135deg, #000 0%, #2a0a38 100%); flex-direction: column; display:none;">

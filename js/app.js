@@ -770,10 +770,10 @@ const panel = ensureLogPanel();
 
 // ── BUILD VERSION BANNER ──────────────────────────────────────────────────────
 // 로그 수집 시 어느 빌드인지 즉시 식별
-const BUILD_VERSION = 'v43';
-const BUILD_TAG = 'BossScreen_CSS_Fix';
-const BUILD_COMMIT = 'boss-dark-bg-fixed';
-const BUILD_DATE = '2026-02-24 14:57 KST';
+const BUILD_VERSION = 'v44';
+const BUILD_TAG = 'FinalQuiz_DOM_Fix';
+const BUILD_COMMIT = 'screen-final-quiz-added-to-html';
+const BUILD_DATE = '2026-02-24 15:03 KST';
 const BUILD_BANNER = `[BUILD] ${BUILD_VERSION} | ${BUILD_TAG} | ${BUILD_COMMIT} | ${BUILD_DATE}`;
 // Panel에 즉시 삽입 (logBase 정의 이전이므로 직접 push)
 if (panel) {
