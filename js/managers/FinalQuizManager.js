@@ -21,7 +21,7 @@ export class FinalQuizManager {
         this._riftTimers = [];           // ── 잉크 리프트 타이머 ──
         // ── 카운트다운 타이머 ──
         this._countdownInterval = null;
-        this._secondsLeft = 60;
+        this._secondsLeft = 120;
     }
 
     // ── 진입점 ──────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ export class FinalQuizManager {
             this.phase = 'idle';
             this._clearTimer();
             this._clearCountdown();
-            this._secondsLeft = 60;
+            this._secondsLeft = 120;
             this._wordIndex = 0;
             this._words = [];
             this._spans = [];
@@ -48,12 +48,12 @@ export class FinalQuizManager {
             this._resetUI();
             console.log('[FinalQuiz] UI ensured + reset');
 
-            // 타이머 초기 표시 (1:00) — 아직 시작 안 함
+            // 타이머 초기 표시 (2:00) — 아직 시작 안 함
             this._updateTimerDisplay();
 
             // 3. 스트리밍 시작 (타이머는 지문이 나오자마자 시작)
             this.phase = 'reading';
-            this._startCountdown(60); // ← 지문 표시 시작과 동시에 카운트다운
+            this._startCountdown(120); // ← 지문 표시 시작과 동시에 카운트다운
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
                 // 5초 읽기 시간 → 잉크 리프트 시작 → 0.5초 후 문제 표시
                 const tRift = setTimeout(() => this._startRiftEffect(), 5000);
@@ -227,6 +227,8 @@ export class FinalQuizManager {
     }
 
     // ── 잉크 번짐 리프트 효과 ───────────────────────────────────────────────
+    // 빌런 메시지 없음. 5초에 단어 하나씩 랜덤 소멸.
+    // 타이머 2분(120초) 안에 약 24단어만 사라져 어려움을 전달.
     _startRiftEffect() {
         if (this.phase === 'done') return;
 
@@ -239,36 +241,18 @@ export class FinalQuizManager {
             [spans[i], spans[j]] = [spans[j], spans[i]];
         }
 
-        // 빌런 메시지 오버레이
-        const msgEl = document.createElement('div');
-        msgEl.id = 'fq-rift-msg';
-        msgEl.style.cssText =
-            'position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);' +
-            'background:rgba(120,0,40,0.88);border:1px solid rgba(255,0,80,0.5);' +
-            'color:#ff6688;font-family:\'Cinzel\',serif;font-size:0.9rem;' +
-            'padding:10px 24px;border-radius:10px;z-index:9999;' +
-            'text-align:center;letter-spacing:1px;pointer-events:none;' +
-            'animation:fqTimerPulse 0.5s ease-in-out infinite alternate;';
-        msgEl.textContent = '⚡ The Ink Shadow tears at your memory...';
-        document.body.appendChild(msgEl);
-        const tMsg = setTimeout(() => {
-            const e = document.getElementById('fq-rift-msg');
-            if (e) e.remove();
-        }, 3000);
-        this._riftTimers.push(tMsg);
-
-        // 1초에 한 단어씩 blur + fade (잉크 번짐)
+        // 5초에 한 단어씩 blur + fade (잉크 번짐)
         spans.forEach((span, idx) => {
             const t = setTimeout(() => {
                 if (this.phase === 'done') return;
                 span.style.transition = 'filter 0.9s ease, opacity 0.9s ease';
                 span.style.filter = 'blur(8px)';
                 span.style.opacity = '0';
-            }, idx * 1000);
+            }, idx * 5000);
             this._riftTimers.push(t);
         });
 
-        console.log(`[FinalQuiz] ⚡ Ink Bleed Rift started — ${spans.length} words`);
+        console.log(`[FinalQuiz] ⚡ Ink Bleed Rift — ${spans.length} words @ 5s/word`);
     }
 
     _updateTimerDisplay() {
