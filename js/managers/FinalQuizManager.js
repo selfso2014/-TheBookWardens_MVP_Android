@@ -55,13 +55,13 @@ export class FinalQuizManager {
             this.phase = 'reading';
             this._startCountdown(120); // ← 지문 표시 시작과 동시에 카운트다운
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
-                // 5초 읽기 시간 → 잉크 리프트 시작 → 0.5초 후 문제 표시
+                // 지문 완료 → 즉시 문제+답지 표시
+                try { this._showQuestion(); }
+                catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
+
+                // 문제 출력 후 5초 뒤 잉크 번짐 시작
                 const tRift = setTimeout(() => this._startRiftEffect(), 5000);
-                const tQ = setTimeout(() => {
-                    try { this._showQuestion(); }
-                    catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
-                }, 5500);
-                this._riftTimers.push(tRift, tQ);
+                this._riftTimers.push(tRift);
             });
             console.log('[FinalQuiz] ▶ streaming started + timer running');
 
