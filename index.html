@@ -751,28 +751,28 @@
       </p>
 
       <!-- 지문 스트리밍 영역 (tr-word span이 주입됨 — TextRenderer 방식) -->
-      <div style="max-width:480px; width:90%; background:rgba(255,255,255,0.04);
+      <div style="max-width:640px; width:96%; background:rgba(255,255,255,0.04);
                   border:1px solid rgba(180,0,255,0.25); border-radius:16px;
-                  padding:24px; margin-bottom:16px; min-height:120px;">
-        <p id="fq-passage-text" style="font-family:'Crimson Text',serif; font-size:1.15rem; line-height:1.9;
+                  padding:24px; margin-bottom:12px; min-height:100px;">
+        <p id="fq-passage-text" style="font-family:'Crimson Text',serif; font-size:0.92rem; line-height:1.8;
                  color:#ddd; margin:0; transition:opacity 0.5s ease;">
         </p>
       </div>
 
       <!-- 문제 텍스트 (지문 스트리밍 완료 후 표시) -->
-      <p id="fq-question" style="display:none; font-family:'Outfit','Segoe UI',sans-serif; font-size:1.05rem; color:#e0d0ff;
-               text-align:center; max-width:480px; width:90%; margin-bottom:16px;
+      <p id="fq-question" style="display:none; font-family:'Outfit','Segoe UI',sans-serif; font-size:0.95rem; color:#e0d0ff;
+               text-align:center; max-width:640px; width:96%; margin-bottom:12px;
                font-weight:600; line-height:1.5;">
       </p>
 
       <!-- 정답/오답 결과 메시지 -->
-      <p id="fq-result" style="display:none; font-size:1.2rem; font-weight:bold;
-               margin-bottom:16px; text-shadow:0 0 10px currentColor;">
+      <p id="fq-result" style="display:none; font-size:1.1rem; font-weight:bold;
+               margin-bottom:12px; text-shadow:0 0 10px currentColor;">
       </p>
 
       <!-- 4지선다 버튼 영역 -->
-      <div id="fq-choices" style="display:none; opacity:0; flex-direction:column; gap:12px;
-               width:90%; max-width:480px; transition:opacity 0.4s ease;">
+      <div id="fq-choices" style="display:none; opacity:0; flex-direction:column; gap:10px;
+               width:96%; max-width:640px; transition:opacity 0.4s ease;">
         <!-- FinalQuizManager가 동적으로 버튼 주입 -->
       </div>
     </section>
@@ -1218,20 +1218,20 @@
 
     <!-- Passage Text (word-by-word stream) -->
     <div
-      style="max-width:480px; width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(180,0,255,0.25); border-radius:16px; padding:24px 24px; margin-bottom:24px; min-height:120px; position:relative;">
+      style="max-width:640px; width:96%; background:rgba(255,255,255,0.04); border:1px solid rgba(180,0,255,0.25); border-radius:16px; padding:24px; margin-bottom:12px; min-height:100px; position:relative;">
       <p id="fq-passage-text"
-        style="font-family:'Georgia',serif; font-size:1.05rem; line-height:1.9; color:#ddd; margin:0; white-space:pre-wrap; transition:opacity 0.5s ease;">
+        style="font-family:'Crimson Text',serif; font-size:0.92rem; line-height:1.8; color:#ddd; margin:0; transition:opacity 0.5s ease;">
       </p>
     </div>
 
     <!-- Result feedback -->
     <p id="fq-result"
-      style="display:none; font-size:1.2rem; font-weight:bold; margin-bottom:16px; text-shadow:0 0 10px currentColor;">
+      style="display:none; font-size:1.1rem; font-weight:bold; margin-bottom:12px; text-shadow:0 0 10px currentColor;">
     </p>
 
     <!-- Answer Choices -->
     <div id="fq-choices"
-      style="display:none; opacity:0; flex-direction:column; gap:12px; width:100%; max-width:480px; transition:opacity 0.4s ease;">
+      style="display:none; opacity:0; flex-direction:column; gap:10px; width:96%; max-width:640px; transition:opacity 0.4s ease;">
     </div>
   </section>
 

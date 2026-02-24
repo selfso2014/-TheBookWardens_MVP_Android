@@ -152,7 +152,8 @@ export class FinalQuizManager {
             span.style.opacity = '0';                      // TextRenderer: span.style.opacity = "0"
             span.style.display = 'inline-block';           // TextRenderer와 동일
             span.style.marginRight = '0.3em';              // TextRenderer: this.options.wordSpacing
-            span.style.lineHeight = '1.9';
+            span.style.lineHeight = '1.8';
+            span.style.fontSize = '0.92rem';               // ← 기존 1.15rem의 80%
             span.style.verticalAlign = 'middle';
             span.style.color = '#ddd';
             span.style.transition = 'opacity 0.15s ease'; // 부드러운 reveal
@@ -186,69 +187,69 @@ export class FinalQuizManager {
         this._streamTimer = setTimeout(revealNext, 0);
     }
 
-    // ── 문제 표시 (지문 fade-out → 문제 표시 → 선택지 표시) ─────────────────
+    // ── 문제 표시 (지문 유지 + 문제·선택지 fade-in) ──────────────────────────
     _showQuestion() {
         if (this.phase !== 'reading') return;
         this.phase = 'choosing';
 
-        const textEl = document.getElementById('fq-passage-text');
         const questionEl = document.getElementById('fq-question');
         const choicesEl = document.getElementById('fq-choices');
 
-        // 지문 fade out
-        if (textEl) {
-            textEl.style.transition = 'opacity 0.5s ease';
-            textEl.style.opacity = '0';
-        }
-
-        setTimeout(() => {
-            // 문제 텍스트 표시
-            if (questionEl) {
-                questionEl.textContent = FINAL_QUIZ_DATA.question;
-                questionEl.style.display = 'block';
-            }
-
-            if (!choicesEl) {
-                console.error('[FinalQuiz] fq-choices not found — cannot show buttons');
-                return;
-            }
-
-            // 선택지 버튼 생성
-            choicesEl.innerHTML = '';
-            FINAL_QUIZ_DATA.options.forEach((optText, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'fq-option-btn';
-                btn.textContent = optText;
-                Object.assign(btn.style, {
-                    display: 'block',
-                    width: '100%',
-                    background: 'rgba(130,30,220,0.15)',
-                    border: '1px solid rgba(180,0,255,0.4)',
-                    color: '#e0ccff',
-                    padding: '14px 18px',
-                    borderRadius: '12px',
-                    fontSize: '1rem',
-                    fontFamily: "'Outfit','Segoe UI',sans-serif",
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    marginBottom: '0',
-                });
-                btn.onmouseover = () => { btn.style.background = 'rgba(130,30,220,0.35)'; };
-                btn.onmouseout = () => { btn.style.background = 'rgba(130,30,220,0.15)'; };
-                btn.onclick = () => this._onAnswer(i, FINAL_QUIZ_DATA.answer);
-                choicesEl.appendChild(btn);
-            });
-
-            choicesEl.style.display = 'flex';
+        // ⬇ 지문은 사라지지 않음 — 바로 문제 텍스트 표시
+        if (questionEl) {
+            questionEl.textContent = FINAL_QUIZ_DATA.question;
+            questionEl.style.opacity = '0';
+            questionEl.style.display = 'block';
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    choicesEl.style.transition = 'opacity 0.4s ease';
-                    choicesEl.style.opacity = '1';
+                    questionEl.style.transition = 'opacity 0.5s ease';
+                    questionEl.style.opacity = '1';
                 });
             });
+        }
 
-            console.log('[FinalQuiz] question + choices displayed');
-        }, 500);
+        if (!choicesEl) {
+            console.error('[FinalQuiz] fq-choices not found — cannot show buttons');
+            return;
+        }
+
+        // 선택지 버튼 생성
+        choicesEl.innerHTML = '';
+        FINAL_QUIZ_DATA.options.forEach((optText, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'fq-option-btn';
+            btn.textContent = optText;
+            Object.assign(btn.style, {
+                display: 'block',
+                width: '100%',
+                background: 'rgba(130,30,220,0.15)',
+                border: '1px solid rgba(180,0,255,0.4)',
+                color: '#e0ccff',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '0.9rem',
+                fontFamily: "'Outfit','Segoe UI',sans-serif",
+                textAlign: 'left',
+                cursor: 'pointer',
+                marginBottom: '0',
+            });
+            btn.onmouseover = () => { btn.style.background = 'rgba(130,30,220,0.35)'; };
+            btn.onmouseout = () => { btn.style.background = 'rgba(130,30,220,0.15)'; };
+            btn.onclick = () => this._onAnswer(i, FINAL_QUIZ_DATA.answer);
+            choicesEl.appendChild(btn);
+        });
+
+        // 선택지 fade-in
+        choicesEl.style.opacity = '0';
+        choicesEl.style.display = 'flex';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                choicesEl.style.transition = 'opacity 0.5s ease';
+                choicesEl.style.opacity = '1';
+            });
+        });
+
+        console.log('[FinalQuiz] question + choices displayed (passage kept visible)');
     }
 
     // ── 정답 처리 ────────────────────────────────────────────────────────────
