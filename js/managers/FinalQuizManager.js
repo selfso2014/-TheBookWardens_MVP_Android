@@ -3,7 +3,7 @@
  * 최종빌런 화면: 지문 스트리밍(TextRenderer 방식) → 문제 표시 → 4지선다 → score 화면
  *
  * [타이머]
- *  - 2분(120초) 카운트다운 — 우측 상단 표시
+ *  - 1분(60초) 카운트다운 — 우측 상단 표시
  *  - 시간 종료 → 자동 score 화면 이동
  *  - 정답 선택 시 타이머 중단 → 1.5초 후 score 이동
  *
@@ -20,7 +20,7 @@ export class FinalQuizManager {
         this._spans = [];
         // ── 카운트다운 타이머 ──
         this._countdownInterval = null;
-        this._secondsLeft = 120;
+        this._secondsLeft = 60;
     }
 
     // ── 진입점 ──────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ export class FinalQuizManager {
             this.phase = 'idle';
             this._clearTimer();
             this._clearCountdown();
-            this._secondsLeft = 120;
+            this._secondsLeft = 60;
             this._wordIndex = 0;
             this._words = [];
             this._spans = [];
@@ -39,7 +39,7 @@ export class FinalQuizManager {
             // 1. WPM 취득 (HUD 실측값)
             const rawWPM = (window.Game?.scoreManager?.wpmDisplay) ?? 0;
             const wpm = (rawWPM > 30) ? Math.round(rawWPM) : 150;
-            const msPerWord = Math.max(100, Math.round(60000 / wpm * 0.6));
+            const msPerWord = Math.max(50, Math.round(60000 / wpm * 0.3));
             console.log(`[FinalQuiz] wpm=${wpm} (raw=${rawWPM}), msPerWord=${msPerWord}ms`);
 
             // 2. 화면 요소 보장 + 초기화
@@ -47,12 +47,12 @@ export class FinalQuizManager {
             this._resetUI();
             console.log('[FinalQuiz] UI ensured + reset');
 
-            // 타이머 초기 표시 (2:00) — 아직 시작 안 함
+            // 타이머 초기 표시 (1:00) — 아직 시작 안 함
             this._updateTimerDisplay();
 
             // 3. 스트리밍 시작 (타이머는 지문이 나오자마자 시작)
             this.phase = 'reading';
-            this._startCountdown(120); // ← 지문 표시 시작과 동시에 카운트다운
+            this._startCountdown(60); // ← 지문 표시 시작과 동시에 카운트다운
             this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
                 setTimeout(() => {
                     try { this._showQuestion(); }
@@ -123,7 +123,7 @@ export class FinalQuizManager {
                  color:#00e5ff;text-shadow:0 0 8px rgba(0,229,255,0.7);
                  background:rgba(0,0,0,0.45);border:1px solid rgba(0,229,255,0.3);
                  border-radius:8px;padding:4px 10px;letter-spacing:2px;">
-          2:00
+          1:00
         </div>
 
         <!-- 헤더: 빌런 이미지 + 타이틀 -->
