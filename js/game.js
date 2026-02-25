@@ -1634,12 +1634,9 @@ Game.typewriter = {
             'opacity:0;transition:opacity 0.5s ease;';
 
         overlay.innerHTML =
-            '<div style="font-size:3.5rem;margin-bottom:12px;' +
-            'filter:drop-shadow(0 0 24px #c000ff);">👁️</div>' +
-
-            '<p style="font-family:\'Cinzel\',serif;color:#ff4488;font-size:1.2rem;' +
+            '<p style="font-family:\'Cinzel\',serif;color:#ff4488;font-size:1.8rem;' +
             'letter-spacing:4px;text-shadow:0 0 16px rgba(255,0,100,0.9);' +
-            'margin:0 0 18px 0;text-align:center;">⚡ RIFT INCOMING ⚡</p>' +
+            'margin:0 0 22px 0;text-align:center;">FINAL CHALLENGE ALERT</p>' +
 
             '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(180,0,255,0.35);' +
             'border-radius:14px;padding:20px 24px;max-width:340px;margin-bottom:28px;text-align:center;">' +
@@ -1655,9 +1652,10 @@ Game.typewriter = {
 
             '<button id="final-boss-alert-btn" style="' +
             'font-family:\'Cinzel\',serif;font-size:1.0rem;letter-spacing:3px;' +
-            'color:#fff;background:linear-gradient(135deg,#6600aa,#cc0066);' +
-            'border:none;border-radius:10px;padding:14px 36px;cursor:pointer;' +
-            'box-shadow:0 0 24px rgba(180,0,255,0.5);' +
+            'color:#fff;background:linear-gradient(135deg,#6d28d9,#7c3aed);' +
+            'border:1px solid rgba(167,139,250,0.4);border-radius:50px;' +
+            'padding:14px 40px;cursor:pointer;' +
+            'box-shadow:0 0 20px rgba(124,58,237,0.5);' +
             'transition:transform 0.15s ease,box-shadow 0.15s ease;">' +
             'I AM READY</button>';
 
@@ -1667,8 +1665,8 @@ Game.typewriter = {
 
         // 버튼 hover 효과
         const btn = document.getElementById('final-boss-alert-btn');
-        btn.onmouseover = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 0 32px rgba(180,0,255,0.8)'; };
-        btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 0 24px rgba(180,0,255,0.5)'; };
+        btn.onmouseover = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 0 32px rgba(124,58,237,0.8)'; };
+        btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 0 20px rgba(124,58,237,0.5)'; };
 
         btn.onclick = () => {
             overlay.style.opacity = '0';
