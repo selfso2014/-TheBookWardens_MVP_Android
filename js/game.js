@@ -166,8 +166,23 @@ const Game = {
         this.introManager.init(); // Now safe to call
 
         // 4. Session ID for Firebase
+        // [NEW] Generate a Firebase-like ID early so Amplitude can track the entire funnel
+        const chars = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+        let autoId = '';
+        for (let i = 0; i < 20; i++) {
+            autoId += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        this.firebaseSessionId = autoId;
+
+        // Short ID for display
         this.sessionId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        console.log("Session ID:", this.sessionId);
+        console.log("Global Firebase Session ID:", this.firebaseSessionId, "| Display ID:", this.sessionId);
+
+        // --- NEW: Amplitude User ID Sync at Init ---
+        if (window.amplitude) {
+            window.amplitude.setUserId(this.firebaseSessionId);
+            console.log("[Amplitude] setUserId called early with:", this.firebaseSessionId);
+        }
 
         // Display Session ID permanently
         // Display Session ID permanently (REMOVED for Production)
@@ -347,6 +362,11 @@ const Game = {
         if (target) {
             target.style.display = 'flex';
             requestAnimationFrame(() => target.classList.add('active'));
+        }
+
+        // --- NEW: Amplitude Tracking ---
+        if (window.amplitude) {
+            window.amplitude.track('Screen_Viewed', { screen: screenId });
         }
 
         // ── STEP 3: HUD Visibility ────────────────────────────────────────
@@ -766,11 +786,17 @@ const Game = {
 
                 // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
                 const db = firebase.database();
-                const leadsRef = db.ref("warden_leads");
-                const newLeadRef = leadsRef.push(); // Generate key first
+
+                // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
+                const newLeadRef = db.ref("warden_leads/" + (window.Game.firebaseSessionId || window.Game.sessionId));
 
                 // Add Session ID reference to report data
-                reportData.sessionId = newLeadRef.key;
+                reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
+
+                // Amplitude 'Reward_Claimed' event
+                if (window.amplitude) {
+                    window.amplitude.track('Reward_Claimed', { rank: rank });
+                }
 
                 // Promise Array for Parallel saving
                 const promises = [];

@@ -24,6 +24,23 @@
       location.replace(`https:${location.href.substring(location.protocol.length)}`);
     }
   </script>
+
+  <!-- Amplitude SDK -->
+  <script src="https://cdn.amplitude.com/libs/analytics-browser-2.7.1-min.js.gz"></script><script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.6.22-min.js.gz"></script>
+  <script>
+    window.amplitude.add(window.sessionReplay.plugin({sampleRate: 0.1})).promise.then(function() {
+      window.amplitude.init('5c24290b753f47509957f524ee6b27bf', {
+        logLevel: window.amplitude.Types ? window.amplitude.Types.LogLevel.Debug : 4,
+        defaultTracking: {
+          sessions: true,
+          pageViews: true,
+          formInteractions: true,
+          fileDownloads: true
+        }
+      });
+    });
+  </script>
+
   <link rel="stylesheet" href="./css/style.css?v=v14.1.0" />
   <link rel="stylesheet" href="./css/rune-game.css" />
   <link rel="stylesheet" href="./css/rabbit.css" />
@@ -517,7 +534,8 @@
       </div>
 
       <button id="btn-start-game" class="btn-primary"
-        style="margin-top: 40px; padding: 20px 40px; font-size: 1.5rem; animation: pulse 2s infinite;">
+        style="margin-top: 40px; padding: 20px 40px; font-size: 1.5rem; animation: pulse 2s infinite;"
+        onclick="if(window.amplitude) window.amplitude.track('Game_Started');">
         Start Game
       </button>
 
@@ -565,7 +583,8 @@
 
         <!-- Next Button (Initially Disabled) -->
         <button id="btn-face-next" class="btn-primary" disabled
-          style="padding: 15px 50px; opacity: 0.5; cursor: not-allowed; transition: all 0.3s;">
+          style="padding: 15px 50px; opacity: 0.5; cursor: not-allowed; transition: all 0.3s;"
+          onclick="if(window.amplitude) window.amplitude.track('Face_Check_Next');">
           Next
         </button>
 
@@ -580,7 +599,8 @@
       <div
         style="position: fixed; top: 0; left: 0; z-index: 20000; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 50px;">
         <div id="calibration-status" style="display: none;"></div>
-        <button id="btn-calibration-start" class="btn-primary" style="display:none; pointer-events:auto;">Start
+        <button id="btn-calibration-start" class="btn-primary" style="display:none; pointer-events:auto;"
+          onclick="if(window.amplitude) window.amplitude.track('Calibration_Started');">Start
           Point</button>
       </div>
     </section>
@@ -593,8 +613,8 @@
         Calibration timed out or failed.<br>Retry for better accuracy?
       </p>
       <div style="display: flex; gap: 20px;">
-        <button id="btn-cal-retry" class="btn-primary">Retry</button>
-        <button id="btn-cal-skip" class="btn-primary" style="display:none;">Skip</button>
+        <button id="btn-cal-retry" class="btn-primary" onclick="if(window.amplitude) window.amplitude.track('Calibration_Retried');">Retry</button>
+        <button id="btn-cal-skip" class="btn-primary" style="display:none;" onclick="if(window.amplitude) window.amplitude.track('Calibration_Skipped');">Skip</button>
       </div>
     </div>
 
@@ -732,7 +752,7 @@
 
       <!-- D: Progress bar + tap-to-skip -->
       <div class="owl-footer">
-        <button id="btn-owl-start" class="btn-primary owl-start-btn">
+        <button id="btn-owl-start" class="btn-primary owl-start-btn" onclick="if(window.amplitude) window.amplitude.track('Reading_Started');">
           Tap to Begin
         </button>
         <div class="owl-progress-wrap">
@@ -764,7 +784,8 @@
       </div>
 
       <button id="btn-confront-villain" class="btn-primary"
-        style="display: none; margin-top: 30px; background: #ff4444; width: 100%;">
+        style="display: none; margin-top: 30px; background: #ff4444; width: 100%;"
+        onclick="if(window.amplitude) window.amplitude.track('Confront_Villain_Clicked');">
         Confront the Ink Shadow
       </button>
     </section>
