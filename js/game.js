@@ -1669,11 +1669,50 @@ Game.typewriter = {
         btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 0 20px rgba(124,58,237,0.5)'; };
 
         btn.onclick = () => {
-            overlay.style.opacity = '0';
+            btn.disabled = true; // 중복 클릭 방지
+
+            // ① TextRenderer 해제 — overlay 커튼이 쳐진 상태에서 수행
+            if (Game.typewriter && Game.typewriter.renderer) {
+                if (typeof Game.typewriter.renderer.cancelAllAnimations === 'function') {
+                    Game.typewriter.renderer.cancelAllAnimations();
+                }
+                Game.typewriter.renderer = null;
+                console.log('[FinalBoss] TextRenderer released under overlay cover.');
+            }
+
+            // ② 화면 전환 — villain 화면이 절대 노출되지 않음 (overlay가 덮고 있음)
+            Game.switchScreen('screen-final-quiz');
+
+            // ③ FinalQuizManager 초기화 (150ms)
             setTimeout(() => {
-                if (overlay.parentNode) overlay.remove();
-                this.triggerFinalBossBattleSequence();
-            }, 450);
+                try {
+                    if (!window.FinalQuizRef) {
+                        window.FinalQuizRef = new FinalQuizManager();
+                    }
+                    window.FinalQuizRef.init();
+
+                    const fqScreen = document.getElementById('screen-final-quiz');
+                    if (fqScreen && !fqScreen.classList.contains('active')) {
+                        console.warn('[FinalBoss] screen-final-quiz not active — forcing');
+                        document.querySelectorAll('.screen').forEach(el => {
+                            el.classList.remove('active');
+                            el.style.display = 'none';
+                        });
+                        fqScreen.style.display = 'flex';
+                        requestAnimationFrame(() => fqScreen.classList.add('active'));
+                    }
+                    console.log('[FinalBoss] FinalQuizManager.init() called ✓');
+                } catch (e) {
+                    console.error('[FinalBoss] FinalQuizManager init FAILED:', e);
+                }
+
+                // ④ 준비 완료 → 커튼 걷기. 노출되는 화면 = screen-final-quiz ✓
+                setTimeout(() => {
+                    overlay.style.transition = 'opacity 0.5s ease';
+                    overlay.style.opacity = '0';
+                    setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 500);
+                }, 150); // 총 300ms 후 fade 시작
+            }, 150);
         };
     },
 
