@@ -148,6 +148,7 @@ export class BookSelectManager {
         // Inject into Game.state
         this.game.state.selectedBook = book;
         this.game.state.storyParagraphs = book.storyParagraphs;
+        this.game.state.storyChapter = book.storyChapter;   // token-level data for Typewriter engine
         this.game.state.midBossQuizzes = book.midBossQuizzes;
         this.game.state.finalBossQuiz = book.finalBossQuiz;
 

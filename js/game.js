@@ -133,6 +133,7 @@ const Game = {
         // [BookSelect] 선택된 책 정보 & 주입된 게임 데이터
         selectedBook: null,
         storyParagraphs: null,   // BookSelectManager.selectBook()에서 주입
+        storyChapter: null,   // BookSelectManager.selectBook()에서 주입 (Typewriter 토큰 데이터)
         midBossQuizzes: null,    // BookSelectManager.selectBook()에서 주입
         finalBossQuiz: null      // BookSelectManager.selectBook()에서 주입
     },
@@ -908,13 +909,13 @@ const Game = {
 Game.typewriter = {
     renderer: null,
 
-    // Data (Content)
-    // Data (Content)
-    paragraphs: storyChapter1.paragraphs, // Use Dynamic Paragraphs
-    quizzes: midBossQuizzes,
+    // Data (Content) — dynamically injected from Game.state in start()
+    // Fallback: storyChapter1 (Alice) is used only if no book has been selected.
+    paragraphs: null,
+    quizzes: null,
 
     // --- FINAL BOSS DATA ---
-    finalQuiz: finalBossQuiz,
+    finalQuiz: null,
 
     // State
     currentParaIndex: 0,
@@ -960,6 +961,14 @@ Game.typewriter = {
         this.currentParaIndex = 0;
         this.isPaused = false;
         this.lineStats.clear();
+
+        // Dynamically load content from the selected book (injected by BookSelectManager)
+        // Fallback to Alice's original data if no book selected (direct screen-word entry)
+        const chapter = (Game.state.storyChapter) || storyChapter1;
+        this.paragraphs = chapter.paragraphs;
+        this.quizzes = (Game.state.midBossQuizzes) || midBossQuizzes;
+        this.finalQuiz = (Game.state.finalBossQuiz) || finalBossQuiz;
+        console.log(`[Typewriter] Loaded book chapter: ${chapter.story_id}, ${this.paragraphs.length} paragraphs.`);
 
         Game.state.ink = 0;
         Game.updateUI();
