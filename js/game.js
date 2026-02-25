@@ -12,6 +12,7 @@ import { UIManager } from './core/UIManager.js?v=20260224-FQ';
 import { GameLogic } from './core/GameLogic.js?v=20260224-FQ';
 import { DOMManager } from './core/DOMManager.js?v=20260224-FQ';
 import { FinalQuizManager } from './managers/FinalQuizManager.js?v=20260224-FQ';
+import { BookSelectManager } from './managers/BookSelectManager.js?v=20260226-BS';
 
 // ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
@@ -128,7 +129,12 @@ const Game = {
             requiredDwell: 1000,
             totalRifts: 0,
             fixedRifts: 0
-        }
+        },
+        // [BookSelect] 선택된 책 정보 & 주입된 게임 데이터
+        selectedBook: null,
+        storyParagraphs: null,   // BookSelectManager.selectBook()에서 주입
+        midBossQuizzes: null,    // BookSelectManager.selectBook()에서 주입
+        finalBossQuiz: null      // BookSelectManager.selectBook()에서 주입
     },
 
     // Bridge Methods (Proxies to ScoreManager)
@@ -157,6 +163,7 @@ const Game = {
         this.introManager = new IntroManager(this);
         this.vocabManager = new VocabManager(this);
         this.vocabManager.init(vocabList);
+        this.bookSelectManager = new BookSelectManager(this);
 
         // 3. DOM & Events (Last)
         this.domManager = new DOMManager(this);
@@ -319,6 +326,14 @@ const Game = {
         'screen-rift-intro': () => {
             // The SceneManager.resetRiftIntro() handles DOM, nothing extra.
         },
+
+        // ── Book Select Screen ───────────────────────────────────────────
+        'screen-book-select': () => {
+            // 동적 생성된 카드 DOM 초기화 (재진입 대비)
+            const container = document.getElementById('book-card-list');
+            if (container) container.innerHTML = '';
+        },
+
 
         // ── Score / Share Screens ─────────────────────────────────────────
         'screen-new-score': () => {

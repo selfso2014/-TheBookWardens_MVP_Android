@@ -75,6 +75,7 @@
   <link rel="stylesheet" href="./css/rift-book.css" />
   <link rel="stylesheet" href="./css/alice-battle.css?v=v14.1.0" />
   <link rel="stylesheet" href="./css/loading-modal.css" />
+  <link rel="stylesheet" href="./css/book-select.css?v=20260226-BS" />
 
 
   <!-- Firebase SDK: [v33] Deferred load — NOT loaded at page start.
@@ -654,6 +655,24 @@
       <div id="meteor-layer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
       </div>
       <div id="rift-story-overlay"></div>
+    </section>
+
+    <!-- SCREEN: BOOK SELECT — 책 선택 화면 (rift-intro → word-forge 사이) -->
+    <section id="screen-book-select" class="screen">
+
+      <!-- 상단 헤더 -->
+      <div class="bs-header">
+        <div class="bs-rift-badge">⚡ RIFT ALERT</div>
+        <h1 class="bs-title-text">CHOOSE YOUR BOOK</h1>
+        <p class="bs-narrative">
+          빌런의 리프트를 통해 위험에 빠진 세 권의 책이 있다.<br>
+          Warden은 이 책 중 하나를 선택해서 수호해야 한다.
+        </p>
+      </div>
+
+      <!-- 카드 목록 (BookSelectManager가 동적 주입) -->
+      <div id="book-card-list"></div>
+
     </section>
 
     <!-- SCREEN 1: WORD FORGE (Vocab) -->

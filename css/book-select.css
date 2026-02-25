@@ -1,0 +1,222 @@
+/* ============================================================
+   book-select.css
+   screen-book-select 전용 스타일
+   - 세로 카드 레이아웃 (3장)
+   - 표지 이미지 + 정보 (가로 분할)
+   ============================================================ */
+
+/* ── 화면 컨테이너 ─────────────────────────────────────────── */
+#screen-book-select {
+    background: radial-gradient(circle at 50% 20%, #1e0040 0%, #0a000f 100%);
+    justify-content: flex-start;
+    padding: 0 0 40px 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── 상단 헤더 영역 ────────────────────────────────────────── */
+.bs-header {
+    width: 100%;
+    padding: 18px 20px 8px 20px;
+    box-sizing: border-box;
+    text-align: center;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, rgba(80, 0, 160, 0.35) 0%, transparent 100%);
+}
+
+.bs-rift-badge {
+    display: inline-block;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 4px;
+    color: #ff4d88;
+    text-transform: uppercase;
+    background: rgba(255, 60, 120, 0.1);
+    border: 1px solid rgba(255, 60, 120, 0.35);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px rgba(255, 60, 120, 0.6);
+}
+
+.bs-title-text {
+    font-family: 'Cinzel', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #e8d0ff;
+    letter-spacing: 2px;
+    margin: 0 0 6px 0;
+    text-shadow: 0 0 20px rgba(180, 0, 255, 0.5);
+}
+
+.bs-narrative {
+    font-family: 'Crimson Text', serif;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #b090cc;
+    margin: 0 auto;
+    max-width: 320px;
+    padding: 0 8px;
+}
+
+/* ── 카드 목록 (세로 배열) ─────────────────────────────────── */
+#book-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 420px;
+    padding: 14px 16px 0 16px;
+    box-sizing: border-box;
+}
+
+/* ── 개별 카드 ─────────────────────────────────────────────── */
+.bs-card {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+
+.bs-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+/* ── 책 표지 이미지 영역 ────────────────────────────────────── */
+.bs-cover-wrap {
+    width: 88px;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.bs-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.bs-cover-fallback {
+    font-size: 2.8rem;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* ── 정보 영역 (오른쪽) ────────────────────────────────────── */
+.bs-info {
+    flex: 1;
+    padding: 14px 14px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    /* flex 자식 텍스트 overflow 방지 */
+}
+
+.bs-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.5px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.bs-subtitle {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    color: #888;
+    margin-top: -2px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── 메타 정보 행 ──────────────────────────────────────────── */
+.bs-meta-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.bs-meta-item {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    color: #a0a0b8;
+    white-space: nowrap;
+}
+
+.bs-meta-item b {
+    color: #e0e0e0;
+    font-weight: 700;
+}
+
+/* ── 난이도 별점 ────────────────────────────────────────────── */
+.bs-difficulty {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.bs-star {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.bs-diff-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-left: 4px;
+}
+
+/* ── SELECT 버튼 ────────────────────────────────────────────── */
+.bs-select-btn {
+    margin-top: auto;
+    padding: 9px 0;
+    width: 100%;
+    background: transparent;
+    border: 1.5px solid;
+    /* color는 JS에서 book.accentColor로 주입 */
+    border-radius: 30px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+    .bs-select-btn:hover {
+        transform: scale(1.03);
+        box-shadow: 0 0 16px currentColor;
+    }
+}
+
+.bs-select-btn:active {
+    transform: scale(0.97);
+}

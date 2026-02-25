@@ -244,12 +244,13 @@ export class IntroManager {
         if (this.game.sceneManager) this.game.sceneManager.showStoryText("Initializing Word Forge...");
         await wait(1000);
 
-        console.log("[IntroManager] Rift Intro Done. Moving to Word Forge.");
+        console.log("[IntroManager] Rift Intro Done. Moving to Book Select.");
 
-        // Final Transition logic
-        this.game.state.vocabIndex = 0;
-        this.game.loadVocab(0);
-        this.game.switchScreen("screen-word");
+        // [BookSelect] 책 선택 화면으로 전환 (기존: screen-word로 직행)
+        this.game.switchScreen("screen-book-select");
+        if (this.game.bookSelectManager) {
+            this.game.bookSelectManager.render();
+        }
 
         // [Mem] Free rift intro images after intro completes.
         // Book_Alice.png (~15MB) + ink_shadow_boss.png rift variant (~2MB)
