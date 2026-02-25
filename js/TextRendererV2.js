@@ -463,7 +463,71 @@ export class TextRenderer {
         } else {
             console.warn("[TextRenderer] WARNING: No lines created! Check word visibility or threshold.");
         }
+
+        // [BUG FIX: Pang line mismatch at 300 WPM]
+        // TextChunker runs pre-layout → chunks can span 2+ visual lines.
+        // During revealChunk(), setContext() fires mid-chunk when lineIndex changes,
+        // so currentVisibleLineIndex races ahead of the user's gaze.
+        // Solution: split any cross-line chunk into sub-chunks (post-layout, 2nd pass).
+        this._rechunkByLineBreaks();
     }
+
+    /**
+     * [POST-LAYOUT] Split chunks that cross visual line boundaries.
+     *
+     * Must be called AFTER lockLayout() has assigned w.lineIndex to every word.
+     *
+     * Invariant enforced:
+     *   All word indices inside one chunk share the same lineIndex.
+     *
+     * This guarantees that revealChunk() never calls setContext() with a new
+     * lineIndex while the previous chunk is still being displayed, eliminating
+     * the 1-line offset in pang event positioning at high WPM.
+     */
+    _rechunkByLineBreaks() {
+        if (!this.chunks || this.chunks.length === 0) return;
+        if (!this.words || this.words.length === 0) return;
+
+        const before = this.chunks.length;
+        const newChunks = [];
+
+        this.chunks.forEach(chunk => {
+            // Group consecutive word indices by lineIndex.
+            // We preserve order: sub-chunks appear in the same order as original.
+            let subChunk = [];
+            let lastLineIdx = null;
+
+            chunk.forEach(wordIdx => {
+                const w = this.words[wordIdx];
+                const li = (w && typeof w.lineIndex === 'number') ? w.lineIndex : lastLineIdx;
+
+                if (lastLineIdx === null) {
+                    // First word in this chunk
+                    lastLineIdx = li;
+                }
+
+                if (li !== lastLineIdx) {
+                    // Line boundary crossed → flush current sub-chunk
+                    if (subChunk.length > 0) newChunks.push(subChunk);
+                    subChunk = [];
+                    lastLineIdx = li;
+                }
+
+                subChunk.push(wordIdx);
+            });
+
+            // Flush remaining
+            if (subChunk.length > 0) newChunks.push(subChunk);
+        });
+
+        this.chunks = newChunks;
+
+        const after = this.chunks.length;
+        if (after !== before) {
+            console.log(`[TextRenderer] _rechunkByLineBreaks: ${before} → ${after} chunks (${after - before} splits from line breaks)`);
+        }
+    }
+
 
     _finalizeLine(words) {
         const first = words[0].rect;
