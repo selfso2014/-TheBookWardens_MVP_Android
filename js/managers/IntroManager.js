@@ -67,6 +67,7 @@ export class IntroManager {
         debugBtn.id = "btn-debug-report";
         debugBtn.innerText = "🛠 Test Report";
         debugBtn.style.cssText = `
+            display: none;
             position: absolute;
             top: 20px;
             right: 20px;

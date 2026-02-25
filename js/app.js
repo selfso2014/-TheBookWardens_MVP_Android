@@ -279,9 +279,8 @@ const LICENSE_KEY = window.location.hostname !== "localhost"
 
 const DEBUG_LEVEL = (() => {
   const params = new URLSearchParams(location.search);
-  // [MOD] Default: 1 (Enabled) if no param, or ?debug=1
-  // If ?debug=0, then 0 (Hidden)
-  if (!params.has("debug")) return 1;
+  // [MOD] Default: 0 (Hidden) for release. Enable with ?debug=1 or ?debug=2
+  if (!params.has("debug")) return 0;
 
   const n = Number(params.get("debug"));
   return Number.isFinite(n) ? n : 0;
