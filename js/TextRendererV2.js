@@ -111,6 +111,7 @@ export class TextRenderer {
         this.chunks = [];
         this.lines = [];
         this.isLayoutLocked = false;
+        this.wpm = wpm; // [FIX] Store for _rechunkByLineBreaks() WPM guard
 
         if (!chapterData || !chapterData.paragraphs) return;
 
@@ -465,11 +466,12 @@ export class TextRenderer {
         }
 
         // [BUG FIX: Pang line mismatch at 300 WPM]
-        // TextChunker runs pre-layout → chunks can span 2+ visual lines.
-        // During revealChunk(), setContext() fires mid-chunk when lineIndex changes,
-        // so currentVisibleLineIndex races ahead of the user's gaze.
-        // Solution: split any cross-line chunk into sub-chunks (post-layout, 2nd pass).
-        this._rechunkByLineBreaks();
+        // Only apply at high WPM (>=250). At 100/200 WPM the original chunk timing
+        // was already calibrated correctly; splitting pushes setContext() too late,
+        // causing pang to fire 1 line behind the user's actual gaze position.
+        if ((this.wpm || 0) >= 250) {
+            this._rechunkByLineBreaks();
+        }
     }
 
     /**
