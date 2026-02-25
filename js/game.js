@@ -1516,8 +1516,8 @@ Game.typewriter = {
                 // Step 3: 점수 즉시 반영 (동기 호출 — 화면 전환 전에 반드시 실행)
                 // ⚠️ spawnFlyingResource 내부의 addGems 콜백은 RAF 완료 시 실행되므로
                 //    화면 전환으로 RAF가 취소되면 점수가 누락된다. 여기서 먼저 호출한다.
-                Game.addGems(10);
-                console.log('[BossQuiz] CORRECT +10 gems applied immediately.');
+                Game.addGems(100);
+                console.log('[BossQuiz] CORRECT +100 gems applied immediately.');
 
                 // Step 3b: 시각 효과 — 버튼에서 HUD gem-count 로 파티클 (순수 장식)
                 // spawnFlyingResource 내부에도 addGems 호출이 있으나, 이미 위에서 처리했으므로
@@ -1569,13 +1569,13 @@ Game.typewriter = {
                 }
 
                 // Step 3: Deduct gems
-                Game.addGems(-10);
+                Game.addGems(-50);
 
                 // Step 4: Fixed-position floating "-10 💎" rising from the button
                 if (wrongBtn) {
                     const rect = wrongBtn.getBoundingClientRect();
                     const floatEl = document.createElement('div');
-                    floatEl.textContent = '-10 💎';
+                    floatEl.textContent = '-50 💎';
                     Object.assign(floatEl.style, {
                         position: 'fixed',
                         left: (rect.left + rect.width / 2) + 'px',

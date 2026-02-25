@@ -441,7 +441,7 @@ export class FinalQuizManager {
             btns[selectedIdx].style.boxShadow = '0 0 20px rgba(45,184,74,0.6)';
 
             if (resultEl) {
-                resultEl.textContent = '✓ Correct!  +50 💎';
+                resultEl.textContent = '✓ Correct!  +300 💎';
                 resultEl.style.color = '#2db84a';
                 resultEl.style.display = 'block';
             }
@@ -449,11 +449,11 @@ export class FinalQuizManager {
             const btn = btns[selectedIdx];
             if (btn && window.Game?.spawnFlyingResource) {
                 const r = btn.getBoundingClientRect();
-                window.Game.spawnFlyingResource(r.left + r.width / 2, r.top + r.height / 2, 50, 'gem');
+                window.Game.spawnFlyingResource(r.left + r.width / 2, r.top + r.height / 2, 300, 'gem');
             } else if (window.Game?.addGems) {
-                window.Game.addGems(50);
+                window.Game.addGems(300);
             }
-            console.log('[FinalQuiz] CORRECT +50 gems → score in 1.5s');
+            console.log('[FinalQuiz] CORRECT +300 gems → score in 1.5s');
             setTimeout(() => this._goToScore(), 1500);
 
         } else {
@@ -477,9 +477,9 @@ export class FinalQuizManager {
                 ?? window.Game?.state?.gems
                 ?? 0;
             let resultMsg = '✗ Wrong!';
-            if (currentGems >= 10 && window.Game?.addGems) {
-                window.Game.addGems(-10);
-                resultMsg = '✗ Wrong!  −10 💎';
+            if (currentGems >= 100 && window.Game?.addGems) {
+                window.Game.addGems(-100);
+                resultMsg = '✗ Wrong!  −100 💎';
             }
 
             // 3. 결과 메시지 (영문만, 1.5초 후 자동 숨김)
@@ -490,7 +490,7 @@ export class FinalQuizManager {
                 setTimeout(() => { if (resultEl) resultEl.style.display = 'none'; }, 1800);
             }
 
-            console.log(`[FinalQuiz] WRONG idx=${selectedIdx} — gems=${currentGems}, deducted=${currentGems >= 10}. Retry allowed.`);
+            console.log(`[FinalQuiz] WRONG idx=${selectedIdx} — gems=${currentGems}, deducted=${currentGems >= 100}. Retry allowed.`);
         }
     }
 
