@@ -271,9 +271,9 @@ window.gazeDataManager = gazeDataManager;
  *  - ?debug=1 (default): INFO/WARN/ERROR
  *  - ?debug=2          : verbose DEBUG
  */
-// Product key: for selfso2014.github.io
+// Product key: not localhost
 // Dev key: for localhost
-const LICENSE_KEY = window.location.hostname === "selfso2014.github.io"
+const LICENSE_KEY = window.location.hostname !== "localhost"
   ? "prod_srdpyuuaumnsqoyk2pvdci0rg3ahsr923bshp32u"
   : "dev_1ntzip9admm6g0upynw3gooycnecx0vl93hz8nox";
 
