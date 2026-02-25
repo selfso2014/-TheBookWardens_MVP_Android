@@ -280,7 +280,7 @@ body {
   border-radius: 40px;
   padding: 10px 22px;
   animation: owlBadgeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 @keyframes owlBadgeIn {
