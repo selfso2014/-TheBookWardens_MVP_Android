@@ -247,6 +247,14 @@ body {
   gap: 0;
 }
 
+/* ── 실제 owl 화면 레이아웃 override (ID로 적용) ── */
+#screen-owl {
+  justify-content: flex-start;
+  /* 타이틀이 HUD 바로 아래 보이도록 */
+  padding-top: 12px;
+  padding-bottom: 24px;
+}
+
 /* ── Gaze Awakened 제목 ── */
 .owl-title {
   font-family: 'Cinzel', serif;
@@ -255,8 +263,7 @@ body {
   color: #c084ff;
   letter-spacing: 5px;
   text-align: center;
-  margin: 0 0 18px 0;
-  padding-top: 8px;
+  margin: 0 0 14px 0;
   text-shadow:
     0 0 16px rgba(192, 132, 255, 0.8),
     0 0 32px rgba(139, 47, 201, 0.4);
@@ -309,13 +316,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .owl-hint {
   font-size: 0.95rem;
   color: #bba8d0;
-  margin-top: 16px;
+  margin-top: 4px;
   margin-bottom: 4px;
   font-family: 'Outfit', 'Inter', sans-serif;
   line-height: 1.7;
@@ -354,7 +361,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 /* btn-primary 오버라이드: owl 화면 전용 */
