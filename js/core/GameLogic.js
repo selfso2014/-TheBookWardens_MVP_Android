@@ -137,12 +137,17 @@ export class GameLogic {
             this.startReadingFromOwl();
         };
 
-        // Progress bar — kick off after one frame so CSS transition fires
+        // Progress bar — 먼저 0%로 리셋 후 double RAF로 transition 시작
+        // (단일 RAF는 브라우저가 초기 0% 상태를 paint하지 않아 바로 100%로 점프함)
         const bar = document.getElementById('owl-progress-bar');
         if (bar) {
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
             requestAnimationFrame(() => {
-                bar.style.transition = `width ${DURATION_MS}ms linear`;
-                bar.style.width = '100%';
+                requestAnimationFrame(() => {
+                    bar.style.transition = `width ${DURATION_MS}ms linear`;
+                    bar.style.width = '100%';
+                });
             });
         }
 
