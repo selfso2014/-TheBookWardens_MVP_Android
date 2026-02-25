@@ -386,21 +386,6 @@ export class IntroManager {
                 please open this link on your Android phone
                 using Chrome or your default browser.
             </p>
-            <div style="
-                background:rgba(168,85,247,0.12);
-                border:1px solid rgba(168,85,247,0.4);
-                border-radius:14px;
-                padding:16px 24px;
-                max-width:300px;
-                width:100%;
-            ">
-                <p style="margin:0;font-size:0.85rem;color:#a855f7;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
-                    📱 Android Phone Required
-                </p>
-                <p style="margin:8px 0 0 0;font-size:0.8rem;color:#888;">
-                    Eye-tracking technology is only available<br>on Android devices.
-                </p>
-            </div>
             <p style="
                 margin:20px 0 0 0;
                 font-size:0.8rem;
