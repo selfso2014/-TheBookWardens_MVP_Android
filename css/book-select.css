@@ -1,33 +1,34 @@
 /* ============================================================
-   book-select.css
+   book-select.css  (v2 — 2026-02-26)
    screen-book-select 전용 스타일
-   - 세로 카드 레이아웃 (3장)
-   - 표지 이미지 + 정보 (가로 분할)
+   - Vertical card layout (3 books)
+   - Cover image: top/bottom fade to eliminate white-edge artifacts
+   - Card is fully tappable — no large SELECT button
    ============================================================ */
 
-/* ── 화면 컨테이너 ─────────────────────────────────────────── */
+/* ── Screen container ────────────────────────────────────────── */
 #screen-book-select {
-    background: radial-gradient(circle at 50% 20%, #1e0040 0%, #0a000f 100%);
+    background: radial-gradient(ellipse at 50% 0%, #280050 0%, #0a000f 55%);
     justify-content: flex-start;
     padding: 0 0 40px 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-/* ── 상단 헤더 영역 ────────────────────────────────────────── */
+/* ── Header ─────────────────────────────────────────────────── */
 .bs-header {
     width: 100%;
-    padding: 18px 20px 8px 20px;
+    padding: 16px 20px 10px 20px;
     box-sizing: border-box;
     text-align: center;
     flex-shrink: 0;
-    background: linear-gradient(180deg, rgba(80, 0, 160, 0.35) 0%, transparent 100%);
+    background: linear-gradient(180deg, rgba(80, 0, 160, 0.30) 0%, transparent 100%);
 }
 
 .bs-rift-badge {
     display: inline-block;
     font-family: 'Cinzel', serif;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     letter-spacing: 4px;
     color: #ff4d88;
     text-transform: uppercase;
@@ -35,71 +36,94 @@
     border: 1px solid rgba(255, 60, 120, 0.35);
     border-radius: 20px;
     padding: 4px 14px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     text-shadow: 0 0 10px rgba(255, 60, 120, 0.6);
 }
 
 .bs-title-text {
     font-family: 'Cinzel', serif;
-    font-size: 1.35rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: #e8d0ff;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     margin: 0 0 6px 0;
     text-shadow: 0 0 20px rgba(180, 0, 255, 0.5);
 }
 
 .bs-narrative {
-    font-family: 'Crimson Text', serif;
-    font-size: 0.95rem;
-    line-height: 1.65;
-    color: #b090cc;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #9070aa;
     margin: 0 auto;
     max-width: 320px;
     padding: 0 8px;
 }
 
-/* ── 카드 목록 (세로 배열) ─────────────────────────────────── */
+/* ── Card list (vertical stack) ─────────────────────────────── */
 #book-card-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     width: 100%;
-    max-width: 420px;
-    padding: 14px 16px 0 16px;
+    max-width: 440px;
+    padding: 12px 14px 0 14px;
     box-sizing: border-box;
 }
 
-/* ── 개별 카드 ─────────────────────────────────────────────── */
+/* ── Individual card ─────────────────────────────────────────── */
 .bs-card {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.15s ease,
+        opacity 0.3s ease;
     position: relative;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
+/* Hover glow (desktop/mouse only) */
+@media (hover: hover) {
+    .bs-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+    }
+}
+
+.bs-card:active {
+    transform: scale(0.98);
+}
+
+/* Subtle shimmer overlay */
 .bs-card::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 16px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, transparent 55%);
     pointer-events: none;
+    z-index: 1;
 }
 
-/* ── 책 표지 이미지 영역 ────────────────────────────────────── */
+/* ── Book cover image area ───────────────────────────────────── */
 .bs-cover-wrap {
-    width: 88px;
+    width: 90px;
     flex-shrink: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: #0e0015;
+    /* dark base to absorb white edges */
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     overflow: hidden;
     position: relative;
@@ -109,114 +133,137 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
     display: block;
+    /* blend multiply removes white backgrounds naturally */
+    mix-blend-mode: multiply;
+    filter: contrast(1.08) brightness(0.95);
 }
 
 .bs-cover-fallback {
     font-size: 2.8rem;
+    display: none;
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 100%;
 }
 
-/* ── 정보 영역 (오른쪽) ────────────────────────────────────── */
+/* Top & bottom gradient fades — blend image edge into card BG */
+.bs-cover-fade-top,
+.bs-cover-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 28px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.bs-cover-fade-top {
+    top: 0;
+    background: linear-gradient(180deg, #0e0015 0%, transparent 100%);
+}
+
+.bs-cover-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(0deg, #0e0015 0%, transparent 100%);
+}
+
+/* ── Info panel (right side) ─────────────────────────────────── */
 .bs-info {
     flex: 1;
-    padding: 14px 14px 12px 14px;
+    padding: 12px 12px 11px 13px;
     display: flex;
     flex-direction: column;
     gap: 5px;
     min-width: 0;
-    /* flex 자식 텍스트 overflow 방지 */
+    position: relative;
+    z-index: 2;
 }
 
 .bs-title {
     font-family: 'Cinzel', serif;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
     line-height: 1.3;
-    letter-spacing: 0.5px;
-    white-space: normal;
+    letter-spacing: 0.3px;
     word-break: break-word;
 }
 
 .bs-subtitle {
     font-family: 'Outfit', sans-serif;
-    font-size: 0.72rem;
-    color: #888;
+    font-size: 0.70rem;
+    color: #706080;
     margin-top: -2px;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* ── 메타 정보 행 ──────────────────────────────────────────── */
+/* ── Meta rows ───────────────────────────────────────────────── */
 .bs-meta-row {
     display: flex;
     flex-direction: row;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
     flex-wrap: wrap;
 }
 
 .bs-meta-item {
     font-family: 'Outfit', sans-serif;
-    font-size: 0.78rem;
-    color: #a0a0b8;
+    font-size: 0.76rem;
+    color: #9090a8;
     white-space: nowrap;
 }
 
 .bs-meta-item b {
-    color: #e0e0e0;
+    color: #d8d8e8;
     font-weight: 700;
 }
 
-/* ── 난이도 별점 ────────────────────────────────────────────── */
+/* Rift damage badge */
+.bs-damage b {
+    color: inherit;
+}
+
+/* ── Difficulty stars ────────────────────────────────────────── */
 .bs-difficulty {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
+    flex: 1;
 }
 
 .bs-star {
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1;
+    transition: text-shadow 0.2s;
 }
 
 .bs-diff-label {
     font-family: 'Outfit', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-weight: 700;
     letter-spacing: 1px;
-    margin-left: 4px;
+    margin-left: 5px;
 }
 
-/* ── SELECT 버튼 ────────────────────────────────────────────── */
-.bs-select-btn {
-    margin-top: auto;
-    padding: 9px 0;
-    width: 100%;
-    background: transparent;
-    border: 1.5px solid;
-    /* color는 JS에서 book.accentColor로 주입 */
-    border-radius: 30px;
-    font-family: 'Cinzel', serif;
-    font-size: 0.82rem;
+/* ── Tap hint (replaces large SELECT button) ─────────────────── */
+.bs-tap-hint {
+    font-family: 'Outfit', monospace;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 3px;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.22);
+    white-space: nowrap;
+    align-self: flex-end;
+    padding: 2px 0;
+    transition: color 0.2s ease;
 }
 
 @media (hover: hover) {
-    .bs-select-btn:hover {
-        transform: scale(1.03);
-        box-shadow: 0 0 16px currentColor;
+    .bs-card:hover .bs-tap-hint {
+        color: rgba(255, 255, 255, 0.55);
     }
-}
-
-.bs-select-btn:active {
-    transform: scale(0.97);
 }

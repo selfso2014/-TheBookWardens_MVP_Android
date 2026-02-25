@@ -127,7 +127,8 @@ export const BOOKS = [
         image: "./aesopBook.png",
         pages: 124,
         chapters: 10,
-        gemCost: 1000,
+        gemCost: 500,
+        riftDamage: 1000,
         difficulty: "Easy",
         difficultyStars: 1,
         difficultyColor: "#00dc78",    // green
@@ -146,6 +147,7 @@ export const BOOKS = [
         pages: 152,
         chapters: 12,
         gemCost: 1000,
+        riftDamage: 2500,
         difficulty: "Normal",
         difficultyStars: 2,
         difficultyColor: "#c084ff",    // purple
@@ -163,7 +165,8 @@ export const BOOKS = [
         image: "./SherlockBook.png",
         pages: 180,
         chapters: 12,
-        gemCost: 1000,
+        gemCost: 1500,
+        riftDamage: 3200,
         difficulty: "Hard",
         difficultyStars: 3,
         difficultyColor: "#ff6b6b",    // red
