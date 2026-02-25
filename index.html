@@ -521,9 +521,10 @@
         Start Game
       </button>
 
-      <!-- [DEBUG] Final Quiz 바로가기 버튼 — 디버깅 완료 후 제거 -->
+      <!-- [DEBUG] Final Quiz 바로가기 버튼 — 릴리즈 시 display:none -->
       <button id="btn-debug-final-quiz"
         onclick="window._devFinalQuiz ? window._devFinalQuiz() : alert('[DEV] script not loaded yet')" style="
+          display: none;
           margin-top: 16px;
           padding: 10px 24px;
           background: rgba(255,80,0,0.15);
@@ -593,7 +594,7 @@
       </p>
       <div style="display: flex; gap: 20px;">
         <button id="btn-cal-retry" class="btn-primary">Retry</button>
-        <button id="btn-cal-skip" class="btn-primary">Skip</button>
+        <button id="btn-cal-skip" class="btn-primary" style="display:none;">Skip</button>
       </div>
     </div>
 
@@ -1038,7 +1039,7 @@
       <!-- Action Buttons -->
       <div style="display:flex; gap:15px; margin-top: 10px; z-index: 10;">
         <button id="btn-share-summary" class="btn-primary">Share Victory</button>
-        <button id="btn-export" class="btn-primary" style="background:#444;">Export Data</button>
+        <button id="btn-export" class="btn-primary" style="background:#444; display:none;">Export Data</button>
       </div>
     </section>
 
