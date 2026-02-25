@@ -38,6 +38,16 @@
           fileDownloads: true
         }
       });
+
+      // Capture referral tracking on page load
+      const urlParams = new URLSearchParams(window.location.search);
+      const refId = urlParams.get('ref');
+      if (refId && window.amplitude.Identify) {
+        // Use setOnce so we only capture the first person who referred them
+        const identifyEvent = new window.amplitude.Identify().setOnce('referred_by', refId);
+        window.amplitude.identify(identifyEvent);
+        console.log("[Amplitude] Captured referral ID:", refId);
+      }
     });
   </script>
 
@@ -1237,7 +1247,7 @@
         <!-- WhatsApp -->
         <button
           style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #25d366; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
-          onclick="window.open('https://wa.me/?text=I just saved the Story World! Can you? Play The Book Wardens: https://selfso2014.github.io/-TheBookWardens_MVP_Android/', '_blank')"
+          onclick="window.shareGameLink('whatsapp')"
           onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
             <path
@@ -1248,7 +1258,7 @@
         <!-- Facebook -->
         <button
           style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #1877f2; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
-          onclick="window.open('https://www.facebook.com/sharer/sharer.php?u=https://selfso2014.github.io/-TheBookWardens_MVP_Android/', '_blank')"
+          onclick="window.shareGameLink('facebook')"
           onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
             <path
@@ -1259,7 +1269,7 @@
         <!-- X (Twitter) -->
         <button
           style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid #333; background: #000; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
-          onclick="window.open('https://twitter.com/intent/tweet?text=I just saved the Story World! Can you? Play The Book Wardens: https://selfso2014.github.io/-TheBookWardens_MVP_Android/', '_blank')"
+          onclick="window.shareGameLink('twitter')"
           onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
             <path
@@ -1270,7 +1280,7 @@
         <!-- KakaoTalk -->
         <button
           style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #fee500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
-          onclick="navigator.clipboard.writeText('https://selfso2014.github.io/-TheBookWardens_MVP_Android/'); alert('Link Copied to Clipboard! (KakaoTalk share not configured)');"
+          onclick="window.shareGameLink('copy')"
           onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="#3c1e1e">
             <path

@@ -793,8 +793,12 @@ const Game = {
                 // Add Session ID reference to report data
                 reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
 
-                // Amplitude 'Reward_Claimed' event
+                // Amplitude 'Reward_Claimed' event and User Properties
                 if (window.amplitude) {
+                    if (window.amplitude.Identify) {
+                        const identifyEvent = new window.amplitude.Identify().set('email', email);
+                        window.amplitude.identify(identifyEvent);
+                    }
                     window.amplitude.track('Reward_Claimed', { rank: rank });
                 }
 
@@ -1896,5 +1900,33 @@ window._devFinalQuiz = function () {
         }
     } catch (e) {
         console.error('[DEV] _devFinalQuiz error:', e);
+    }
+};
+
+// ── [SHARE] Social Share Global Handler ──────────────────────────────────────
+window.shareGameLink = function (platform) {
+    // Generate URL with referral ID parameter
+    const refId = window.Game && window.Game.firebaseSessionId ? window.Game.firebaseSessionId : '';
+    const baseUrl = 'https://bookwardens.com' + (refId ? '?ref=' + refId : '');
+    const title = 'I just saved the Story World! Can you? Play The Book Wardens';
+
+    console.log(`[Share] Triggering share for ${platform} with URL: ${baseUrl}`);
+
+    // Track share in Amplitude
+    if (window.amplitude) {
+        window.amplitude.track('Share_Clicked', { platform: platform, shareUrl: baseUrl, refId: refId });
+    }
+
+    // Open native sharing dialogs
+    if (platform === 'facebook') {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(baseUrl)}`, '_blank');
+    } else if (platform === 'twitter') {
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title + ': ' + baseUrl)}`, '_blank');
+    } else if (platform === 'whatsapp') {
+        window.open(`https://wa.me/?text=${encodeURIComponent(title + ': ' + baseUrl)}`, '_blank');
+    } else if (platform === 'kakao' || platform === 'copy') {
+        navigator.clipboard.writeText(baseUrl)
+            .then(() => alert(`Link Copied to Clipboard!\n\n${baseUrl}`))
+            .catch(() => alert('Failed to copy link. Please manually copy the URL.'));
     }
 };
