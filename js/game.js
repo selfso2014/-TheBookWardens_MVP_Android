@@ -1534,7 +1534,7 @@ Game.typewriter = {
                 // Step 5: Advance
                 if (this.currentParaIndex >= this.paragraphs.length - 1) {
                     console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
-                    setTimeout(() => { this.triggerFinalBossBattleSequence(); }, 1000);
+                    setTimeout(() => { this.showFinalBossAlert(); }, 1000);
                 } else {
                     const villainModal = document.getElementById("villain-modal");
                     if (villainModal) villainModal.style.display = "none";
@@ -1616,6 +1616,67 @@ Game.typewriter = {
             Game.switchScreen("screen-read");
             setTimeout(() => { this.playNextParagraph(); }, 500);
         }, 1000);
+    },
+
+    // ── 최종빌런 진입 경고 팝업 ────────────────────────────────────────────
+    // 소형빌런 3번째 정답 후, 또는 디버그 버튼에서 호출.
+    // 플레이어가 "I AM READY" 를 눌러야만 triggerFinalBossBattleSequence() 실행.
+    showFinalBossAlert() {
+        // 중복 방지
+        if (document.getElementById('final-boss-alert')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'final-boss-alert';
+        overlay.style.cssText =
+            'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;' +
+            'align-items:center;justify-content:center;padding:32px;box-sizing:border-box;' +
+            'background:radial-gradient(circle at 50% 40%,#1a0020 0%,#000 100%);' +
+            'opacity:0;transition:opacity 0.5s ease;';
+
+        overlay.innerHTML =
+            '<div style="font-size:3.5rem;margin-bottom:12px;' +
+            'filter:drop-shadow(0 0 24px #c000ff);">👁️</div>' +
+
+            '<p style="font-family:\'Cinzel\',serif;color:#ff4488;font-size:1.2rem;' +
+            'letter-spacing:4px;text-shadow:0 0 16px rgba(255,0,100,0.9);' +
+            'margin:0 0 18px 0;text-align:center;">⚡ RIFT INCOMING ⚡</p>' +
+
+            '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(180,0,255,0.35);' +
+            'border-radius:14px;padding:20px 24px;max-width:340px;margin-bottom:28px;text-align:center;">' +
+            '<p style="font-family:\'Crimson Text\',serif;color:#e0ccff;font-size:1.0rem;' +
+            'line-height:1.75;margin:0 0 14px 0;">' +
+            'The Final Villain has unleashed a <strong style="color:#ff66aa;">Rift</strong> — ' +
+            'a dark force that erases the memories of Wardens.<br><br>' +
+            'Your reading is the only weapon left. <em>Steel your mind.</em>' +
+            '</p>' +
+            '<p style="font-family:\'Outfit\',sans-serif;color:#9966cc;font-size:0.8rem;' +
+            'letter-spacing:1px;margin:0;">— Head Warden</p>' +
+            '</div>' +
+
+            '<button id="final-boss-alert-btn" style="' +
+            'font-family:\'Cinzel\',serif;font-size:1.0rem;letter-spacing:3px;' +
+            'color:#fff;background:linear-gradient(135deg,#6600aa,#cc0066);' +
+            'border:none;border-radius:10px;padding:14px 36px;cursor:pointer;' +
+            'box-shadow:0 0 24px rgba(180,0,255,0.5);' +
+            'transition:transform 0.15s ease,box-shadow 0.15s ease;">' +
+            'I AM READY</button>';
+
+        document.body.appendChild(overlay);
+        // fade in
+        requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.opacity = '1'; }));
+
+        // 버튼 hover 효과
+        const btn = document.getElementById('final-boss-alert-btn');
+        btn.onmouseover = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 0 32px rgba(180,0,255,0.8)'; };
+        btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 0 24px rgba(180,0,255,0.5)'; };
+
+        btn.onclick = () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                if (overlay.parentNode) overlay.remove();
+                this.triggerFinalBossBattleSequence();
+            }, 450);
+        };
     },
 
     // Extracted Helper: Trigger Final Boss
@@ -1762,23 +1823,14 @@ if (document.readyState === "loading") {
 // home screen의 ⚡ [DEV] Final Quiz 버튼에서 호출
 // FinalQuizManager가 이미 이 모듈 스코프에 import되어 있으므로 확실히 동작
 window._devFinalQuiz = function () {
-    console.log('[DEV] _devFinalQuiz() called');
+    console.log('[DEV] _devFinalQuiz() called — routing via showFinalBossAlert');
     try {
-        // 1. 화면 전환
-        Game.switchScreen('screen-final-quiz');
-
-        // 2. FinalQuizManager 생성/재사용 후 init
-        setTimeout(() => {
-            try {
-                if (!window.FinalQuizRef) {
-                    window.FinalQuizRef = new FinalQuizManager();
-                }
-                window.FinalQuizRef.init();
-                console.log('[DEV] FinalQuizManager.init() called ✓');
-            } catch (e) {
-                console.error('[DEV] FinalQuizManager init failed:', e);
-            }
-        }, 150);
+        if (Game.typewriter && typeof Game.typewriter.showFinalBossAlert === 'function') {
+            Game.typewriter.showFinalBossAlert();
+        } else {
+            console.warn('[DEV] showFinalBossAlert not found, falling back to triggerFinalBossBattleSequence');
+            Game.typewriter.triggerFinalBossBattleSequence();
+        }
     } catch (e) {
         console.error('[DEV] _devFinalQuiz error:', e);
     }
