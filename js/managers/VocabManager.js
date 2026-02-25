@@ -109,7 +109,7 @@ export class VocabManager {
             // Success
             if (selectedBtn) {
                 selectedBtn.classList.add("correct");
-                this.spawnFloatingText(selectedBtn, "+10 Runes!", "bonus");
+                this.spawnFloatingText(selectedBtn, "+100 Runes!", "bonus");
 
                 // FX
                 const rect = selectedBtn.getBoundingClientRect();
@@ -132,11 +132,11 @@ export class VocabManager {
         } else {
             // Fail
             // Penalty
-            if (this.game.scoreManager) this.game.scoreManager.addRunes(-5);
+            if (this.game.scoreManager) this.game.scoreManager.addRunes(-50);
 
             if (selectedBtn) {
                 selectedBtn.classList.add("wrong");
-                this.spawnFloatingText(selectedBtn, "-5 Rune", "error");
+                this.spawnFloatingText(selectedBtn, "-50 Rune", "error");
             }
 
             // Retry Logic: Re-enable others
@@ -230,7 +230,7 @@ export class VocabManager {
                 p.remove();
                 if (i === 0) {
                     // Reward
-                    if (this.game.scoreManager) this.game.scoreManager.addRunes(10);
+                    if (this.game.scoreManager) this.game.scoreManager.addRunes(100);
 
                     // Pulse
                     targetEl.style.transition = "transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
