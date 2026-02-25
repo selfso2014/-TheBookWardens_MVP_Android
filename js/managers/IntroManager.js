@@ -401,6 +401,18 @@ export class IntroManager {
                     Eye-tracking technology is only available<br>on Android devices.
                 </p>
             </div>
+            <p style="
+                margin:20px 0 0 0;
+                font-size:0.8rem;
+                line-height:1.6;
+                color:#666;
+                max-width:300px;
+                text-align:center;
+            ">
+                🚀 <span style="color:#a855f7;font-weight:600;">iPhone &amp; Laptop</span> versions<br>
+                are currently <em style="color:#e2c8ff;">under development</em>.<br>
+                <span style="font-size:0.75rem;color:#555;">Stay tuned for updates!</span>
+            </p>
         `;
 
         document.body.appendChild(overlay);
