@@ -1,9 +1,9 @@
 /**
  * BookSelectManager.js
  * Book selection screen (screen-book-select) rendering and selection logic.
- * Flow: rift-intro complete → render() → user taps card → selectBook() → screen-word
+ * Flow: rift-intro complete → render() → user taps SELECT button → selectBook() → screen-word
  */
-import { BOOKS } from '../data/BookData.js?v=20260226-BS2';
+import { BOOKS } from '../data/BookData.js?v=20260226-BS3';
 
 export class BookSelectManager {
     constructor(game) {
@@ -42,7 +42,7 @@ export class BookSelectManager {
 
     /**
      * Build a single book card element.
-     * The WHOLE card is tappable — no large button needed.
+     * Selection is triggered ONLY by the SELECT button (not the whole card).
      */
     _buildCard(book) {
         const card = document.createElement('div');
@@ -63,9 +63,6 @@ export class BookSelectManager {
                 <img class="bs-cover-img" src="${book.image}" alt="${book.title}"
                      onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                 <div class="bs-cover-fallback" style="display:none;">📖</div>
-                <!-- Top/bottom gradient fade to blend white edges into the card -->
-                <div class="bs-cover-fade-top"></div>
-                <div class="bs-cover-fade-bottom"></div>
             </div>
 
             <!-- Right: Info panel -->
@@ -79,30 +76,35 @@ export class BookSelectManager {
                 </div>
                 <div class="bs-meta-row">
                     <span class="bs-meta-item">💎 <b>${book.gemCost.toLocaleString()}</b> gems</span>
-                    <span class="bs-meta-item bs-damage" style="color:${book.difficultyColor};">
-                        ⚡ <b>${book.riftDamage.toLocaleString()}</b> dmg
+                    <span class="bs-meta-item bs-rifts" style="color:${book.difficultyColor};">
+                        ⚡ <b>${book.riftDamage.toLocaleString()}</b> rifts
                     </span>
                 </div>
-                <div class="bs-meta-row">
+                <div class="bs-bottom-row">
                     <span class="bs-difficulty">
                         ${starsHtml}
                         <span class="bs-diff-label" style="color:${book.difficultyColor};">${book.difficulty}</span>
                     </span>
-                    <!-- Subtle tap hint — replaces the large SELECT button -->
-                    <span class="bs-tap-hint" id="bs-tap-${book.id}">TAP ▶</span>
+                    <button class="bs-select-btn"
+                            id="btn-select-book-${book.id}"
+                            style="--accent:${book.accentColor}; border-color:${book.accentColor}; color:${book.accentColor};"
+                            data-book-id="${book.id}">
+                        SELECT
+                    </button>
                 </div>
             </div>
         `;
 
-        // Entire card is tappable
-        const onSelect = (e) => {
+        // SELECT button only (not whole card)
+        const btn = card.querySelector('.bs-select-btn');
+        btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (this._locked) return;
-            this.selectBook(book.id, card);
-        };
-
-        card.addEventListener('click', onSelect);
-        card.addEventListener('touchstart', onSelect, { passive: true });
+            this.selectBook(book.id, card, btn);
+        });
+        // iOS sticky-hover fix
+        btn.addEventListener('touchstart', () => {
+            requestAnimationFrame(() => btn.blur());
+        }, { passive: true });
 
         return card;
     }
@@ -110,12 +112,12 @@ export class BookSelectManager {
     /**
      * Book selection handler:
      * 1. Lock to prevent double-tap
-     * 2. Visual feedback on card
+     * 2. Visual feedback on button + card
      * 3. Inject book data into Game.state
      * 4. Amplitude event
      * 5. Navigate to Word Forge
      */
-    selectBook(bookId, cardEl) {
+    selectBook(bookId, cardEl, btnEl) {
         if (this._locked) return;
         this._locked = true;
 
@@ -128,30 +130,27 @@ export class BookSelectManager {
 
         console.log(`[BookSelectManager] Book selected: ${book.title}`);
 
-        // Visual feedback — highlight selected card, dim others
+        // Visual feedback
         document.querySelectorAll('.bs-card').forEach(c => {
             c.style.opacity = c === cardEl ? '1' : '0.35';
         });
-
         if (cardEl) {
             cardEl.style.border = `1.5px solid ${book.accentColor}`;
             cardEl.style.boxShadow = `0 0 20px ${book.glowColor}, 0 4px 24px rgba(0,0,0,0.6)`;
         }
-
-        const tapHint = document.getElementById(`bs-tap-${bookId}`);
-        if (tapHint) {
-            tapHint.textContent = '✓';
-            tapHint.style.color = book.difficultyColor;
-            tapHint.style.fontWeight = '900';
+        if (btnEl) {
+            btnEl.textContent = '✓ SELECTED';
+            btnEl.style.background = book.accentColor;
+            btnEl.style.color = '#fff';
+            btnEl.disabled = true;
         }
 
-        // Inject data into Game.state
+        // Inject into Game.state
         this.game.state.selectedBook = book;
         this.game.state.storyParagraphs = book.storyParagraphs;
         this.game.state.midBossQuizzes = book.midBossQuizzes;
         this.game.state.finalBossQuiz = book.finalBossQuiz;
 
-        // Reinitialise VocabManager with selected book's vocab
         if (this.game.vocabManager) {
             this.game.vocabManager.init(book.vocabList);
         }
@@ -167,7 +166,6 @@ export class BookSelectManager {
             });
         }
 
-        // Short delay to let the visual feedback render, then proceed
         setTimeout(() => {
             this.game.state.vocabIndex = 0;
             this.game.loadVocab(0);

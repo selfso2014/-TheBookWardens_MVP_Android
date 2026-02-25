@@ -1,9 +1,9 @@
 /* ============================================================
-   book-select.css  (v2 — 2026-02-26)
+   book-select.css  (v3 — 2026-02-26)
    screen-book-select 전용 스타일
-   - Vertical card layout (3 books)
-   - Cover image: top/bottom fade to eliminate white-edge artifacts
-   - Card is fully tappable — no large SELECT button
+   - mix-blend-mode 제거 → 이미지 정상 표시
+   - object-fit: cover + dark bg로 흰 여백 자연스럽게 처리
+   - SELECT 버튼: 적절한 크기, 하단에 배치
    ============================================================ */
 
 /* ── Screen container ────────────────────────────────────────── */
@@ -81,31 +81,15 @@
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
-    cursor: pointer;
     transition:
         border-color 0.25s ease,
         box-shadow 0.25s ease,
-        transform 0.15s ease,
         opacity 0.3s ease;
     position: relative;
     -webkit-tap-highlight-color: transparent;
-    user-select: none;
 }
 
-/* Hover glow (desktop/mouse only) */
-@media (hover: hover) {
-    .bs-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.22);
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
-    }
-}
-
-.bs-card:active {
-    transform: scale(0.98);
-}
-
-/* Subtle shimmer overlay */
+/* Shimmer overlay */
 .bs-card::before {
     content: '';
     position: absolute;
@@ -120,8 +104,8 @@
 .bs-cover-wrap {
     width: 90px;
     flex-shrink: 0;
-    background: #0e0015;
-    /* dark base to absorb white edges */
+    /* Dark background absorbs white edges from the book cover photo */
+    background: #100818;
     display: flex;
     align-items: stretch;
     justify-content: center;
@@ -132,12 +116,11 @@
 .bs-cover-img {
     width: 100%;
     height: 100%;
+    /* cover: crops top/bottom white padding, fills the container */
     object-fit: cover;
-    object-position: center;
+    object-position: center top;
     display: block;
-    /* blend multiply removes white backgrounds naturally */
-    mix-blend-mode: multiply;
-    filter: contrast(1.08) brightness(0.95);
+    /* NO mix-blend-mode — caused images to go black on dark bg */
 }
 
 .bs-cover-fallback {
@@ -148,31 +131,10 @@
     width: 100%;
 }
 
-/* Top & bottom gradient fades — blend image edge into card BG */
-.bs-cover-fade-top,
-.bs-cover-fade-bottom {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 28px;
-    pointer-events: none;
-    z-index: 2;
-}
-
-.bs-cover-fade-top {
-    top: 0;
-    background: linear-gradient(180deg, #0e0015 0%, transparent 100%);
-}
-
-.bs-cover-fade-bottom {
-    bottom: 0;
-    background: linear-gradient(0deg, #0e0015 0%, transparent 100%);
-}
-
 /* ── Info panel (right side) ─────────────────────────────────── */
 .bs-info {
     flex: 1;
-    padding: 12px 12px 11px 13px;
+    padding: 11px 12px 11px 13px;
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -183,7 +145,7 @@
 
 .bs-title {
     font-family: 'Cinzel', serif;
-    font-size: 0.82rem;
+    font-size: 0.81rem;
     font-weight: 700;
     line-height: 1.3;
     letter-spacing: 0.3px;
@@ -222,9 +184,18 @@
     font-weight: 700;
 }
 
-/* Rift damage badge */
-.bs-damage b {
+.bs-rifts b {
     color: inherit;
+}
+
+/* ── Bottom row: stars + SELECT button ───────────────────────── */
+.bs-bottom-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 3px;
 }
 
 /* ── Difficulty stars ────────────────────────────────────────── */
@@ -232,13 +203,12 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    flex: 1;
+    flex-shrink: 0;
 }
 
 .bs-star {
     font-size: 0.95rem;
     line-height: 1;
-    transition: text-shadow 0.2s;
 }
 
 .bs-diff-label {
@@ -249,21 +219,40 @@
     margin-left: 5px;
 }
 
-/* ── Tap hint (replaces large SELECT button) ─────────────────── */
-.bs-tap-hint {
-    font-family: 'Outfit', monospace;
-    font-size: 0.68rem;
+/* ── SELECT button ───────────────────────────────────────────── */
+.bs-select-btn {
+    padding: 7px 16px;
+    background: transparent;
+    border: 1.5px solid;
+    /* color injected via JS */
+    border-radius: 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 2px;
-    color: rgba(255, 255, 255, 0.22);
+    cursor: pointer;
     white-space: nowrap;
-    align-self: flex-end;
-    padding: 2px 0;
-    transition: color 0.2s ease;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 @media (hover: hover) {
-    .bs-card:hover .bs-tap-hint {
-        color: rgba(255, 255, 255, 0.55);
+    .bs-select-btn:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0 14px currentColor;
     }
+}
+
+.bs-select-btn:active {
+    transform: scale(0.95);
+}
+
+.bs-select-btn:disabled {
+    cursor: default;
+    opacity: 0.9;
 }
