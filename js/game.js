@@ -1905,9 +1905,10 @@ window._devFinalQuiz = function () {
 
 // ── [SHARE] Social Share Global Handler ──────────────────────────────────────
 window.shareGameLink = function (platform) {
-    // Generate URL with referral ID parameter
+    // Generate URL with referral ID parameter out of the dynamic base url
     const refId = window.Game && window.Game.firebaseSessionId ? window.Game.firebaseSessionId : '';
-    const baseUrl = 'https://bookwardens.com' + (refId ? '?ref=' + refId : '');
+    const rootUrl = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/$/, '') + '/';
+    const baseUrl = rootUrl + (refId ? '?ref=' + refId : '');
     const title = 'I just saved the Story World! Can you? Play The Book Wardens';
 
     console.log(`[Share] Triggering share for ${platform} with URL: ${baseUrl}`);

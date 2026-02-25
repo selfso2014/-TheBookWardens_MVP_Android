@@ -8,17 +8,26 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://selfso2014.github.io/-TheBookWardens_MVP_Android/">
+  <meta property="og:url" content="">
   <meta property="og:title" content="The Book Wardens">
   <meta property="og:description" content="Reading is a game powered by your eyes.">
-  <meta property="og:image" content="https://selfso2014.github.io/-TheBookWardens_MVP_Android/TheBookWardens.png">
+  <meta property="og:image" content="">
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://selfso2014.github.io/-TheBookWardens_MVP_Android/">
+  <meta property="twitter:url" content="">
   <meta property="twitter:title" content="The Book Wardens">
   <meta property="twitter:description" content="Reading is a game powered by your eyes.">
-  <meta property="twitter:image" content="https://selfso2014.github.io/-TheBookWardens_MVP_Android/TheBookWardens.png">
+  <meta property="twitter:image" content="">
+
+  <script>
+    // Dynamically set absolute URLs for meta tags based on deployment domain
+    const rootUrl = window.location.origin + window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/$/, '') + '/';
+    document.querySelector('meta[property="og:url"]').setAttribute("content", rootUrl);
+    document.querySelector('meta[property="og:image"]').setAttribute("content", rootUrl + "TheBookWardens.png");
+    document.querySelector('meta[property="twitter:url"]').setAttribute("content", rootUrl);
+    document.querySelector('meta[property="twitter:image"]').setAttribute("content", rootUrl + "TheBookWardens.png");
+  </script>
   <script>
     if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && location.protocol !== "https:") {
       location.replace(`https:${location.href.substring(location.protocol.length)}`);
@@ -1291,7 +1300,7 @@
 
       <!-- Copy Game Link — 맨 아래 -->
       <button
-        onclick="navigator.clipboard.writeText('https://selfso2014.github.io/-TheBookWardens_MVP_Android/'); alert('Game Link Copied!');"
+        onclick="window.shareGameLink('copy')"
         onmouseover="this.style.background='rgba(255,255,255,0.2)'"
         onmouseout="this.style.background='rgba(255,255,255,0.1)'"
         style="background: rgba(255,255,255,0.1); border: 1px solid #777; color: #fff; padding: 12px 28px; border-radius: 30px; cursor: pointer; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s;">
