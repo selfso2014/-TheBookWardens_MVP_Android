@@ -942,7 +942,7 @@ Game.typewriter = {
 
                 this.renderer = new TextRenderer("book-content", {
                     fontSize: window.innerWidth <= 768 ? "1.0rem" : "1.3rem",
-                    lineHeight: "2.8",
+                    lineHeight: "2.3",
                     wordSpacing: "0.4em",
                     padding: "20px"
                 });
