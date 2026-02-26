@@ -899,84 +899,18 @@ const Game = {
         this.switchScreen("screen-new-share");
     },
 
-    // ── Home 버튼: 모든 데이터 클리어 후 책 선택 화면으로 복귀 ──────────────────
+    // ── Home 버튼: 브라우저 새로고침을 통해 모든 데이터를 완벽히 비우고 책 선택 화면으로 직행 ──
     goBackToBookSelect() {
-        console.log('[Home] goBackToBookSelect(): Full reset initiated.');
+        console.log('[Home] goBackToBookSelect(): Initiating Hard Reload to clear all SDK/DOM states.');
 
-        // 1. FinalQuizManager 타이머/스트림 즉시 중단
+        // FinalQuizManager 등에서 사용하던 잔여 리소스 해제 시도
         if (window.FinalQuizRef && typeof window.FinalQuizRef.destroy === 'function') {
             window.FinalQuizRef.destroy();
         }
 
-        // 2. Typewriter: tick 중단 + TextRenderer 애니메이션 취소
-        const tw = this.typewriter;
-        if (tw) {
-            tw.isPaused = true;
-            if (tw.timer) { clearTimeout(tw.timer); tw.timer = null; }
-            if (tw.renderer && typeof tw.renderer.cancelAllAnimations === 'function') {
-                tw.renderer.cancelAllAnimations();
-            }
-            // renderer를 null로 — 다음 게임 시작 시 init()에서 재생성
-            tw.renderer = null;
-            // 스테일 콘텐츠 초기화
-            tw.paragraphs = null;
-            tw.quizzes = null;
-            tw.finalQuiz = null;
-            tw.currentParaIndex = 0;
-            tw.chunkIndex = 0;
-            tw.lineStats && tw.lineStats.clear();
-        }
-
-        // 3. GazeDataManager: 시선 데이터 전체 초기화
-        if (window.gazeDataManager && typeof window.gazeDataManager.reset === 'function') {
-            window.gazeDataManager.reset();
-        }
-
-        // 4. ScoreManager: 점수 + HUD 숫자 초기화
-        if (this.scoreManager && typeof this.scoreManager.reset === 'function') {
-            this.scoreManager.reset();
-        }
-
-        // 5. Game.state: 선택 책 및 주입 콘텐츠 초기화
-        this.state.selectedBook = null;
-        this.state.storyChapter = null;
-        this.state.midBossQuizzes = null;
-        this.state.finalBossQuiz = null;
-        this.state.storyParagraphs = null;
-        this.state.currentWordIndex = 0;
-        this.state.vocabIndex = 0;
-        this.state.isTracking = false;
-
-        // 6. 이메일 입력 필드 초기화 (Claim Reward 상태 리셋)
-        const emailEl = document.getElementById('warden-email');
-        if (emailEl) emailEl.value = '';
-        const claimBtn = document.getElementById('btn-claim-reward');
-        if (claimBtn) {
-            claimBtn.disabled = false;
-            claimBtn.innerText = 'CLAIM REWARD';
-            claimBtn.style.background = '#ffd700';
-            claimBtn.style.opacity = '1';
-        }
-
-        // 7. DOM 오버레이 정리 (항상 남아있을 수 있는 캔버스/마커)
-        ['#pang-marker-layer', '#replay-canvas'].forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => el.remove());
-        });
-        document.querySelectorAll('.floating-text, .flying-ink, .replay-mini-score').forEach(el => el.remove());
-
-        // 8. book-content DOM 초기화 (다음 게임 시 깨끗한 컨테이너 보장)
-        const bookContent = document.getElementById('book-content');
-        if (bookContent) bookContent.innerHTML = '';
-
-        // 9. 화면 전환 — switchScreen이 내부적으로 clearAllResources() + _unmountScreen() 호출
-        console.log('[Home] Reset complete. Navigating to screen-book-select.');
-        this.switchScreen('screen-book-select');
-
-        // 10. 책 카드 재렌더링 — render()는 IntroManager.startRiftIntro()에서만 호출되므로
-        //     Home 복귀 시 명시적으로 다시 호출해야 카드가 표시됨
-        if (this.bookSelectManager && typeof this.bookSelectManager.render === 'function') {
-            this.bookSelectManager.render();
-        }
+        // 가장 안전한 방식: 브라우저 완전히 다시 불러와 메모리 누수 방지
+        // IntroManager에서 skip_intro param을 감지하고 바로 Book Select 앞단(Home)으로 감.
+        window.location.href = window.location.pathname + "?skip_intro=1";
     },
 
     // Utilities
