@@ -5,7 +5,7 @@
  */
 
 // ── Alice (기존 데이터) ────────────────────────────────────────────────────────
-import { vocabList as _aliceVocab, midBossQuizzes as _aliceQuizzes, finalBossQuiz as _aliceFinalQuiz } from './QuizData.js?v=20260224-FQ';
+import { vocabList as _aliceVocab, midBossQuizzes as _aliceQuizzes, finalBossQuiz as _aliceFinalQuiz } from './QuizData.js?v=20260226-V2';
 import { storyParagraphs as _aliceStory } from './StoryContent.js?v=20260224-FQ';
 import { storyChapter1 as _aliceChapter } from './StoryContent_Dynamic.js?v=20260224-FQ';
 

@@ -1,34 +1,34 @@
 
 export const vocabList = [
     {
-        word: "Luminous",
-        sentence: '"The <b>luminous</b> mushroom lit up the dark cave."',
+        word: "Peep",
+        sentence: '"Once or twice she had <b>peeped</b> into the book her sister was reading, but it had no pictures."',
         options: [
-            "A. Very heavy and dark",
-            "B. Full of light / Shining",
-            "C. Related to the moon"
+            "A. To shout loudly at someone",
+            "B. To look quickly and secretly",
+            "C. To read a book carefully"
         ],
         answer: 1,
         image: "./peep.png"
     },
     {
-        word: "Peculiar",
-        sentence: '"Alice felt a very <b>peculiar</b> change in her size."',
+        word: "Pleasure",
+        sentence: '"She wondered whether the <b>pleasure</b> of making a daisy-chain would be worth the trouble of getting up."',
         options: [
-            "A. Strange or odd",
-            "B. Common and boring",
-            "C. Sudden and fast"
+            "A. A feeling of happiness or enjoyment",
+            "B. A strong sense of pain",
+            "C. A wish to sleep and rest"
         ],
         answer: 0,
         image: "./pleasure.png"
     },
     {
-        word: "Vanish",
-        sentence: '"The cat began to <b>vanish</b> slowly, starting with its tail."',
+        word: "Remarkable",
+        sentence: '"There was nothing so VERY <b>remarkable</b> in that; nor did Alice think it so very much out of the way."',
         options: [
-            "A. To appear suddenly",
-            "B. To disappear completely",
-            "C. To become brighter"
+            "A. Very ordinary and expected",
+            "B. Worthy of attention; unusual or impressive",
+            "C. Frightening and dangerous"
         ],
         answer: 1,
         image: "./remarkable.png"
