@@ -971,6 +971,12 @@ const Game = {
         // 9. 화면 전환 — switchScreen이 내부적으로 clearAllResources() + _unmountScreen() 호출
         console.log('[Home] Reset complete. Navigating to screen-book-select.');
         this.switchScreen('screen-book-select');
+
+        // 10. 책 카드 재렌더링 — render()는 IntroManager.startRiftIntro()에서만 호출되므로
+        //     Home 복귀 시 명시적으로 다시 호출해야 카드가 표시됨
+        if (this.bookSelectManager && typeof this.bookSelectManager.render === 'function') {
+            this.bookSelectManager.render();
+        }
     },
 
     // Utilities
