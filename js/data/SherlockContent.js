@@ -353,11 +353,18 @@ export const sherlockMidBossQuizzes = [
 
 // ── FINAL BOSS QUIZ ───────────────────────────────────────────────────────────
 export const sherlockFinalBossQuiz = {
+    passage:
+        "To Holmes, Irene Adler was simply 'the woman' — not loved, but astute enough " +
+        "to earn his complete respect. Watson returned to Baker Street one evening " +
+        "and found Holmes lounging in his armchair with a singular calmness. " +
+        "Holmes then challenged Watson to discern the meaning of an unsigned note: " +
+        "'There is danger tonight. Come at once.' — a mystery with no known author.",
     q: "Based on the opening, what quality most distinguishes Sherlock Holmes from an ordinary person?",
     o: [
-        "His extraordinary physical strength and ability to fight criminals.",
-        "His emotionless, precisely balanced mind that can discern what others completely overlook.",
-        "His wide network of powerful friends in the British government."
+        "A. His extraordinary physical strength and ability to fight criminals.",
+        "B. His emotionless, precisely balanced mind that can discern what others completely overlook.",
+        "C. His wide network of powerful friends in the British government.",
+        "D. His remarkable talent for disguise and deception in the field."
     ],
     a: 1
 };

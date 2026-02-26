@@ -412,11 +412,17 @@ export const aesopMidBossQuizzes = [
 
 // ── FINAL BOSS QUIZ ───────────────────────────────────────────────────────────
 export const aesopFinalBossQuiz = {
+    passage:
+        "A Fox tricked a Crow into dropping her cheese with empty flattery. " +
+        "A Tortoise beat a confident Hare by choosing to persevere, one step at a time. " +
+        "A boy who cried wolf for fun found that deceit has real consequences — " +
+        "when the wolf truly came, not one villager believed him.",
     q: "What is the central moral lesson that connects all three of Aesop's Fables?",
     o: [
-        "Power and strength always determine who wins in the end.",
-        "Foolish choices and dishonesty lead to real and lasting consequences.",
-        "Animals are naturally wiser than human beings in every situation."
+        "A. Power and strength always determine who wins in the end.",
+        "B. Foolish choices and dishonesty lead to real and lasting consequences.",
+        "C. Animals are naturally wiser than human beings in every situation.",
+        "D. Speed and cleverness are more important than honesty."
     ],
     a: 1
 };

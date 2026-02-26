@@ -970,6 +970,23 @@ Game.typewriter = {
         this.finalQuiz = (Game.state.finalBossQuiz) || finalBossQuiz;
         console.log(`[Typewriter] Loaded book chapter: ${chapter.story_id}, ${this.paragraphs.length} paragraphs.`);
 
+        // ── 챕터 타이틀 배지 업데이트 (책마다 다른 타이틀 표시) ──────────────
+        const titleBadge = document.getElementById('chapter-title-badge');
+        if (titleBadge) {
+            const selectedBook = Game.state.selectedBook;
+            let chapterTitle = 'Chapter 1: Down the Rabbit-Hole'; // Alice default
+            if (selectedBook) {
+                if (selectedBook.id === 'aesop') {
+                    chapterTitle = 'Tales of Wisdom — Aesop\'s Fables';
+                } else if (selectedBook.id === 'sherlock') {
+                    chapterTitle = 'Chapter 1: A Scandal in Bohemia';
+                } else if (selectedBook.id === 'alice') {
+                    chapterTitle = 'Chapter 1: Down the Rabbit-Hole';
+                }
+            }
+            titleBadge.textContent = chapterTitle;
+        }
+
         Game.state.ink = 0;
         Game.updateUI();
 

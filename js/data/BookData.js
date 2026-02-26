@@ -5,7 +5,7 @@
  */
 
 // ── Alice (기존 데이터) ────────────────────────────────────────────────────────
-import { vocabList as _aliceVocab, midBossQuizzes as _aliceQuizzes, finalBossQuiz as _aliceFinalQuiz } from './QuizData.js?v=20260226-V2';
+import { vocabList as _aliceVocab, midBossQuizzes as _aliceQuizzes, finalBossQuiz as _aliceFinalQuiz } from './QuizData.js?v=20260226-V3';
 import { storyParagraphs as _aliceStory } from './StoryContent.js?v=20260224-FQ';
 import { storyChapter1 as _aliceChapter } from './StoryContent_Dynamic.js?v=20260224-FQ';
 
@@ -16,7 +16,7 @@ import {
     aesopStoryChapter as _aesopChapter,
     aesopMidBossQuizzes as _aesopQuizzes,
     aesopFinalBossQuiz as _aesopFinalQuiz
-} from './AesopContent.js?v=20260226-C1';
+} from './AesopContent.js?v=20260226-C2';
 
 // ── Sherlock (신규) ───────────────────────────────────────────────────────────
 import {
@@ -25,7 +25,7 @@ import {
     sherlockStoryChapter as _sherlockChapter,
     sherlockMidBossQuizzes as _sherlockQuizzes,
     sherlockFinalBossQuiz as _sherlockFinalQuiz
-} from './SherlockContent.js?v=20260226-C1';
+} from './SherlockContent.js?v=20260226-C2';
 
 // ── 메인 BOOKS 배열 (export) ──────────────────────────────────────────────────
 export const BOOKS = [

@@ -51,10 +51,20 @@ export class FinalQuizManager {
             // 타이머 초기 표시 (2:00) — 아직 시작 안 함
             this._updateTimerDisplay();
 
-            // 3. 스트리밍 시작 (타이머는 지문이 나오자마자 시작)
+            // 3. 선택된 책의 finalBossQuiz 데이터 동적 로드
+            const bookQuiz = window.Game?.state?.finalBossQuiz || FINAL_QUIZ_DATA;
+            this._activeQuiz = {
+                passage: bookQuiz.passage || FINAL_QUIZ_DATA.passage,
+                question: bookQuiz.q || bookQuiz.question || FINAL_QUIZ_DATA.question,
+                options: bookQuiz.o || bookQuiz.options || FINAL_QUIZ_DATA.options,
+                answer: bookQuiz.a ?? bookQuiz.answer ?? FINAL_QUIZ_DATA.answer,
+            };
+            console.log('[FinalQuiz] activeQuiz loaded:', this._activeQuiz.question);
+
+            // 4. 스트리밍 시작 (타이머는 지문이 나오자마자 시작)
             this.phase = 'reading';
             this._startCountdown(120); // ← 지문 표시 시작과 동시에 카운트다운
-            this._streamTextTR(FINAL_QUIZ_DATA.passage, msPerWord, () => {
+            this._streamTextTR(this._activeQuiz.passage, msPerWord, () => {
                 // 지문 완료 → 즉시 문제+답지 표시
                 try { this._showQuestion(); }
                 catch (e) { console.error('[FinalQuiz] _showQuestion error:', e); }
@@ -361,9 +371,12 @@ export class FinalQuizManager {
         const questionEl = document.getElementById('fq-question');
         const choicesEl = document.getElementById('fq-choices');
 
+        // 현재 퀴즈 데이터 (init()에서 세팅한 _activeQuiz 사용)
+        const quiz = this._activeQuiz || FINAL_QUIZ_DATA;
+
         // 문제 텍스트 fade-in
         if (questionEl) {
-            questionEl.textContent = FINAL_QUIZ_DATA.question;
+            questionEl.textContent = quiz.question;
             questionEl.style.opacity = '0';
             questionEl.style.display = 'block';
             requestAnimationFrame(() => {
@@ -381,7 +394,7 @@ export class FinalQuizManager {
 
         // 선택지 버튼 생성
         choicesEl.innerHTML = '';
-        FINAL_QUIZ_DATA.options.forEach((optText, i) => {
+        quiz.options.forEach((optText, i) => {
             const btn = document.createElement('button');
             btn.className = 'fq-option-btn';
             btn.textContent = optText;
@@ -402,7 +415,7 @@ export class FinalQuizManager {
             });
             btn.onmouseover = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.35)'; };
             btn.onmouseout = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.15)'; };
-            btn.onclick = () => this._onAnswer(i, FINAL_QUIZ_DATA.answer);
+            btn.onclick = () => this._onAnswer(i, quiz.answer);
             choicesEl.appendChild(btn);
         });
 

@@ -42,11 +42,18 @@ export const midBossQuizzes = [
 ];
 
 export const finalBossQuiz = {
+    passage:
+        "Alice had always found the world perfectly ordinary \u2014 " +
+        "until a White Rabbit rushed past her, muttering anxiously. " +
+        "She tumbled into a hole where size and logic meant nothing. " +
+        "Strange labels dared her to drink; tiny cakes made her grow tall. " +
+        "In Wonderland, the rules she had always known no longer applied.",
     q: "Based on the text, what made the Rabbit's behavior truly remarkable to Alice?",
     o: [
-        "It was wearing a waistcoat and had a watch.",
-        "It was speaking in French.",
-        "It was eating a jam tart while running."
+        "A. It was wearing a waistcoat and had a watch.",
+        "B. It was speaking in French.",
+        "C. It was eating a jam tart while running.",
+        "D. It had pink eyes that glowed in the dark."
     ],
     a: 0
 };
