@@ -17,7 +17,7 @@ export const sherlockVocab = [
             "C. Proud and stubborn in manner"
         ],
         answer: 1,
-        image: "./rune_luminous.png"
+        image: "./astute.png"
     },
     {
         word: "Singular",
@@ -28,7 +28,7 @@ export const sherlockVocab = [
             "C. Already solved and finished"
         ],
         answer: 1,
-        image: "./rune_peculiar.png"
+        image: "./singular.png"
     },
     {
         word: "Discern",
@@ -39,7 +39,7 @@ export const sherlockVocab = [
             "C. To perceive or recognise something clearly"
         ],
         answer: 2,
-        image: "./rune_vanish.png"
+        image: "./discern.png"
     }
 ];
 

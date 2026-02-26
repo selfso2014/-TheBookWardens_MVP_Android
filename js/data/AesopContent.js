@@ -17,7 +17,7 @@ export const aesopVocab = [
             "C. To warn someone of great danger"
         ],
         answer: 1,
-        image: "./rune_peculiar.png"
+        image: "./flatter.png"
     },
     {
         word: "Persevere",
@@ -28,7 +28,7 @@ export const aesopVocab = [
             "C. To run as fast as possible"
         ],
         answer: 0,
-        image: "./rune_luminous.png"
+        image: "./persevere.png"
     },
     {
         word: "Deceit",
@@ -39,7 +39,7 @@ export const aesopVocab = [
             "C. A type of ancient folktale"
         ],
         answer: 1,
-        image: "./rune_vanish.png"
+        image: "./deceit.png"
     }
 ];
 

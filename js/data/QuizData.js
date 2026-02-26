@@ -9,7 +9,7 @@ export const vocabList = [
             "C. Related to the moon"
         ],
         answer: 1,
-        image: "./rune_luminous.png"
+        image: "./peep.png"
     },
     {
         word: "Peculiar",
@@ -20,7 +20,7 @@ export const vocabList = [
             "C. Sudden and fast"
         ],
         answer: 0,
-        image: "./rune_peculiar.png"
+        image: "./pleasure.png"
     },
     {
         word: "Vanish",
@@ -31,7 +31,7 @@ export const vocabList = [
             "C. To become brighter"
         ],
         answer: 1,
-        image: "./rune_vanish.png"
+        image: "./remarkable.png"
     }
 ];
 
