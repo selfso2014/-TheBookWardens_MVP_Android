@@ -1330,6 +1330,15 @@
         <span style="font-size: 1.1rem;">🔗</span> Copy Game Link
       </button>
 
+      <!-- Home Button — 책 선택 화면으로 돌아가기 -->
+      <button id="btn-home-from-share"
+        onclick="if(window.Game && typeof window.Game.goBackToBookSelect === 'function') window.Game.goBackToBookSelect();"
+        onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='rgba(255,255,255,0.5)';"
+        onmouseout="this.style.background='transparent'; this.style.borderColor='rgba(255,255,255,0.25)';"
+        style="margin-top: 18px; background: transparent; border: 1px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.6); padding: 10px 32px; border-radius: 30px; cursor: pointer; font-size: 0.85rem; letter-spacing: 1px; font-family: 'Outfit', sans-serif; transition: background 0.2s, border-color 0.2s;">
+        🏠 Choose Another Book
+      </button>
+
     </section>
 
   </div>
