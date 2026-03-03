@@ -1,0 +1,2239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Book Wardens — Read With Your Eyes, Fight With Magic</title>
+    <meta name="description"
+        content="AI eye-tracking turns reading into an epic adventure. Build reading habits through gamification. Free to play on any browser.">
+    <meta property="og:title" content="The Book Wardens — Read With Your Eyes, Fight With Magic">
+    <meta property="og:description"
+        content="AI eye-tracking turns reading into an epic adventure. Build reading habits through gamification.">
+    <meta property="og:type" content="website">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Outfit:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ── RESET & GLOBALS ─────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #050210;
+            color: #e0e0e0;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Cinzel', serif;
+            color: #fff;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ── UTILITY ──────────────────────────────────────────────────── */
+        .text-gradient {
+            background: linear-gradient(135deg, #c060ff 0%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .text-gold {
+            color: #ffd700;
+        }
+
+        .text-purple {
+            color: #c060ff;
+        }
+
+        .text-muted {
+            color: #888;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 36px;
+            border-radius: 50px;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+            color: #fff;
+            box-shadow: 0 4px 24px rgba(156, 39, 176, 0.5);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(156, 39, 176, 0.7);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #ccc;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #ffd700, #ffab00);
+            color: #1a1a2e;
+            box-shadow: 0 4px 24px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.6);
+        }
+
+        .section-badge {
+            display: inline-block;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 0.78rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 16px;
+            background: rgba(192, 96, 255, 0.12);
+            color: #c060ff;
+            border: 1px solid rgba(192, 96, 255, 0.25);
+        }
+
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            line-height: 1.3;
+            margin-bottom: 18px;
+        }
+
+        .section-subtitle {
+            font-size: 1.05rem;
+            color: #999;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+
+        /* ── SCROLL REVEAL ────────────────────────────────────────────── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── NAV ───────────────────────────────────────────────────────── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            background: rgba(5, 2, 16, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            transition: background 0.3s;
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .nav-logo {
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .nav-logo span {
+            color: #c060ff;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 0.88rem;
+            color: #aaa;
+            font-weight: 500;
+            transition: color 0.2s;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        .nav-cta {
+            background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+            color: #fff !important;
+            padding: 8px 22px !important;
+            border-radius: 30px;
+            font-weight: 600 !important;
+            font-size: 0.85rem !important;
+            transition: all 0.3s;
+        }
+
+        .nav-cta:hover {
+            box-shadow: 0 4px 20px rgba(156, 39, 176, 0.5);
+        }
+
+        .nav-hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .nav-hamburger span {
+            width: 22px;
+            height: 2px;
+            background: #fff;
+            transition: all 0.3s;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .nav-hamburger {
+                display: flex;
+            }
+
+            .nav-links.open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                width: 100%;
+                background: rgba(5, 2, 16, 0.97);
+                padding: 24px;
+                gap: 20px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+        }
+
+        /* ── HERO ──────────────────────────────────────────────────────── */
+        #hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            padding: 100px 0 60px;
+            background: radial-gradient(ellipse at 50% 20%, rgba(90, 20, 140, 0.25) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(30, 10, 60, 0.4) 0%, transparent 50%),
+                #050210;
+        }
+
+        #hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="0.5" fill="rgba(192,96,255,0.3)"/></svg>');
+            background-size: 60px 60px;
+            opacity: 0.15;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+
+        .hero-text {
+            flex: 1.2;
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .hero-visual {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .hero-visual img {
+            border-radius: 20px;
+            box-shadow: 0 0 60px rgba(192, 96, 255, 0.4);
+            max-width: 320px;
+            width: 100%;
+            border: 1px solid rgba(192, 96, 255, 0.2);
+            animation: floatImage 6s ease-in-out infinite;
+        }
+
+        @keyframes floatImage {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .hero-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .hero-text {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+
+            .hero-buttons {
+                justify-content: center;
+            }
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 30px;
+            background: rgba(255, 215, 0, 0.08);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .hero-title {
+            font-size: clamp(1.8rem, 4.5vw, 3rem);
+            line-height: 1.25;
+            margin-bottom: 24px;
+            text-shadow: 0 0 40px rgba(192, 96, 255, 0.3);
+        }
+
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: #aaa;
+            max-width: 560px;
+            margin: 0 auto 36px;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .hero-trust {
+            margin-top: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: #666;
+        }
+
+        /* Floating particles in hero */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(192, 96, 255, 0.4);
+            animation: floatParticle 6s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes floatParticle {
+
+            0%,
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: translateY(-30px) scale(1.2);
+                opacity: 0.7;
+            }
+        }
+
+        /* ── PROBLEM ───────────────────────────────────────────────────── */
+        #problem {
+            padding: 100px 0;
+            background: linear-gradient(180deg, #050210 0%, #0a0418 100%);
+        }
+
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+
+        .problem-card {
+            padding: 32px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s;
+        }
+
+        .problem-card:hover {
+            border-color: rgba(192, 96, 255, 0.3);
+            background: rgba(192, 96, 255, 0.04);
+            transform: translateY(-4px);
+        }
+
+        .problem-icon {
+            font-size: 2.2rem;
+            margin-bottom: 16px;
+        }
+
+        .problem-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .problem-card p {
+            color: #888;
+            font-size: 0.92rem;
+        }
+
+        .problem-stat {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.82rem;
+            color: #c060ff;
+            font-weight: 500;
+        }
+
+        .problem-punchline {
+            text-align: center;
+            margin-top: 48px;
+            font-family: 'Crimson Text', serif;
+            font-style: italic;
+            font-size: 1.3rem;
+            color: #ccc;
+        }
+
+        /* ── SOLUTION ──────────────────────────────────────────────────── */
+        #solution {
+            padding: 100px 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(90, 20, 140, 0.12) 0%, transparent 60%),
+                #0a0418;
+        }
+
+        .solution-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .solution-layout {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+        }
+
+        .solution-visual {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(192, 96, 255, 0.2);
+            box-shadow: 0 8px 40px rgba(90, 20, 140, 0.3);
+            aspect-ratio: 16 / 10;
+            background: linear-gradient(135deg, #1a0830, #0d0520);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+        }
+
+        .solution-text h2 {
+            margin-bottom: 20px;
+        }
+
+        .solution-steps {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 24px;
+        }
+
+        .solution-steps li {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(192, 96, 255, 0.15);
+            border: 1px solid rgba(192, 96, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #c060ff;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .solution-tagline {
+            margin-top: 28px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            background: rgba(255, 215, 0, 0.06);
+            border-left: 3px solid #ffd700;
+            font-family: 'Crimson Text', serif;
+            font-style: italic;
+            font-size: 1.1rem;
+            color: #ffd700;
+        }
+
+        /* ── HOW IT WORKS ─────────────────────────────────────────────── */
+        #how-it-works {
+            padding: 100px 0;
+            background: linear-gradient(180deg, #0a0418 0%, #050210 100%);
+        }
+
+        .steps-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        @media (max-width: 768px) {
+            .steps-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .step-card {
+            text-align: center;
+            padding: 40px 28px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .step-card:hover {
+            border-color: rgba(192, 96, 255, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .step-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 16px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+        }
+
+        .step-icon {
+            font-size: 3rem;
+            margin: 20px 0;
+        }
+
+        .step-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+        }
+
+        .step-card p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* ── DEMO ──────────────────────────────────────────────────────── */
+        #demo {
+            padding: 100px 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(90, 20, 140, 0.1) 0%, transparent 60%),
+                #050210;
+        }
+
+        .demo-frame {
+            max-width: 780px;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid rgba(192, 96, 255, 0.3);
+            box-shadow: 0 0 60px rgba(90, 20, 140, 0.3);
+            aspect-ratio: 16 / 9;
+            background: linear-gradient(135deg, #1a0830, #0d0520);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .demo-frame:hover {
+            border-color: rgba(192, 96, 255, 0.6);
+            box-shadow: 0 0 80px rgba(90, 20, 140, 0.5);
+        }
+
+        .demo-play-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(192, 96, 255, 0.2);
+            border: 2px solid rgba(192, 96, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: all 0.3s;
+        }
+
+        .demo-frame:hover .demo-play-btn {
+            background: rgba(192, 96, 255, 0.4);
+            transform: scale(1.1);
+        }
+
+        .demo-label {
+            margin-top: 16px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        /* ── FEATURES ──────────────────────────────────────────────────── */
+        #features {
+            padding: 100px 0;
+            background: linear-gradient(180deg, #050210 0%, #0a0418 100%);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(192, 96, 255, 0.25);
+            background: rgba(192, 96, 255, 0.03);
+            transform: translateY(-3px);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(192, 96, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 18px;
+        }
+
+        .feature-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .feature-tag {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: rgba(255, 215, 0, 0.08);
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        /* ── SOCIAL PROOF ─────────────────────────────────────────────── */
+        #social-proof {
+            padding: 100px 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(90, 20, 140, 0.08) 0%, transparent 60%),
+                #0a0418;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 32px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stat-value {
+            font-family: 'Cinzel', serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #c060ff;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .testimonial-card {
+            padding: 28px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .testimonial-stars {
+            color: #ffd700;
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+        }
+
+        .testimonial-text {
+            font-family: 'Crimson Text', serif;
+            font-style: italic;
+            font-size: 1.05rem;
+            color: #ccc;
+            margin-bottom: 18px;
+            line-height: 1.7;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .testimonial-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #9c27b0, #c060ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .testimonial-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .testimonial-role {
+            font-size: 0.78rem;
+            color: #666;
+        }
+
+        /* ── PRICING ───────────────────────────────────────────────────── */
+        #pricing {
+            padding: 100px 0;
+            background: linear-gradient(180deg, #0a0418 0%, #050210 100%);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+                max-width: 420px;
+                margin: 0 auto;
+            }
+        }
+
+        .pricing-card {
+            padding: 36px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .pricing-card.featured {
+            border-color: rgba(192, 96, 255, 0.4);
+            background: rgba(192, 96, 255, 0.05);
+            transform: scale(1.04);
+            box-shadow: 0 8px 40px rgba(90, 20, 140, 0.25);
+        }
+
+        .pricing-popular {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 18px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #c060ff, #9c27b0);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .pricing-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+
+        .pricing-tagline {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .pricing-price {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .pricing-price span {
+            font-size: 1rem;
+            color: #888;
+            font-weight: 400;
+        }
+
+        .pricing-period {
+            font-size: 0.82rem;
+            color: #666;
+            margin-bottom: 28px;
+        }
+
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 28px;
+        }
+
+        .pricing-features li {
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: #bbb;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .pricing-features li:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-check {
+            color: #00e676;
+            font-size: 0.85rem;
+        }
+
+        .pricing-card .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .pricing-note {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 0.82rem;
+            color: #666;
+        }
+
+        /* ── FAQ ───────────────────────────────────────────────────────── */
+        #faq {
+            padding: 100px 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(90, 20, 140, 0.06) 0%, transparent 60%),
+                #050210;
+        }
+
+        .faq-list {
+            max-width: 720px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .faq-item {
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .faq-item:hover {
+            border-color: rgba(192, 96, 255, 0.2);
+        }
+
+        .faq-question {
+            padding: 20px 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.98rem;
+            color: #ddd;
+            user-select: none;
+        }
+
+        .faq-toggle {
+            font-size: 1.2rem;
+            color: #c060ff;
+            transition: transform 0.3s;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+
+        .faq-item.open .faq-toggle {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.4s ease;
+        }
+
+        .faq-item.open .faq-answer {
+            max-height: 300px;
+        }
+
+        .faq-answer p {
+            padding: 0 24px 20px;
+            color: #888;
+            font-size: 0.92rem;
+            line-height: 1.7;
+        }
+
+        /* ── FINAL CTA ────────────────────────────────────────────────── */
+        #final-cta {
+            padding: 120px 0;
+            text-align: center;
+            background: radial-gradient(ellipse at 50% 50%, rgba(90, 20, 140, 0.2) 0%, transparent 60%),
+                linear-gradient(180deg, #050210 0%, #0a0520 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #final-cta::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="0.4" fill="rgba(255,215,0,0.2)"/></svg>');
+            background-size: 80px 80px;
+            opacity: 0.1;
+        }
+
+        .final-cta-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .final-cta-content h2 {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            margin-bottom: 16px;
+        }
+
+        .final-cta-content p {
+            font-size: 1.1rem;
+            color: #999;
+            margin-bottom: 36px;
+        }
+
+        /* ── FOOTER ────────────────────────────────────────────────────── */
+        footer {
+            padding: 60px 0 32px;
+            background: #030110;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .footer-grid {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .footer-brand h4 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .footer-brand p {
+            color: #666;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .footer-col h5 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: #999;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 10px;
+        }
+
+        .footer-col a {
+            font-size: 0.88rem;
+            color: #666;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: #c060ff;
+        }
+
+        .footer-bottom {
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            text-align: center;
+        }
+
+        .footer-copyright {
+            font-size: 0.8rem;
+            color: #444;
+        }
+
+        .footer-socials {
+            display: flex;
+            gap: 16px;
+        }
+
+        .footer-socials a {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .footer-socials a:hover {
+            background: rgba(192, 96, 255, 0.15);
+            color: #c060ff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ═══ NAVIGATION ═══ -->
+    <nav id="navbar">
+        <div class="nav-inner">
+            <a href="#hero" class="nav-logo">The Book <span>Wardens</span></a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#faq">FAQ</a></li>
+                <li><a href="./index.html" class="nav-cta">🎮 Play Now</a></li>
+            </ul>
+            <div class="nav-hamburger" id="navHamburger"
+                onclick="document.getElementById('navLinks').classList.toggle('open')">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══ ① HERO ═══ -->
+    <section id="hero">
+        <!-- Floating particles -->
+        <div class="particle" style="width:6px;height:6px;top:20%;left:15%;animation-delay:0s;"></div>
+        <div class="particle" style="width:4px;height:4px;top:60%;left:80%;animation-delay:1.5s;"></div>
+        <div class="particle"
+            style="width:8px;height:8px;top:40%;left:50%;animation-delay:3s;background:rgba(255,215,0,0.3);"></div>
+        <div class="particle" style="width:5px;height:5px;top:75%;left:25%;animation-delay:2s;"></div>
+        <div class="particle"
+            style="width:3px;height:3px;top:30%;left:70%;animation-delay:4s;background:rgba(255,215,0,0.2);"></div>
+
+        <div class="container">
+            <div class="hero-content reveal">
+                <div class="hero-text">
+                    <div class="hero-eyebrow">⚡ AI-Powered Reading Game</div>
+                    <h1 class="hero-title">
+                        <span style="white-space:nowrap;">Read With Your Eyes.</span><br>
+                        <span class="text-gradient" style="white-space:nowrap;">Fight With Magic.</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        AI eye-tracking technology turns reading into an epic adventure.
+                        Build lasting reading habits — one page, one battle at a time.
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="./index.html" class="btn btn-primary">🎮 Play Free Now</a>
+                    </div>
+                    <div class="hero-trust">
+                        🔒 Camera data is processed on-device only. Never stored on servers.
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <img src="./TheBookWardens_main.png" alt="The Book Wardens Gameplay Screen">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ ② PROBLEM ═══ -->
+    <section id="problem">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">The Problem</div>
+                <h2 class="section-title">Reading Is Dying.<br>But It Doesn't Have To.</h2>
+                <p class="section-subtitle">
+                    Screens have stolen attention. Focus is shrinking.
+                    The world reads less every year — and the consequences are real.
+                </p>
+            </div>
+            <div class="problem-grid">
+                <div class="problem-card reveal">
+                    <div class="problem-icon">📱</div>
+                    <h3>Kids won't read — they scroll.</h3>
+                    <p>The average teen spends 3+ hours per day on video platforms, but only 7 minutes reading books.
+                    </p>
+                    <div class="problem-stat">📊 Screen time up 300% since 2019</div>
+                </div>
+                <div class="problem-card reveal" style="transition-delay:0.1s;">
+                    <div class="problem-icon">😴</div>
+                    <h3>Adults can't focus past page 3.</h3>
+                    <p>Attention spans have dropped below 8 seconds. Most adults abandon books within the first chapter.
+                    </p>
+                    <div class="problem-stat">📉 Average adult reads only 4.5 books/year</div>
+                </div>
+                <div class="problem-card reveal" style="transition-delay:0.2s;">
+                    <div class="problem-icon">🎓</div>
+                    <h3>Students lose grades — and confidence.</h3>
+                    <p>Poor reading comprehension directly correlates with lower academic performance and test scores.
+                    </p>
+                    <div class="problem-stat">⚠️ 65% of students struggle with reading comprehension</div>
+                </div>
+            </div>
+            <p class="problem-punchline reveal">
+                "Reading isn't boring. <strong>The method is broken.</strong>"
+            </p>
+        </div>
+    </section>
+
+    <!-- ═══ ③ SOLUTION ═══ -->
+    <section id="solution">
+        <div class="container">
+            <div class="solution-layout">
+                <div class="solution-visual reveal"
+                    style="padding: 20px; text-align: center; background: radial-gradient(circle, rgba(192,96,255,0.05) 0%, transparent 60%); display: flex; align-items: center; justify-content: center;">
+                    <img src="./ink_shadow_boss.png" alt="Shadow Boss"
+                        style="max-height: 280px; filter: drop-shadow(0 0 30px rgba(192,96,255,0.7)); animation: floatImage 4s ease-in-out infinite;">
+                </div>
+                <div class="solution-text reveal">
+                    <div class="section-badge">Our Solution</div>
+                    <h2 class="section-title">Reading Itself<br>Becomes the Game.</h2>
+                    <p style="color:#999;">
+                        The Book Wardens transforms every reading session into a living, breathing adventure
+                        powered by AI eye-tracking.
+                    </p>
+                    <ol class="solution-steps">
+                        <li>
+                            <span class="step-number">1</span>
+                            <span>AI tracks your <strong style="color:#c060ff;">eyes in real-time</strong> to verify
+                                you're actually reading — no cheating allowed.</span>
+                        </li>
+                        <li>
+                            <span class="step-number">2</span>
+                            <span>Every line you read earns <strong style="color:#ffd700;">magical ink, runes, and
+                                    gems</strong> that rain down as you progress.</span>
+                        </li>
+                        <li>
+                            <span class="step-number">3</span>
+                            <span>Use your resources to <strong style="color:#c060ff;">battle villains and seal the
+                                    Rift</strong> — clear chapters to save the story world.</span>
+                        </li>
+                    </ol>
+                    <div class="solution-tagline">
+                        "Read and you grow stronger. Stop reading — and the world falls."
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ ④ HOW IT WORKS ═══ -->
+    <section id="how-it-works">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">How It Works</div>
+                <h2 class="section-title">Three Steps. Zero Installs.</h2>
+                <p class="section-subtitle">
+                    No app downloads. No complicated setup.
+                    Just open your browser and start reading.
+                </p>
+            </div>
+            <div class="steps-row">
+                <div class="step-card reveal">
+                    <div class="step-badge">STEP 1</div>
+                    <div class="step-icon">📷</div>
+                    <h3>Enable Your Camera</h3>
+                    <p>Allow your phone or laptop's front camera. Our AI recognizes your eyes instantly through any
+                        modern browser.</p>
+                </div>
+                <div class="step-card reveal" style="transition-delay:0.1s;">
+                    <div class="step-badge">STEP 2</div>
+                    <div class="step-icon">
+                        <img src="./aliceBook.png" alt="Alice Book"
+                            style="width: 55px; height: auto; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.6); border-radius: 4px; transform: rotate(-5deg);">
+                        <img src="./SherlockBook.png" alt="Sherlock Book"
+                            style="width: 55px; height: auto; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.6); border-radius: 4px; transform: rotate(5deg); margin-left: -10px;">
+                    </div>
+                    <h3>Choose & Read</h3>
+                    <p>Pick from classic literature — Aesop's Fables, Alice in Wonderland, Sherlock Holmes. Rewards pour
+                        in as your eyes follow the text.</p>
+                </div>
+                <div class="step-card reveal" style="transition-delay:0.2s;">
+                    <div class="step-badge">STEP 3</div>
+                    <div class="step-icon">
+                        <img src="./finalredvillain.png" alt="Red Villain"
+                            style="width: 70px; display: inline-block; filter: drop-shadow(0 0 10px rgba(255,0,0,0.5)); transform: translateY(10px);">
+                    </div>
+                    <h3>Quiz & Battle</h3>
+                    <p>Answer comprehension quizzes, fight the Final Villain, and receive your Mission Report — a full
+                        reading performance analysis.</p>
+                </div>
+            </div>
+            <div style="text-align:center;" class="reveal">
+                <a href="./index.html" class="btn btn-primary">🚀 Try It Now — Free</a>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- ═══ ⑥ FEATURES ═══ -->
+    <section id="features">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">Features</div>
+                <h2 class="section-title">Everything You Need.<br>Nothing You Don't.</h2>
+                <p class="section-subtitle">
+                    Built for students, parents, and lifelong learners.
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="feature-icon"
+                        style="background:none; display:flex; align-items:center; justify-content:center;">
+                        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#00ff96" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            style="filter: drop-shadow(0 0 10px rgba(0,255,150,0.4));">
+                            <!-- Outer eye shape -->
+                            <path
+                                d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                            <!-- Inner pupil/camera lens -->
+                            <circle cx="12" cy="12" r="3" stroke="#c060ff" stroke-width="2"
+                                fill="rgba(192,96,255,0.2)" />
+                            <!-- Tech tracker marks -->
+                            <path d="M12 4v2 M12 18v2 M4 12h2 M18 12h2" stroke="#c060ff" opacity="0.8" />
+                        </svg>
+                    </div>
+                    <h3>AI Eye-Tracking</h3>
+                    <p>Using only a standard webcam, our AI verifies you're genuinely reading — no fake progress, no
+                        shortcuts.</p>
+                    <span class="feature-tag">Powered by SeeSo</span>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.05s;">
+                    <div class="feature-icon" style="background:none; display:flex; gap:6px;">
+                        <img src="./ink.png" alt="Ink"
+                            style="width: 36px; height: 36px; filter: drop-shadow(0 0 8px rgba(0,150,255,0.5)); transform: translateY(5px);">
+                        <img src="./rune.png" alt="Rune"
+                            style="width: 36px; height: 36px; filter: drop-shadow(0 0 8px rgba(192,96,255,0.5)); transform: translateY(-5px);">
+                        <img src="./gem.png" alt="Gem"
+                            style="width: 36px; height: 36px; filter: drop-shadow(0 0 8px rgba(255,215,0,0.5)); transform: translateY(5px);">
+                    </div>
+                    <h3>Real-Time Rewards</h3>
+                    <p>Magical ink, runes, and gems burst from the page as you read. Every line conquered is a reward
+                        earned.</p>
+                    <span class="feature-tag">Gamification</span>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.1s;">
+                    <div class="feature-icon"
+                        style="background:none; display:flex; align-items:center; justify-content:center;">
+                        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke-linecap="round"
+                            stroke-linejoin="round" style="filter: drop-shadow(0 0 10px rgba(192,96,255,0.4));">
+                            <!-- Axis -->
+                            <path d="M3 3v18h18" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" />
+                            <!-- Bars -->
+                            <rect x="5" y="14" width="4" height="7" rx="1" fill="#c060ff" fill-opacity="0.8"
+                                stroke="none" />
+                            <rect x="11" y="9" width="4" height="12" rx="1" fill="#c060ff" fill-opacity="0.8"
+                                stroke="none" />
+                            <rect x="17" y="4" width="4" height="17" rx="1" fill="#c060ff" fill-opacity="0.8"
+                                stroke="none" />
+                            <!-- Upward Trend Line -->
+                            <path d="M7 11 L13 5 L19 1" stroke="#00ff96" stroke-width="2" />
+                            <!-- Pointer Node -->
+                            <circle cx="19" cy="1" r="2" fill="#00ff96" stroke="#0a0418" stroke-width="1" />
+                        </svg>
+                    </div>
+                    <h3>Mission Report</h3>
+                    <p>Get a detailed breakdown: reading speed (WPM), focus score, quiz accuracy, and growth tracking
+                        over time.</p>
+                    <span class="feature-tag">Analytics</span>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.15s;">
+                    <div class="feature-icon" style="background:none; display:flex;">
+                        <img src="./aesopBook.png" alt="Aesop Book"
+                            style="width: 38px; height: auto; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transform: rotate(-8deg);">
+                    </div>
+                    <h3>Classic Library</h3>
+                    <p>Start with timeless English literature — Aesop's Fables, Alice's Adventures, and Sherlock Holmes.
+                        More titles coming soon.</p>
+                    <span class="feature-tag">Content</span>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.2s;">
+                    <div class="feature-icon" style="font-size: 2.2rem;">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>Camera video is processed in real-time on your device and immediately discarded. We never store,
+                        upload, or share your footage.</p>
+                    <span class="feature-tag">Security</span>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .report-dashboard {
+            background: rgba(15, 12, 27, 0.8);
+            border: 1px solid rgba(192, 96, 255, 0.25);
+            border-radius: 24px;
+            padding: 40px;
+            margin-top: 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(192, 96, 255, 0.05);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            text-align: left;
+            backdrop-filter: blur(12px);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        @media (max-width: 900px) {
+            .report-dashboard {
+                grid-template-columns: 1fr;
+                padding: 25px;
+                gap: 20px;
+            }
+        }
+
+        .report-panel {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .report-header {
+            font-size: 1.15rem;
+            color: #fff;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
+        }
+
+        .report-badge {
+            background: rgba(192, 96, 255, 0.15);
+            color: #c060ff;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(192, 96, 255, 0.3);
+        }
+
+        .score-group {
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .score-card {
+            flex: 1;
+            min-width: 110px;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(192, 96, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%);
+            padding: 24px 15px;
+            border-radius: 16px;
+            border: 1px solid rgba(192, 96, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease;
+        }
+
+        .score-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .score-val {
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #00ff96;
+            line-height: 1.1;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .eye-track-graphic {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            color: #999;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .eye-hl {
+            color: #fff;
+            background: rgba(192, 96, 255, 0.25);
+            border-radius: 3px;
+            padding: 0 3px;
+        }
+
+        .eye-node {
+            width: 20px;
+            height: 20px;
+            background: rgba(0, 255, 150, 0.4);
+            border: 2px solid #00ff96;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 15px rgba(0, 255, 150, 0.6);
+            z-index: 2;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .report-table th {
+            color: #888;
+            text-align: left;
+            padding: 14px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .report-table td {
+            color: #ddd;
+            padding: 14px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .trend-up {
+            color: #00ff96;
+            font-weight: 700;
+            background: rgba(0, 255, 150, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .trend-down {
+            color: #ff5555;
+            font-weight: 700;
+            background: rgba(255, 85, 85, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .ai-feedback {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: #ccc;
+            border-left: 4px solid #c060ff;
+            background: linear-gradient(90deg, rgba(192, 96, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%);
+            padding: 20px 24px;
+            border-radius: 0 16px 16px 0;
+            margin-top: auto;
+        }
+
+        .ai-feedback p {
+            margin-bottom: 15px;
+        }
+
+        .ai-feedback p:last-child {
+            margin-bottom: 0;
+        }
+
+        .ai-tag {
+            color: #c060ff;
+            font-weight: 700;
+            margin-right: 6px;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: rgba(192, 96, 255, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .stat-bar {
+            background: rgba(255, 255, 255, 0.05);
+            height: 6px;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .stat-fill-green {
+            background: #00ff96;
+            height: 100%;
+            width: 48%;
+            box-shadow: 0 0 10px rgba(0, 255, 150, 0.5);
+        }
+
+        .stat-fill-purple {
+            background: #c060ff;
+            height: 100%;
+            width: 96%;
+            box-shadow: 0 0 10px rgba(192, 96, 255, 0.5);
+        }
+
+        .stat-fill-gold {
+            background: #ffd700;
+            height: 100%;
+            width: 46%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .circle-chart {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .circle-green {
+            border: 6px solid #00ff96;
+            color: #00ff96;
+            box-shadow: inset 0 0 15px rgba(0, 255, 150, 0.2), 0 0 15px rgba(0, 255, 150, 0.2);
+        }
+
+        .circle-gold {
+            border: 6px solid #ffd700;
+            color: #ffd700;
+            box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.2), 0 0 15px rgba(255, 215, 0, 0.2);
+        }
+    </style>
+
+    <!-- ═══ 6.5 DIAGNOSTIC REPORT ═══ -->
+    <section id="diagnostic-report">
+        <div class="container" style="max-width: 900px;">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">Deep Analytics</div>
+                <h2 class="section-title">The Mission Report <span
+                        style="font-size:0.5em; color:#c060ff; vertical-align:middle; font-family:'Outfit',sans-serif; text-transform:uppercase; letter-spacing:1px; border: 1px solid rgba(192,96,255,0.4); padding: 4px 10px; border-radius: 20px; background: rgba(192,96,255,0.1); margin-left: 10px;">Sample</span>
+                </h2>
+            </div>
+
+            <div class="report-dashboard reveal"
+                style="display:flex; flex-direction:column; gap:15px; grid-template-columns:none; width:100%;">
+
+                <!-- SECTION 1: SUMMARY -->
+                <div class="report-panel" style="background:rgba(255,255,255,0.02);">
+                    <div class="report-header">
+                        Summary
+                    </div>
+                    <!-- Metics row: 4 items in a single line -->
+                    <div
+                        style="display:flex; gap:20px; justify-content:space-between; align-items:stretch; flex-wrap:wrap; margin-bottom: 20px;">
+                        <!-- Overall Score -->
+                        <div class="score-card" style="margin-bottom:0; flex:1;">
+                            <div class="score-val" style="color:#00ff96;">72<span
+                                    style="font-size:1.2rem; color:#888;">/100</span></div>
+                            <div class="score-label">Overall Score</div>
+                            <div class="stat-bar">
+                                <div class="stat-fill-green"></div>
+                            </div>
+                        </div>
+
+                        <!-- Reading Speed -->
+                        <div class="score-card" style="margin-bottom:0; flex:1;">
+                            <div class="score-val" style="color:#ffd700;">96.2<span
+                                    style="font-size:1.1rem; color:#888;"> WPM</span><span
+                                    style="font-size:0.75rem; color:#888; display:block; line-height:1; margin-top:4px;">(Words
+                                    Per Minute)</span></div>
+                            <div class="score-label">Reading Speed</div>
+                            <div class="stat-bar">
+                                <div class="stat-fill-gold"></div>
+                            </div>
+                        </div>
+
+                        <!-- Vocabulary -->
+                        <div class="score-card"
+                            style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1;">
+                            <!-- SVG for Circular Progress Graph (90%) -->
+                            <svg width="80" height="80" viewBox="0 0 36 36"
+                                style="margin: 0 auto; display: block; filter: drop-shadow(0 0 8px rgba(0,255,150,0.4));">
+                                <!-- Background Circle -->
+                                <path stroke="rgba(255,255,255,0.1)" stroke-width="3" fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <!-- Progress Circle -->
+                                <path stroke="#00ff96" stroke-width="3" stroke-dasharray="90, 100"
+                                    stroke-linecap="round" fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <!-- Text -->
+                                <text x="18" y="20.35" font-family="Outfit" font-size="10" font-weight="700"
+                                    fill="#00ff96" text-anchor="middle">90%</text>
+                            </svg>
+                            <div
+                                style="font-size:0.85rem; color:#aaa; margin-top:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">
+                                Vocabulary</div>
+                        </div>
+
+                        <!-- Comprehension -->
+                        <div class="score-card"
+                            style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1;">
+                            <!-- SVG for Circular Progress Graph (63%) -->
+                            <svg width="80" height="80" viewBox="0 0 36 36"
+                                style="margin: 0 auto; display: block; filter: drop-shadow(0 0 8px rgba(255,215,0,0.4));">
+                                <!-- Background Circle -->
+                                <path stroke="rgba(255,255,255,0.1)" stroke-width="3" fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <!-- Progress Circle -->
+                                <path stroke="#ffd700" stroke-width="3" stroke-dasharray="63, 100"
+                                    stroke-linecap="round" fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <!-- Text -->
+                                <text x="18" y="20.35" font-family="Outfit" font-size="10" font-weight="700"
+                                    fill="#ffd700" text-anchor="middle">63%</text>
+                            </svg>
+                            <div
+                                style="font-size:0.85rem; color:#aaa; margin-top:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">
+                                Comprehension</div>
+                        </div>
+                    </div>
+
+                    <!-- Ranking Banner -->
+                    <div
+                        style="margin-top: 5px; padding: 20px 25px 15px 25px; border-radius: 8px; background: rgba(192, 96, 255, 0.05); border: 1px solid rgba(192, 96, 255, 0.2); display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Header -->
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <strong style="color: #c060ff; font-size: 1.1rem; letter-spacing: 0.5px;">Current Rank: Top
+                                32%</strong>
+                            <span style="color: #aaa; font-size: 0.85rem;">(Compared to your age group)</span>
+                        </div>
+
+                        <!-- Progress Bar Container (Normal Distribution) -->
+                        <div style="position: relative; width: 100%; margin-top: 35px; margin-bottom: 5px;">
+
+                            <!-- Indicator Tooltip at 68% -->
+                            <div
+                                style="position: absolute; top: 27.5%; left: 68%; transform: translate(-50%, -100%); margin-top: -12px; display: flex; flex-direction: column; align-items: center; z-index: 2;">
+                                <div
+                                    style="font-size: 0.8rem; font-weight: bold; color: #fff; background: #c060ff; padding: 6px 14px; border-radius: 20px; white-space: nowrap; box-shadow: 0 4px 12px rgba(192,96,255,0.6); border: 1px solid rgba(255,255,255,0.3);">
+                                    You</div>
+                                <div
+                                    style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #c060ff; margin-top: -1px;">
+                                </div>
+                            </div>
+
+                            <!-- Bell Curve SVG -->
+                            <svg viewBox="0 0 1000 240"
+                                style="width: 100%; height: auto; display: block; overflow: visible;">
+                                <defs>
+                                    <linearGradient id="bellGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#5c24ff" />
+                                        <stop offset="100%" stop-color="#c060ff" />
+                                    </linearGradient>
+                                    <clipPath id="fillClip">
+                                        <rect x="0" y="0" width="680" height="240" />
+                                    </clipPath>
+                                </defs>
+
+                                <!-- Base curve (unfilled) -->
+                                <path d="M 0 190 C 250 190, 300 10, 500 10 C 700 10, 750 190, 1000 190" fill="none"
+                                    stroke="rgba(255,255,255,0.15)" stroke-width="4" stroke-linecap="round" />
+
+                                <!-- Filled Area (up to 68%) -->
+                                <path
+                                    d="M 0 190 C 250 190, 300 10, 500 10 C 700 10, 750 190, 1000 190 L 1000 190 L 0 190 Z"
+                                    fill="url(#bellGradient)" fill-opacity="0.2" clip-path="url(#fillClip)" />
+
+                                <!-- Filled Stroke (up to 68%) -->
+                                <path d="M 0 190 C 250 190, 300 10, 500 10 C 700 10, 750 190, 1000 190" fill="none"
+                                    stroke="url(#bellGradient)" stroke-width="6" stroke-linecap="round"
+                                    clip-path="url(#fillClip)" />
+
+                                <!-- Mean Line (50%) -->
+                                <line x1="500" y1="10" x2="500" y2="190" stroke="rgba(255,255,255,0.2)"
+                                    stroke-dasharray="5,5" stroke-width="2" />
+                                <text x="500" y="215" fill="#aaa" font-size="14" font-family="'Outfit', sans-serif"
+                                    text-anchor="middle">Average</text>
+
+                                <!-- Area Labels -->
+                                <text x="350" y="150" fill="rgba(255,255,255,0.7)" font-size="16"
+                                    font-family="'Outfit', sans-serif" font-weight="600" text-anchor="middle">Bottom
+                                    68%</text>
+                                <text x="820" y="150" fill="rgba(255,255,255,0.4)" font-size="16"
+                                    font-family="'Outfit', sans-serif" font-weight="600" text-anchor="middle">Top
+                                    32%</text>
+
+                                <!-- Vertical Line at 68% -->
+                                <line x1="680" y1="66" x2="680" y2="190" stroke="#c060ff" stroke-width="2"
+                                    stroke-dasharray="4,4" />
+                                <!-- Dot at 68% curve intersection -->
+                                <circle cx="680" cy="66" r="7" fill="#1a1a2e" stroke="#c060ff" stroke-width="3" />
+
+                                <!-- Baseline -->
+                                <line x1="0" y1="190" x2="1000" y2="190" stroke="rgba(255,255,255,0.3)" stroke-width="2"
+                                    stroke-linecap="round" />
+
+                                <!-- Scale Labels -->
+                                <text x="0" y="215" fill="#777" font-size="14" font-family="'Outfit', sans-serif"
+                                    text-anchor="start">0% <tspan font-size="12" fill="rgba(255,255,255,0.4)">(Lowest
+                                        Rank)</tspan></text>
+                                <text x="1000" y="215" fill="#777" font-size="14" font-family="'Outfit', sans-serif"
+                                    text-anchor="end">
+                                    <tspan font-size="12" fill="rgba(255,255,255,0.4)">(Highest Rank)</tspan> 100%
+                                </text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: EYE-TRACKING VISUALIZATION -->
+                <div class="report-panel" style="background:rgba(255,255,255,0.02);">
+                    <div class="report-header">
+                        Eye-Tracking Visualization
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:20px; margin-top:5px;">
+                        <!-- Uploaded Image with White Background -->
+                        <div
+                            style="width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: #ffffff; padding: 20px;">
+                            <img src="./gaze_visualizer_uploaded.png" alt="Eye-Tracking Gaze Data"
+                                style="width: 100%; height: auto; display: block;" />
+
+                            <!-- Legend for Visualization -->
+                            <div
+                                style="display:flex; flex-wrap:nowrap; gap:15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1); color: #333;">
+                                <div style="flex:1; min-width: 0;">
+                                    <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 4px;">
+                                        <strong
+                                            style="color: #3bb292; font-size: 0.75rem; letter-spacing: 0.5px;">Fixation</strong>
+                                        <div
+                                            style="width: 14px; height: 14px; border-radius: 50%; background: #bdf1d5; border: 1px solid #3bb292;">
+                                        </div>
+                                        <span style="font-size: 0.6rem; color: #666; margin-left: auto;">(Forward
+                                            Reading)</span>
+                                    </div>
+                                    <p style="font-size: 0.65rem; line-height: 1.4; margin: 0;">
+                                        A state where the gaze remains fixed on a specific point (200-500ms); Fixation
+                                        is essential to grasp meaning.
+                                    </p>
+                                </div>
+                                <div style="flex:1; min-width: 0;">
+                                    <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 4px;">
+                                        <strong
+                                            style="color: #ff8c8c; font-size: 0.75rem; letter-spacing: 0.5px;">Regression</strong>
+                                        <div
+                                            style="width: 14px; height: 14px; border-radius: 50%; background: #ffcece; border: 1px solid #ff8c8c;">
+                                        </div>
+                                        <span style="font-size: 0.6rem; color: #666; margin-left: auto;">(Backward
+                                            Reading)</span>
+                                    </div>
+                                    <p style="font-size: 0.65rem; line-height: 1.4; margin: 0;">
+                                        Looking back at previously read text. Indicates confusion or need for
+                                        re-evaluation.
+                                    </p>
+                                </div>
+                                <div style="flex:1; min-width: 0;">
+                                    <div style="display:flex; align-items:center; gap: 6px; margin-bottom: 4px;">
+                                        <strong
+                                            style="color: #3bb292; font-size: 0.75rem; letter-spacing: 0.5px;">Saccade</strong>
+                                        <div style="width: 30px; height: 2px; background: #3bb292;"></div>
+                                    </div>
+                                    <p style="font-size: 0.65rem; line-height: 1.4; margin: 0;">
+                                        Rapid eye movement between fixations.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4 Metrics Below Image -->
+                        <div
+                            style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; font-size:0.9rem;">
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:15px; border-radius:8px; border-left:4px solid #00ff96; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:#aaa; text-transform:uppercase; letter-spacing:0.5px;">Tracking
+                                    Fidelity</span> <strong style="color:#00ff96; font-size:1.2rem;">93.6%</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:15px; border-radius:8px; border-left:4px solid #c060ff; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:#aaa; text-transform:uppercase; letter-spacing:0.5px;">Reading
+                                    Time</span> <strong style="color:#fff; font-size:1.2rem;">41.1s</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:15px; border-radius:8px; border-left:4px solid #ffd700; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:#aaa; text-transform:uppercase; letter-spacing:0.5px;">Regression
+                                    Rate</span> <strong style="color:#ffd700; font-size:1.2rem;">20.1%</strong>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.03); padding:15px; border-radius:8px; border-left:4px solid #ff5555; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:#aaa; text-transform:uppercase; letter-spacing:0.5px;">Avg
+                                    Fixation</span> <strong style="color:#fff; font-size:1.2rem;">560.2ms</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: TARGET GROWTH PIPELINE -->
+                <div class="report-panel" style="background:rgba(255,255,255,0.02); padding: 30px;">
+                    <div class="report-header" style="margin-bottom:20px;">
+                        Target Growth Pipeline (3 Months)
+                    </div>
+                    <table class="report-table" style="font-size: 1.05rem;">
+                        <thead>
+                            <tr>
+                                <th>Skill Metric</th>
+                                <th style="text-align:center;">Current</th>
+                                <th style="text-align:right;">Expected</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:15px 8px;">Reading Speed</td>
+                                <td style="text-align:center; color:#ffd700; padding:15px 8px;">96.2 wpm</td>
+                                <td style="text-align:right; color:#00ff96; font-weight:600; padding:15px 8px;">110.6
+                                    wpm <span class="trend-up" style="margin-left:10px; font-size:0.85rem;">15% ↑</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:15px 8px;">Reading Fidelity</td>
+                                <td style="text-align:center; color:#ffd700; padding:15px 8px;">50%</td>
+                                <td style="text-align:right; color:#00ff96; font-weight:600; padding:15px 8px;">70%
+                                    <span class="trend-up" style="margin-left:10px; font-size:0.85rem;">20% ↑</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:15px 8px;">Vocabulary</td>
+                                <td style="text-align:center; color:#ffd700; padding:15px 8px;">90%</td>
+                                <td style="text-align:right; color:#00ff96; font-weight:600; padding:15px 8px;">92%
+                                    <span class="trend-up" style="margin-left:10px; font-size:0.85rem;">2% ↑</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:15px 8px;">Comprehension</td>
+                                <td style="text-align:center; color:#ffd700; padding:15px 8px;">63%</td>
+                                <td style="text-align:right; color:#00ff96; font-weight:600; padding:15px 8px;">72%
+                                    <span class="trend-up" style="margin-left:10px; font-size:0.85rem;">15% ↑</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- SECTION 4: AI GUIDE -->
+                <div class="report-panel" style="background:rgba(255,255,255,0.02);">
+                    <div class="report-header">
+                        AI Guide
+                    </div>
+                    <div class="ai-feedback" style="border-radius:8px; margin-top:0;">
+                        <p><span class="ai-tag">Observation</span> 'Fast' speed, 'Good' fidelity, 'Low' regression rate.
+                        </p>
+                        <p><span class="ai-tag">Insight</span> The warden is highly engaged and absorbing information
+                            rapidly. They are focused and reading efficiently without needing to constantly look back.
+                        </p>
+                        <p><span class="ai-tag">Guidance</span> Challenge them with more complex material. Maintaining a
+                            steady increase in difficulty will keep their motivation high and ensure continued growth.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ ⑦ SOCIAL PROOF ═══ -->
+    <section id="social-proof">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">Trusted by Readers</div>
+                <h2 class="section-title">Real People. Real Results.</h2>
+            </div>
+            <div class="stats-row reveal">
+                <div class="stat-card">
+                    <div class="stat-value">2,400+</div>
+                    <div class="stat-label">Games Played</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">+42%</div>
+                    <div class="stat-label">Avg. Reading Speed Increase</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">4.8/5</div>
+                    <div class="stat-label">User Satisfaction</div>
+                </div>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card reveal">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "My son used to hate reading. Now he asks to play Book Wardens every day after school.
+                        His reading speed improved by 30% in just two weeks."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">👩</div>
+                        <div>
+                            <div class="testimonial-name">Sarah K.</div>
+                            <div class="testimonial-role">Parent of a 4th grader</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card reveal" style="transition-delay:0.1s;">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "I've tried every reading app out there. This is the first one that actually kept me focused
+                        for more than 10 minutes. The eye-tracking is genius."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">👨</div>
+                        <div>
+                            <div class="testimonial-name">James L.</div>
+                            <div class="testimonial-role">College student, English major</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card reveal" style="transition-delay:0.2s;">
+                    <div class="testimonial-stars">★★★★★</div>
+                    <p class="testimonial-text">
+                        "As someone who's been trying to build a reading habit for years, the gamification element
+                        finally made it stick. I've finished 3 books this month."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">👩‍💼</div>
+                        <div>
+                            <div class="testimonial-name">Minji P.</div>
+                            <div class="testimonial-role">Working professional</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- ═══ ⑨ FAQ ═══ -->
+    <section id="faq">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">FAQ</div>
+                <h2 class="section-title">Got Questions?</h2>
+                <p class="section-subtitle">Everything you need to know before you start.</p>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        Is my camera footage stored or uploaded?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Absolutely not. Your camera video is processed entirely on your device in real-time. Only
+                            eye-coordinate data (x, y positions) is extracted — the video itself is never stored,
+                            uploaded, or shared. Your privacy is our top priority.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        What devices are supported?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Any device with a front-facing camera and a modern browser (Chrome or Safari). This includes
+                            smartphones (iPhone, Android), tablets (iPad), and laptops/desktops. No app installation
+                            needed — just open the link.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        Can my child use this alone?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! The interface is designed to be intuitive enough for elementary school students. The
+                            Family plan also includes a Parent Dashboard where you can monitor your child's reading
+                            progress remotely.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        Is the content only in English?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Currently, we offer classic English literature (Aesop's Fables, Alice in Wonderland, Sherlock
+                            Holmes). Korean content and textbook-aligned materials are in development and coming soon.
+                        </p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        How accurate is the eye-tracking?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We use the SeeSo AI engine developed by VisualCamp, a company specializing in eye-tracking
+                            technology. After a quick one-point calibration, the system achieves high accuracy suitable
+                            for reading-speed analysis on standard consumer devices.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        How do I cancel my subscription?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>You can cancel anytime from your account settings with a single click. There are no
+                            cancellation fees, no penalties, and no fine print. Your access continues until the end of
+                            your billing period.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        Can schools or academies use this?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! We're preparing an Education Volume License for schools and academies. Contact us at
+                            hello@bookwardens.com for early access and custom pricing for your institution.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ ⑩ FINAL CTA ═══ -->
+    <section id="final-cta">
+        <div class="container">
+            <div class="final-cta-content reveal">
+                <h2>The Rift Is Open.<br><span class="text-gradient">Only Your Eyes Can Seal It.</span></h2>
+                <p>Start your first mission for free. No signup required.</p>
+                <a href="./index.html" class="btn btn-primary" style="font-size:1.15rem; padding: 18px 44px;">
+                    🎮 Begin Your Adventure
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ FOOTER ═══ -->
+    <footer style="text-align: center;">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand" style="max-width: 600px; margin: 0 auto;">
+                    <h4 style="margin-bottom: 12px; font-size: 1.2rem;">The Book <span
+                            class="text-purple">Wardens</span></h4>
+                    <p style="color: #888; margin-bottom: 0;">AI-powered eye-tracking reading game that transforms how
+                        the world reads. Built with ❤️ by VisualCamp.</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-copyright">© 2026 VisualCamp Inc. All rights reserved.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══ SCROLL REVEAL SCRIPT ═══ -->
+    <script>
+        // Scroll reveal animation
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+        revealElements.forEach(el => revealObserver.observe(el));
+
+        // Close mobile menu on link click
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('navLinks').classList.remove('open');
+            });
+        });
+    </script>
+</body>
+
+</html>
