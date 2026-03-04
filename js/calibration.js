@@ -23,7 +23,7 @@ export class CalibrationManager {
         this.seeso = null; // SDK reference stored on bindTo()
         this.rotationAngle = 0;
         this.bossImg = new Image();
-        this.bossImg.src = './finalredvillain.png';
+        this.bossImg.src = './ink_shadow_boss.png';
     }
 
     // ─── Reset ────────────────────────────────────────────────────────────────
@@ -362,7 +362,12 @@ export class CalibrationManager {
         }
 
         const stage = document.getElementById("stage");
-        if (stage) stage.classList.remove("visible");
+        if (stage) {
+            stage.classList.remove("visible");
+            // [FIX] Reset top padding applied during Boss Mode calibration
+            stage.style.top = "";
+            stage.style.height = "";
+        }
 
         const calScreen = document.getElementById("screen-calibration");
         if (calScreen) calScreen.style.display = 'none';

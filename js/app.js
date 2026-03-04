@@ -1655,8 +1655,18 @@ window.startBossCalibrationUI = function () {
   if (!seeso) return false;
 
   const stage = document.getElementById("stage");
-  if (stage) stage.classList.add("visible");
+  if (stage) {
+    stage.classList.add("visible");
+    // [FIX] Push the entire drawing stage down by 80px so top points don't overlap HUD
+    stage.style.top = "80px";
+    stage.style.height = "calc(100% - 80px)";
+  }
   resizeCanvas();
+
+  // Tell SeeSo SDK the screen is technically smaller now due to our top padding!
+  if (seeso && typeof seeso.setScreenSize === 'function' && els.canvas) {
+    seeso.setScreenSize(els.canvas.clientWidth, els.canvas.clientHeight);
+  }
 
   calManager.reset();
   calManager.state.isBossMode = true;
