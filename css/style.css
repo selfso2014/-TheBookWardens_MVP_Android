@@ -528,6 +528,11 @@ body {
   font-size: 1.1rem;
   color: #ccc;
   position: relative;
+  /* [FIX] Prevent mobile browser (Samsung Internet / Chrome Android) from
+     triggering Quick Dictionary / Translate popup on game text. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .rift-text {
@@ -724,7 +729,9 @@ body {
   filter: none;
   background: transparent;
   cursor: auto;
-  user-select: text;
+  /* [FIX] Keep none (was 'text') to prevent browser dictionary popup on revealed rift words */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* --- Yellow Cursor for Snake Effect --- */
@@ -787,6 +794,10 @@ body {
   white-space: pre-wrap;
   color: #fff;
   /* Unified White */
+  /* [FIX] Prevent mobile browser dictionary/translate popup on typewriter text */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Revealed State (Fade In + Slide Up) */
