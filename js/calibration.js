@@ -46,6 +46,8 @@ export class CalibrationManager {
         if (this.state.safetyTimer) clearTimeout(this.state.safetyTimer);
         if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
         if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
+        // [BossCAL] Bug1 Fix: Clear stale explosion so it doesn't render before first villain
+        this.explosion = null;
     }
 
     // ─── Face Check ───────────────────────────────────────────────────────────
@@ -224,6 +226,18 @@ export class CalibrationManager {
         // We show the actual point + instruction + OK button, but do NOT auto-collect.
         if (typeof seeso.addCalibrationNextPointCallback === "function") {
             seeso.addCalibrationNextPointCallback((x, y) => {
+                // [BossCAL] Bug2 Fix: Snapshot PREVIOUS point BEFORE overwriting state.point.
+                // SDK fires onCalibrationNextPoint(N+1) BEFORE progress=1.0 for point N,
+                // so the only safe window to capture point N's coords is right here.
+                // pointCount >= 1 guards against snapshotting on the very first point
+                // (there is no previous point to explode at).
+                if (this.state.isBossMode && this.state.point && (this.state.pointCount || 0) >= 1) {
+                    this.explosion = {
+                        x: this.state.point.x,
+                        y: this.state.point.y,
+                        startTime: performance.now()
+                    };
+                }
                 this.state.isFinishing = false;
                 this.state.pointCount = (this.state.pointCount || 0) + 1;
 
@@ -326,15 +340,9 @@ export class CalibrationManager {
                 setState("cal", `running (${pct}%)`);
 
                 if (progress >= 1.0) {
-                    // [BossCAL] Snapshot current point BEFORE onCalibrationNextPoint overwrites it.
-                    // This is the only safe window — next callback fires almost immediately after.
-                    if (this.state.isBossMode && this.state.point) {
-                        this.explosion = {
-                            x: this.state.point.x,
-                            y: this.state.point.y,
-                            startTime: performance.now()
-                        };
-                    }
+                    // [BossCAL] Bug2 Fix: Snapshot moved to onCalibrationNextPoint (above).
+                    // Reason: SDK fires NextPoint BEFORE progress=1.0,
+                    // so state.point is already the NEXT point's coords by the time we get here.
                     if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
                     if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
                 }
@@ -353,7 +361,21 @@ export class CalibrationManager {
                 if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
 
                 this.state.isFinishing = true;
-                this.finishSequence();
+
+                // [BossCAL] Bug3 Fix: 5th point has no onCalibrationNextPoint after it,
+                // so the explosion snapshot must happen here.
+                // Delay finishSequence by 650ms so the RAF loop can animate the explosion.
+                // (finishSequence calls stopCalibrationLoop → RAF stops → no more renders)
+                if (this.state.isBossMode && this.state.point) {
+                    this.explosion = {
+                        x: this.state.point.x,
+                        y: this.state.point.y,
+                        startTime: performance.now()
+                    };
+                    setTimeout(() => this.finishSequence(), 650);
+                } else {
+                    this.finishSequence();
+                }
             });
             logI("sdk", "addCalibrationFinishCallback bound");
         }
