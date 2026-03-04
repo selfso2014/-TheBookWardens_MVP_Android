@@ -1654,19 +1654,23 @@ window.startBossCalibrationUI = function () {
 
   if (!seeso) return false;
 
+  // [FIX-BossCAL] Hide game header so the full screen is available for 5-point calibration.
+  // Without this, the top calibration points were covered by the 60px header.
+  const gameHeader = document.querySelector('.game-header');
+  if (gameHeader) {
+    gameHeader.style.opacity = '0';
+    gameHeader.style.pointerEvents = 'none';
+    gameHeader.style.transition = 'opacity 0.2s';
+  }
+
   const stage = document.getElementById("stage");
   if (stage) {
     stage.classList.add("visible");
-    // [FIX] Push the entire drawing stage down by 80px so top points don't overlap HUD
-    stage.style.top = "80px";
-    stage.style.height = "calc(100% - 80px)";
+    // [FIX-BossCAL] Header is now hidden → stage can occupy full screen (top: 0)
+    stage.style.top = "0";
+    stage.style.height = "100%";
   }
   resizeCanvas();
-
-  // Tell SeeSo SDK the screen is technically smaller now due to our top padding!
-  if (seeso && typeof seeso.setScreenSize === 'function' && els.canvas) {
-    seeso.setScreenSize(els.canvas.clientWidth, els.canvas.clientHeight);
-  }
 
   calManager.reset();
   calManager.state.isBossMode = true;

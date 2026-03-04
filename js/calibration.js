@@ -369,6 +369,13 @@ export class CalibrationManager {
             stage.style.height = "";
         }
 
+        // [FIX-BossCAL] Restore game header hidden at startBossCalibrationUI()
+        const gameHeader = document.querySelector('.game-header');
+        if (gameHeader) {
+            gameHeader.style.opacity = '1';
+            gameHeader.style.pointerEvents = 'auto';
+        }
+
         const calScreen = document.getElementById("screen-calibration");
         if (calScreen) calScreen.style.display = 'none';
 
