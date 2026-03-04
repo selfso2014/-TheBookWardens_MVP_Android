@@ -24,6 +24,12 @@ export class CalibrationManager {
         this.rotationAngle = 0;
         this.bossImg = new Image();
         this.bossImg.src = './ink_shadow_boss.png';
+        // [BossCAL] Preload explosion image at construction so it's ready when needed
+        this.bombPangImg = new Image();
+        this.bombPangImg.src = './bombpang.png';
+        // [BossCAL] Snapshot of completed-point coords for explosion animation
+        // { x, y, startTime } — independent of state.point to avoid overwrite race
+        this.explosion = null;
     }
 
     // ─── Reset ────────────────────────────────────────────────────────────────
@@ -320,6 +326,15 @@ export class CalibrationManager {
                 setState("cal", `running (${pct}%)`);
 
                 if (progress >= 1.0) {
+                    // [BossCAL] Snapshot current point BEFORE onCalibrationNextPoint overwrites it.
+                    // This is the only safe window — next callback fires almost immediately after.
+                    if (this.state.isBossMode && this.state.point) {
+                        this.explosion = {
+                            x: this.state.point.x,
+                            y: this.state.point.y,
+                            startTime: performance.now()
+                        };
+                    }
                     if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
                     if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
                 }
@@ -354,6 +369,9 @@ export class CalibrationManager {
         if (this.state.maxWaitTimer) { clearTimeout(this.state.maxWaitTimer); this.state.maxWaitTimer = null; }
 
         this.ctx.requestRender();
+
+        // [BossCAL] Clear in-flight explosion on finish/abort
+        this.explosion = null;
 
         // [FIX] Mark calibration as finished so heartbeat stops treating this as active calibration.
         // Without this, state.cal stays "running (97%)" forever and heartbeat WARNs every 2s.
@@ -405,6 +423,7 @@ export class CalibrationManager {
             this.state.displayProgress += (target - this.state.displayProgress) * 0.28;
             const p = this.state.displayProgress;
 
+            // ── Villain Image ──
             ctx.save();
             ctx.translate(cx, cy);
 
@@ -439,6 +458,38 @@ export class CalibrationManager {
             ctx.stroke();
 
             ctx.restore();
+
+            // ── Explosion Render (bombpang.png) ──
+            // Drawn AFTER villain using its own snapshot coords — immune to state.point overwrite.
+            // Size: villain base width = 120px → explosion = 150% = 180px.
+            if (this.explosion && this.bombPangImg && this.bombPangImg.complete
+                && this.bombPangImg.width > 0) {
+                const EXPLOSION_DURATION = 600; // ms
+                const elapsed = performance.now() - this.explosion.startTime;
+                if (elapsed < EXPLOSION_DURATION) {
+                    const t = elapsed / EXPLOSION_DURATION;   // 0 → 1
+                    // Scale: 0.8 → 1.5 (grows outward), alpha: 1 → 0 (fades out)
+                    const expScale = 0.8 + t * 0.7;
+                    const alpha = 1.0 - t;
+                    const VILLAIN_BASE_W = 120;
+                    const expW = VILLAIN_BASE_W * 1.5;        // 180px
+                    const expH = (expW / this.bombPangImg.width) * this.bombPangImg.height;
+
+                    // Convert snapshot SDK coords → canvas-local coords each frame
+                    const ept = toCanvasLocalPoint(this.explosion.x, this.explosion.y)
+                        || this.explosion;
+
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.translate(ept.x, ept.y);
+                    ctx.scale(expScale, expScale);
+                    ctx.drawImage(this.bombPangImg, -expW / 2, -expH / 2, expW, expH);
+                    ctx.restore();
+                } else {
+                    this.explosion = null; // Animation complete — discard
+                }
+            }
+
             return;
         }
 
