@@ -364,6 +364,7 @@ export class CalibrationManager {
 
                 // [BossCAL] Bug3 Fix: 5th point has no onCalibrationNextPoint after it,
                 // so the explosion snapshot must happen here.
+                // state.point = null immediately to stop villain rendering during explosion.
                 // Delay finishSequence by 650ms so the RAF loop can animate the explosion.
                 // (finishSequence calls stopCalibrationLoop → RAF stops → no more renders)
                 if (this.state.isBossMode && this.state.point) {
@@ -372,6 +373,7 @@ export class CalibrationManager {
                         y: this.state.point.y,
                         startTime: performance.now()
                     };
+                    this.state.point = null; // Villain disappears immediately; explosion renders alone
                     setTimeout(() => this.finishSequence(), 650);
                 } else {
                     this.finishSequence();
@@ -431,8 +433,42 @@ export class CalibrationManager {
 
     // ─── Render ───────────────────────────────────────────────────────────────
     render(ctx, width, height, toCanvasLocalPoint) {
-        // Nothing to draw if in fail popup or no point yet
+        // Nothing to draw if in fail popup
         if (this.state.inFailPopup) return;
+
+        // ── Explosion Render (bombpang.png) ──
+        // Must be ABOVE the state.point null-guard so it keeps rendering
+        // during the 650ms window after the 5th point completes (state.point = null at that point).
+        // Also handles points 1-4 while the villain has already moved to the next position.
+        if (this.state.isBossMode && this.explosion
+            && this.bombPangImg && this.bombPangImg.complete && this.bombPangImg.width > 0) {
+            const EXPLOSION_DURATION = 600; // ms
+            const elapsed = performance.now() - this.explosion.startTime;
+            if (elapsed < EXPLOSION_DURATION) {
+                const t = elapsed / EXPLOSION_DURATION;   // 0 → 1
+                // Scale: 0.8 → 1.5 (grows outward), alpha: 1.0 → 0 (fades out)
+                const expScale = 0.8 + t * 0.7;
+                const alpha = 1.0 - t;
+                const VILLAIN_BASE_W = 120;
+                const expW = VILLAIN_BASE_W * 1.5;        // 180px
+                const expH = (expW / this.bombPangImg.width) * this.bombPangImg.height;
+
+                // Convert snapshot SDK coords → canvas-local coords each frame
+                const ept = toCanvasLocalPoint(this.explosion.x, this.explosion.y)
+                    || this.explosion;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(ept.x, ept.y);
+                ctx.scale(expScale, expScale);
+                ctx.drawImage(this.bombPangImg, -expW / 2, -expH / 2, expW, expH);
+                ctx.restore();
+            } else {
+                this.explosion = null; // Animation complete — discard
+            }
+        }
+
+        // No calibration point to draw — e.g. 5th point completing (explosion-only window)
         if (!this.state.point) return;
 
         const pt = toCanvasLocalPoint(this.state.point.x, this.state.point.y) || this.state.point;
@@ -480,38 +516,7 @@ export class CalibrationManager {
             ctx.stroke();
 
             ctx.restore();
-
-            // ── Explosion Render (bombpang.png) ──
-            // Drawn AFTER villain using its own snapshot coords — immune to state.point overwrite.
-            // Size: villain base width = 120px → explosion = 150% = 180px.
-            if (this.explosion && this.bombPangImg && this.bombPangImg.complete
-                && this.bombPangImg.width > 0) {
-                const EXPLOSION_DURATION = 600; // ms
-                const elapsed = performance.now() - this.explosion.startTime;
-                if (elapsed < EXPLOSION_DURATION) {
-                    const t = elapsed / EXPLOSION_DURATION;   // 0 → 1
-                    // Scale: 0.8 → 1.5 (grows outward), alpha: 1 → 0 (fades out)
-                    const expScale = 0.8 + t * 0.7;
-                    const alpha = 1.0 - t;
-                    const VILLAIN_BASE_W = 120;
-                    const expW = VILLAIN_BASE_W * 1.5;        // 180px
-                    const expH = (expW / this.bombPangImg.width) * this.bombPangImg.height;
-
-                    // Convert snapshot SDK coords → canvas-local coords each frame
-                    const ept = toCanvasLocalPoint(this.explosion.x, this.explosion.y)
-                        || this.explosion;
-
-                    ctx.save();
-                    ctx.globalAlpha = alpha;
-                    ctx.translate(ept.x, ept.y);
-                    ctx.scale(expScale, expScale);
-                    ctx.drawImage(this.bombPangImg, -expW / 2, -expH / 2, expW, expH);
-                    ctx.restore();
-                } else {
-                    this.explosion = null; // Animation complete — discard
-                }
-            }
-
+            // (Explosion is now rendered at the top of render(), before this block)
             return;
         }
 
