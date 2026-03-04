@@ -576,6 +576,17 @@ const Game = {
     },
 
     onCalibrationFinish() {
+        if (typeof window.calManager !== 'undefined' && window.calManager.state && window.calManager.state.isBossMode) {
+            console.log("Boss Calibration finished. Triggering Final Boss Alert.");
+            window.calManager.state.isBossMode = false; // Reset
+            if (this.typewriter && typeof this.typewriter.showFinalBossAlert === 'function') {
+                this.typewriter.showFinalBossAlert();
+            } else {
+                this.showFinalBossAlert(); // Fallback if typewriter is not available
+            }
+            return;
+        }
+
         console.log("Calibration finished. Starting Owl Scene.");
         this.startOwlScene();
     },
@@ -1618,8 +1629,12 @@ Game.typewriter = {
 
                 // Step 5: Advance
                 if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                    console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
-                    setTimeout(() => { this.showFinalBossAlert(); }, 1000);
+                    console.log("[Game] All paragraphs done. Triggering Boss Calibration...");
+                    setTimeout(() => {
+                        Game.switchScreen('screen-boss-calibration');
+                        const intro = document.getElementById('boss-cal-intro');
+                        if (intro) intro.style.display = 'block';
+                    }, 1000);
                 } else {
                     const villainModal = document.getElementById("villain-modal");
                     if (villainModal) villainModal.style.display = "none";

@@ -1646,6 +1646,45 @@ function startActualCalibration() {
   }
 }
 window.startCalibrationRoutine = startCalibration;
+window.calManager = calManager;
+
+window.startBossCalibrationUI = function () {
+  const intro = document.getElementById('boss-cal-intro');
+  if (intro) intro.style.display = 'none';
+
+  if (!seeso) return false;
+
+  const stage = document.getElementById("stage");
+  if (stage) stage.classList.add("visible");
+  resizeCanvas();
+
+  calManager.reset();
+  calManager.state.isBossMode = true;
+
+  const rawSeeso = seeso.seeso || seeso;
+  const ok = rawSeeso.startCalibration(5, 0);
+
+  overlay.calRunning = !!ok;
+  overlay.calProgress = 0;
+  overlay.calPointCount = 0;
+
+  if (ok) {
+    if (overlay.rafId) {
+      cancelAnimationFrame(overlay.rafId);
+      overlay.rafId = null;
+    }
+    const tick = () => {
+      if (!overlay.calRunning) {
+        overlay.rafId = null;
+        return;
+      }
+      renderOverlay();
+      overlay.rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  return !!ok;
+};
 
 // ---------- Watchdog ----------
 let _heartbeatInterval = null; // [FIX] Store ID so we can clear it on shutdown

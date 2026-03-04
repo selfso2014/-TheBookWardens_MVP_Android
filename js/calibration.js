@@ -18,9 +18,12 @@ export class CalibrationManager {
             maxWaitTimer: null,
             progressWatchdog: null,
             inFailPopup: false,
+            isBossMode: false,
         };
         this.seeso = null; // SDK reference stored on bindTo()
         this.rotationAngle = 0;
+        this.bossImg = new Image();
+        this.bossImg.src = './finalredvillain.png';
     }
 
     // ─── Reset ────────────────────────────────────────────────────────────────
@@ -32,6 +35,7 @@ export class CalibrationManager {
         this.state.isFinishing = false;
         this.state.running = false;
         this.state.inFailPopup = false;
+        this.state.isBossMode = false;
         if (this.state.watchdogTimer) clearTimeout(this.state.watchdogTimer);
         if (this.state.safetyTimer) clearTimeout(this.state.safetyTimer);
         if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
@@ -230,7 +234,24 @@ export class CalibrationManager {
 
                 logI("cal", `onCalibrationNextPoint (#${this.state.pointCount}) x=${x} y=${y} → waiting for OK`);
 
-                // ── Show instruction text ──
+                // ── BOss Mode Auto-Advance ──
+                if (this.state.isBossMode) {
+                    // Start collecting automatically after 800ms to allow eye movement
+                    this.state.watchdogTimer = setTimeout(() => {
+                        this.state.running = true;
+                        this.startCollection();
+                        try {
+                            if (typeof seeso.startCollectSamples === "function") {
+                                seeso.startCollectSamples();
+                            }
+                        } catch (e) {
+                            logE("cal", "SDK startCollectSamples threw error", e);
+                        }
+                    }, 800);
+                    return; // Skip drawing default buttons
+                }
+
+                // ── Show instruction text (Standard Mode) ──
                 const statusEl = document.getElementById("calibration-status");
                 if (statusEl) {
                     statusEl.textContent = "Look at the dot and press OK to start.";
@@ -365,7 +386,51 @@ export class CalibrationManager {
         const pt = toCanvasLocalPoint(this.state.point.x, this.state.point.y) || this.state.point;
 
 
-        // ── ORB RENDER: always show orb when point is set (running=false → progress=0 slow spin) ──
+        // ── BOss Mode Render ──
+        if (this.state.isBossMode) {
+            const cx = pt.x; const cy = pt.y;
+            const target = this.state.progress || 0;
+            this.state.displayProgress += (target - this.state.displayProgress) * 0.28;
+            const p = this.state.displayProgress;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Pulsate aggressively based on progress
+            const throb = p > 0 ? Math.sin(performance.now() / 80) * 0.15 * p : 0;
+            const scale = 0.5 + p * 0.4 + throb;
+
+            ctx.scale(scale, scale);
+
+            if (p > 0.05) {
+                ctx.shadowBlur = 30 * p;
+                ctx.shadowColor = `rgba(255, 0, 0, ${p})`;
+            }
+
+            if (this.bossImg && this.bossImg.complete) {
+                const w = 120;
+                const h = (120 / this.bossImg.width) * this.bossImg.height;
+                ctx.drawImage(this.bossImg, -w / 2, -h / 2, w, h);
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            }
+
+            // Draw center crosshair
+            ctx.beginPath();
+            ctx.moveTo(-10, 0); ctx.lineTo(10, 0);
+            ctx.moveTo(0, -10); ctx.lineTo(0, 10);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+            return;
+        }
+
+        // ── ORB RENDER (Standard Mode): always show orb when point is set (running=false → progress=0 slow spin) ──
         const target = this.state.progress || 0;
         if (target === 0) {
             this.state.displayProgress = 0;
