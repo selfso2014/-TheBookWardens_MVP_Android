@@ -4,13 +4,14 @@
  *
  * [구조]  fq-slider-wrapper (overflow:hidden)
  *           └── fq-slider-track (width:200%, flex row, transition:transform)
- *                 ├── fq-passage-panel (50% of track = 100% of wrapper)
- *                 └── fq-qa-panel      (50% of track = 100% of wrapper)
+ *                 ├── fq-qa-panel      (50% of track = 100% of wrapper)  ← 왼쪽
+ *                 └── fq-passage-panel (50% of track = 100% of wrapper)  ← 오른쪽
  *
  * [슬라이드]
- *  - 지문 표시: track translateX(0)              → 왼쪽 패널(지문) 보임
- *  - Q&A 표시:  track translateX(-100% + 44px)  → 지문 44px만 남기고 오른쪽 이동
- *  - 지문 복귀: track translateX(0)
+ *  - 지문 표시: track translateX(-50%)           → 오른쪽 패널(지문) 보임
+ *  - Q&A 표시:  track translateX(calc(-44px))    → 지문 44px 남기고 Q&A로 전환
+ *                                                   (지문이 오른쪽으로 밀려남)
+ *  - 지문 복귀: track translateX(-50%)
  *
  * [타이머] 지문 스트리밍 완료 후 120초 카운트다운
  * [잉크 번짐] Q&A 표시 후 5초 → 5초/단어 blur+fade
@@ -92,9 +93,10 @@ export class FinalQuizManager {
 
     // ── 슬라이드 제어 (track 기준) ─────────────────────────────────────────
     _slideToQA() {
-        // 지문이 44px만 남기고 오른쪽으로 밀림, Q&A가 드러남
+        // track을 오른쪽으로 이동 → 지문(오른쪽 패널)이 오른쪽으로 밀려나고 Q&A(왼쪽 패널)가 드러남
+        // 44px는 지문 패널의 peek 영역 (오른쪽 탭 너비)
         const track = document.getElementById('fq-slider-track');
-        if (track) track.style.transform = 'translateX(calc(-50% + 44px))';
+        if (track) track.style.transform = 'translateX(calc(-44px))';
         // Peek tab 표시 (body에 있어서 CSS transform 영향 없음)
         const peekTab = this._ensurePeekTab();
         if (peekTab) { peekTab.style.opacity = '1'; peekTab.style.pointerEvents = 'auto'; }
@@ -102,9 +104,9 @@ export class FinalQuizManager {
     }
 
     _slideToPassage() {
-        // 지문 패널 복귀
+        // 지문 패널 복귀: -50% → 오른쪽 패널(지문)이 보이는 위치
         const track = document.getElementById('fq-slider-track');
-        if (track) track.style.transform = 'translateX(0)';
+        if (track) track.style.transform = 'translateX(-50%)';
         const peekTab = document.getElementById('fq-peek-tab');
         if (peekTab) { peekTab.style.opacity = '0'; peekTab.style.pointerEvents = 'none'; }
         if (this.phase !== 'done') this.phase = 'reviewing';
@@ -269,10 +271,29 @@ export class FinalQuizManager {
                  padding:8px 12px 28px 12px;box-sizing:border-box;
                  overflow:hidden;flex-shrink:0;">
 
+          <!-- track: 초기 translateX(-50%) → 오른쪽 패널(지문)이 보임
+               Q&A로 전환: translateX(-44px) → 지문이 오른쪽으로 밀리고 Q&A 등장 -->
           <div id="fq-slider-track"
-            style="display:flex;width:200%;transform:translateX(0);">
+            style="display:flex;width:200%;transform:translateX(-50%);">
 
-            <!-- 왼쪽 패널: 지문 (50% of track = 100% of wrapper) -->
+            <!-- 왼쪽 패널: Q&A (50% of track = 100% of wrapper) -->
+            <div id="fq-qa-panel"
+              style="flex:0 0 50%;box-sizing:border-box;
+                     background:rgba(255,255,255,0.05);
+                     border:1px solid rgba(180,0,255,0.3);border-radius:14px;
+                     padding:18px 20px;
+                     display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+              <p id="fq-question"
+                style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
+                       color:#f0e0ff;font-weight:700;line-height:1.6;margin:0;"></p>
+              <p id="fq-result"
+                style="display:none;font-size:1.0rem;font-weight:bold;margin:0;
+                       text-shadow:0 0 10px currentColor;"></p>
+              <div id="fq-choices"
+                style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+
+            <!-- 오른쪽 패널: 지문 (50% of track = 100% of wrapper) -->
             <div id="fq-passage-panel"
               style="flex:0 0 50%;box-sizing:border-box;
                      background:rgba(255,255,255,0.05);
@@ -294,23 +315,6 @@ export class FinalQuizManager {
               </div>
             </div>
 
-            <!-- 오른쪽 패널: Q&A (50% of track = 100% of wrapper) -->
-            <div id="fq-qa-panel"
-              style="flex:0 0 50%;box-sizing:border-box;
-                     background:rgba(255,255,255,0.05);
-                     border:1px solid rgba(180,0,255,0.3);border-radius:14px;
-                     padding:18px 20px;
-                     display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
-              <p id="fq-question"
-                style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
-                       color:#f0e0ff;font-weight:700;line-height:1.6;margin:0;"></p>
-              <p id="fq-result"
-                style="display:none;font-size:1.0rem;font-weight:bold;margin:0;
-                       text-shadow:0 0 10px currentColor;"></p>
-              <div id="fq-choices"
-                style="display:flex;flex-direction:column;gap:10px;"></div>
-            </div>
-
           </div><!-- /fq-slider-track -->
         </div><!-- /fq-slider-wrapper -->
 
@@ -329,10 +333,11 @@ export class FinalQuizManager {
         const peekTab = document.getElementById('fq-peek-tab'); // body에 있어도 검색됨
         const backBtn = document.getElementById('fq-back-btn');
 
-        // 슬라이더 트랙 원위치 (애니메이션 없이)
+        // 슬라이더 트랙 지문 위치로 초기화 (애니메이션 없이)
+        // 지문이 오른쪽 패널이므로 -50% translateX로 지문을 보이게 함
         if (track) {
             track.style.transition = 'none';
-            track.style.transform = 'translateX(0)';
+            track.style.transform = 'translateX(-50%)';
             setTimeout(() => { if (track) track.style.transition = ''; }, 50);
         }
         // Peek tab 숨김
