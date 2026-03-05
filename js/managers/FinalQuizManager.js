@@ -88,26 +88,59 @@ export class FinalQuizManager {
     // ── 지문 패널 슬라이드 제어 ──────────────────────────────────────────────
     _slidePassageOut() {
         const panel = document.getElementById('fq-passage-panel');
+        if (panel) {
+            // offsetWidth 기반으로 실제 패널 너비만큼 + 여유분 슬라이드
+            const slideDistance = (panel.offsetWidth || window.innerWidth) + 20;
+            panel.style.transform = `translateX(${slideDistance}px)`;
+        }
+        // Peek tab: body에 직접 붙어있음 (CSS transform 영향 없음)
         const peekTab = document.getElementById('fq-peek-tab');
-        if (panel) panel.style.transform = 'translateX(110vw)';
         if (peekTab) { peekTab.style.opacity = '1'; peekTab.style.pointerEvents = 'auto'; }
         if (this.phase !== 'done') this.phase = 'choosing';
     }
 
     _slidePassageIn() {
         const panel = document.getElementById('fq-passage-panel');
-        const peekTab = document.getElementById('fq-peek-tab');
         if (panel) panel.style.transform = 'translateX(0)';
+        const peekTab = document.getElementById('fq-peek-tab');
         if (peekTab) { peekTab.style.opacity = '0'; peekTab.style.pointerEvents = 'none'; }
         if (this.phase !== 'done') this.phase = 'reviewing';
+    }
+
+    // ── Peek Tab: document.body에 직접 관리 (screen transform 영향 차단) ────
+    _ensurePeekTab() {
+        let tab = document.getElementById('fq-peek-tab');
+        if (tab) return tab;
+        tab = document.createElement('div');
+        tab.id = 'fq-peek-tab';
+        tab.innerHTML = '<span style="font-size:1.5rem;line-height:1;">‹</span>' +
+            '<span style="writing-mode:vertical-rl;font-size:0.63rem;letter-spacing:2px;' +
+            'opacity:0.85;font-family:\'Outfit\',sans-serif;">지문</span>';
+        Object.assign(tab.style, {
+            position: 'fixed', right: '0', top: '50%',
+            transform: 'translateY(-50%)',
+            width: '44px', height: '90px',
+            background: 'linear-gradient(180deg,rgba(100,20,200,0.88),rgba(180,0,255,0.88))',
+            borderRadius: '12px 0 0 12px',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            opacity: '0', pointerEvents: 'none', cursor: 'pointer',
+            zIndex: '99999',
+            boxShadow: '-4px 0 20px rgba(130,30,220,0.55)',
+            gap: '4px', color: 'white', userSelect: 'none',
+            transition: 'opacity 0.3s ease',
+        });
+        document.body.appendChild(tab);
+        console.log('[FinalQuiz] Peek tab appended to body');
+        return tab;
     }
 
     // ── 터치 인터랙션 ────────────────────────────────────────────────────────
     _setupInteractions() {
         this._removeTouchHandlers();
 
-        // Peek Tab: 탭 또는 왼쪽 스와이프 → 지문 복귀
-        const peekTab = document.getElementById('fq-peek-tab');
+        // Peek Tab: body에 생성 후 이벤트 바인딩
+        const peekTab = this._ensurePeekTab();
         if (peekTab) {
             const onClick = () => { if (this.phase === 'choosing') this._slidePassageIn(); };
             peekTab.addEventListener('click', onClick);
@@ -233,7 +266,8 @@ export class FinalQuizManager {
         <!-- ── Arena: 지문 패널 + Q&A 패널이 동일 공간 점유 ── -->
         <div id="fq-arena"
           style="position:relative;width:100%;max-width:680px;
-                 padding:8px 12px 28px 12px;box-sizing:border-box;">
+                 padding:8px 12px 28px 12px;box-sizing:border-box;
+                 overflow:hidden;">
 
           <!-- Layer B: Q&A 패널 (하단·절대위치, 지문이 빠진 자리에 드러남) -->
           <div id="fq-qa-panel"
@@ -276,20 +310,7 @@ export class FinalQuizManager {
           </div>
         </div>
 
-        <!-- Peek Tab: position:fixed 로 화면 오른쪽 끝에 항상 고정 -->
-        <div id="fq-peek-tab"
-          style="position:fixed;right:0;top:50%;transform:translateY(-50%);
-                 width:44px;height:90px;
-                 background:linear-gradient(180deg,rgba(100,20,200,0.88),rgba(180,0,255,0.88));
-                 border-radius:12px 0 0 12px;
-                 display:flex;flex-direction:column;align-items:center;justify-content:center;
-                 opacity:0;pointer-events:none;cursor:pointer;
-                 z-index:9999;box-shadow:-4px 0 20px rgba(130,30,220,0.55);
-                 gap:4px;color:white;user-select:none;">
-          <span style="font-size:1.5rem;line-height:1;">‹</span>
-          <span style="writing-mode:vertical-rl;font-size:0.63rem;letter-spacing:2px;
-                       opacity:0.85;font-family:'Outfit',sans-serif;">지문</span>
-        </div>
+        <!-- Peek Tab은 JS에서 document.body에 직접 append (CSS transform 영향 방지) -->
         `;
     }
 
@@ -302,8 +323,9 @@ export class FinalQuizManager {
         const choicesEl = document.getElementById('fq-choices');
         const resultEl = document.getElementById('fq-result');
         const timerEl = document.getElementById('fq-timer');
-        const peekTab = document.getElementById('fq-peek-tab');
+        const peekTab = document.getElementById('fq-peek-tab'); // body에 있을 수 있음
         const backBtn = document.getElementById('fq-back-btn');
+        const arena = document.getElementById('fq-arena');
 
         // 지문 패널 원위치 (transition 없이)
         if (passPanel) {
@@ -314,8 +336,8 @@ export class FinalQuizManager {
             });
         }
         // Q&A 패널 숨김
-        if (qaPanel) { qaPanel.style.transition = 'none'; qaPanel.style.opacity = '0'; qaPanel.style.pointerEvents = 'none'; }
-        // Peek tab 숨김
+        if (qaPanel) { qaPanel.style.transition = 'none'; qaPanel.style.opacity = '0'; qaPanel.style.pointerEvents = 'none'; qaPanel.style.height = ''; }
+        // Peek tab 숨김 (body에 있어도 getElementById로 찾힘)
         if (peekTab) { peekTab.style.opacity = '0'; peekTab.style.pointerEvents = 'none'; }
         // "← 문제로" 숨김
         if (backBtn) backBtn.style.display = 'none';
@@ -333,6 +355,8 @@ export class FinalQuizManager {
             timerEl.style.borderColor = 'rgba(0,229,255,0.3)';
             timerEl.style.textShadow = '0 0 8px rgba(0,229,255,0.7)';
         }
+        // Arena 높이 초기화
+        if (arena) arena.style.height = '';
         document.getElementById('fq-rift-msg')?.remove();
 
         // transition 복원
@@ -473,10 +497,24 @@ export class FinalQuizManager {
     _showQuestion() {
         if (this.phase !== 'choosing') return;
 
+        const arena = document.getElementById('fq-arena');
+        const passPanel = document.getElementById('fq-passage-panel');
         const qaPanel = document.getElementById('fq-qa-panel');
         const questionEl = document.getElementById('fq-question');
         const choicesEl = document.getElementById('fq-choices');
         const backBtn = document.getElementById('fq-back-btn');
+
+        // ── arena 높이를 지문 패널 높이로 고정 (Q&A가 같은 공간을 점유하도록) ──
+        // passage panel은 translateX로 밀려났지만 overflow:hidden으로 클리핑.
+        // position:relative이므로 레이아웃 높이는 유지됨. 이를 arena에 명시적으로 고정.
+        if (arena && passPanel) {
+            const h = passPanel.offsetHeight;
+            if (h > 0) {
+                arena.style.height = h + 'px';
+                // Q&A panel은 absolute로 같은 공간을 채움
+                if (qaPanel) qaPanel.style.height = h + 'px';
+            }
+        }
 
         const quiz = this._activeQuiz || FINAL_QUIZ_DATA;
 
@@ -513,7 +551,7 @@ export class FinalQuizManager {
         // "← 문제로" 버튼 활성화
         if (backBtn) backBtn.style.display = 'block';
 
-        // Q&A 패널 fade-in (지문이 빠진 자리에 노출)
+        // Q&A 패널 fade-in
         if (qaPanel) {
             requestAnimationFrame(() => requestAnimationFrame(() => {
                 qaPanel.style.opacity = '1';
@@ -521,7 +559,7 @@ export class FinalQuizManager {
             }));
         }
 
-        console.log('[FinalQuiz] Q&A panel shown in passage slot.');
+        console.log('[FinalQuiz] Q&A panel shown in passage slot. arenaH=', arena?.style.height);
     }
 
     // ── 정답 처리 ────────────────────────────────────────────────────────────
@@ -602,9 +640,14 @@ export class FinalQuizManager {
         this._words = [];
         this._spans = [];
         this._riftTimers = [];
-        // Peek tab 숨김 (다른 화면으로 이탈 시 잔류 방지)
+        // Peek tab: body에서 완전 제거 (다른 화면으로 이탈 시 잔류 방지)
         const peekTab = document.getElementById('fq-peek-tab');
-        if (peekTab) { peekTab.style.opacity = '0'; peekTab.style.pointerEvents = 'none'; }
+        if (peekTab && peekTab.parentNode === document.body) {
+            document.body.removeChild(peekTab);
+        } else if (peekTab) {
+            peekTab.style.opacity = '0';
+            peekTab.style.pointerEvents = 'none';
+        }
         console.log('[FinalQuiz] destroyed');
     }
 }
