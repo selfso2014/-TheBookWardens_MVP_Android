@@ -93,12 +93,25 @@ export class FinalQuizManager {
 
     // ── 슬라이드 제어 (track 기준) ─────────────────────────────────────────
     _slideToQA() {
-        // track을 오른쪽으로 이동 → 지문(오른쪽 패널)이 오른쪽으로 밀려나고 Q&A(왼쪽 패널)가 드러남
-        // 44px는 지문 패널의 peek 영역 (오른쪽 탭 너비)
-        const track = document.getElementById('fq-slider-track');
-        if (track) track.style.transform = 'translateX(-32px)';
-        // Peek tab 표시 (body에 있어서 CSS transform 영향 없음)
+        // ── 과학적 peek 계산 ──────────────────────────────────────────────
+        // 1. Peek tab 실측: CSS transform과 무관한 레이아웃 크기
         const peekTab = this._ensurePeekTab();
+        const TAB_INNER_MARGIN = 8; // px — 지문이 탭 안쪽에 살짝 숨도록 하는 시각 여백
+        const tabWidth = peekTab ? peekTab.offsetWidth : 40; // 실측, 기본값 40px
+        const peek = Math.max(0, tabWidth - TAB_INNER_MARGIN);
+        //   peek = 지문 패널이 오른쪽에서 보이는 픽셀 수
+        //        = 탭 너비 - 여백  →  지문 왼쪽 끝이 탭 왼쪽 끝보다 여백만큼 오른쪽에 위치
+        // 2. track 이동: -peek px → Q&A는 왼쪽(0)에서, 지문은 오른쪽(peek)에서 보임
+        const track = document.getElementById('fq-slider-track');
+        if (track) track.style.transform = `translateX(-${peek}px)`;
+        // 3. Q&A 오른쪽 패딩 보정: track이 peek만큼 왼쪽으로 이동했으므로
+        //    Q&A 패널 오른쪽 peek px가 viewport 밖으로 나감 → paddingRight로 보호
+        //    SAFETY = 4px (border 두께 + 부동소수 보정)
+        const SAFETY = 4;
+        const qaPanel = document.getElementById('fq-qa-panel');
+        if (qaPanel) qaPanel.style.paddingRight = `${peek + SAFETY}px`;
+        console.log(`[FinalQuiz] slideToQA — tabWidth:${tabWidth}px, peek:${peek}px, paddingRight:${peek + SAFETY}px`);
+        // Peek tab 표시 (body에 있어서 CSS transform 영향 없음)
         if (peekTab) { peekTab.style.opacity = '1'; peekTab.style.pointerEvents = 'auto'; }
         if (this.phase !== 'done') this.phase = 'choosing';
     }
@@ -107,6 +120,9 @@ export class FinalQuizManager {
         // 지문 패널 복귀: -50% → 오른쪽 패널(지문)이 보이는 위치
         const track = document.getElementById('fq-slider-track');
         if (track) track.style.transform = 'translateX(-50%)';
+        // Q&A 패딩 원복 (지문 열람 중엔 Q&A가 숨겨 있으므로 초기값으로 복구)
+        const qaPanel = document.getElementById('fq-qa-panel');
+        if (qaPanel) qaPanel.style.paddingRight = '20px';
         const peekTab = document.getElementById('fq-peek-tab');
         if (peekTab) { peekTab.style.opacity = '0'; peekTab.style.pointerEvents = 'none'; }
         if (this.phase !== 'done') this.phase = 'reviewing';
@@ -281,7 +297,7 @@ export class FinalQuizManager {
               style="flex:0 0 50%;box-sizing:border-box;
                      background:rgba(255,255,255,0.05);
                      border:1px solid rgba(180,0,255,0.3);border-radius:14px;
-                     padding:18px 56px 18px 20px;
+                     padding:18px 20px;
                      display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
               <p id="fq-question"
                 style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
