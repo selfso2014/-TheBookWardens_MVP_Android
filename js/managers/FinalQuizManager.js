@@ -281,13 +281,13 @@ export class FinalQuizManager {
             <!-- 왼쪽 패널: Q&A (50% of track = 100% of wrapper) -->
             <div id="fq-qa-panel"
               style="flex:0 0 50%;box-sizing:border-box;
-                     background:rgba(255,255,255,0.05);
-                     border:1px solid rgba(180,0,255,0.3);border-radius:14px;
+                     background:rgba(0,255,150,0.04);
+                     border:1px solid rgba(0,210,110,0.4);border-radius:14px;
                      padding:18px 20px;
                      display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
               <p id="fq-question"
                 style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
-                       color:#f0e0ff;font-weight:700;line-height:1.6;margin:0;"></p>
+                       color:#c0ffd8;font-weight:700;line-height:1.6;margin:0;"></p>
               <p id="fq-result"
                 style="display:none;font-size:1.0rem;font-weight:bold;margin:0;
                        text-shadow:0 0 10px currentColor;"></p>
@@ -512,16 +512,16 @@ export class FinalQuizManager {
                 btn.textContent = optText;
                 Object.assign(btn.style, {
                     display: 'block', width: '100%',
-                    background: 'rgba(130,30,220,0.15)',
-                    border: '1px solid rgba(180,0,255,0.4)',
-                    color: '#e0ccff', padding: '12px 16px',
+                    background: 'rgba(0,180,90,0.15)',
+                    border: '1px solid rgba(0,210,110,0.45)',
+                    color: '#c0ffd8', padding: '12px 16px',
                     borderRadius: '12px', fontSize: '0.9rem',
                     fontFamily: "'Outfit','Segoe UI',sans-serif",
                     textAlign: 'left', cursor: 'pointer',
                     transition: 'background 0.2s ease',
                 });
-                btn.onmouseover = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.35)'; };
-                btn.onmouseout = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(130,30,220,0.15)'; };
+                btn.onmouseover = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(0,180,90,0.35)'; };
+                btn.onmouseout = () => { if (btn.style.pointerEvents !== 'none') btn.style.background = 'rgba(0,180,90,0.15)'; };
                 btn.onclick = () => this._onAnswer(i, quiz.answer);
                 choicesEl.appendChild(btn);
             });
