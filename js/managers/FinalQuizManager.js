@@ -96,7 +96,7 @@ export class FinalQuizManager {
         // track을 오른쪽으로 이동 → 지문(오른쪽 패널)이 오른쪽으로 밀려나고 Q&A(왼쪽 패널)가 드러남
         // 44px는 지문 패널의 peek 영역 (오른쪽 탭 너비)
         const track = document.getElementById('fq-slider-track');
-        if (track) track.style.transform = 'translateX(calc(-44px))';
+        if (track) track.style.transform = 'translateX(-32px)';
         // Peek tab 표시 (body에 있어서 CSS transform 영향 없음)
         const peekTab = this._ensurePeekTab();
         if (peekTab) { peekTab.style.opacity = '1'; peekTab.style.pointerEvents = 'auto'; }
@@ -281,7 +281,7 @@ export class FinalQuizManager {
               style="flex:0 0 50%;box-sizing:border-box;
                      background:rgba(255,255,255,0.05);
                      border:1px solid rgba(180,0,255,0.3);border-radius:14px;
-                     padding:18px 20px;
+                     padding:18px 56px 18px 20px;
                      display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
               <p id="fq-question"
                 style="display:none;font-family:'Outfit','Segoe UI',sans-serif;font-size:1.0rem;
