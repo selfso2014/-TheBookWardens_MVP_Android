@@ -199,8 +199,9 @@ export class FinalQuizManager {
             this._injectScreen();
             return;
         }
-        if (!document.getElementById('fq-passage-text')) {
-            console.warn('[FinalQuiz] fq-passage-text missing, rebuilding innerHTML');
+        // V3 구조(fq-slider-track) 없으면 무조건 재빌드 (구버전 HTML 방지)
+        if (!document.getElementById('fq-slider-track')) {
+            console.warn('[FinalQuiz] V3 slider structure missing — rebuilding HTML');
             container.innerHTML = this._buildInnerHTML();
         }
     }
