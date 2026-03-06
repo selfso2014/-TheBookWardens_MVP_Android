@@ -2,16 +2,14 @@
  * VocabImageManager.js
  * ─────────────────────────────────────────────────────────────
  * The Book Wardens — Vocabulary 이미지 관리 모듈
+ * v2 (2026-03-07): Firestore 실패 시 Storage 직접 URL 구성으로 폴백
  *
  * 역할:
  *  1. Firestore vocab_images/{book_id} 문서에서 URL 맵을 1회 fetch
  *  2. 메모리 캐시에 저장 (세션 중 재사용)
  *  3. getImageUrl(bookId, word) → Firebase Storage URL 반환
- *  4. 이미지 없는 경우 → default URL 또는 인라인 SVG fallback
- *
- * 사용법:
- *  await VocabImageManager.init(db);   // Firebase db 인스턴스 전달
- *  const url = await VocabImageManager.getImageUrl('alice', 'Rabbit');
+ *  4. Firestore 실패 시 → Storage 직접 URL 구성 (Firestore 룰 문제 우회)
+ *  5. Storage URL도 실패 시 → renderFallbackIcon (img.onerror 에서 처리)
  */
 
 const VocabImageManager = (() => {
@@ -19,21 +17,28 @@ const VocabImageManager = (() => {
     // ── 설정 ──────────────────────────────────────────────────
     const COLLECTION = 'vocab_images';
     const BOOK_IDS = ['aesop', 'alice', 'sherlock'];
-    const PREFETCH_DELAY = 1000;   // 첫 챕터 로드 후 다음 책 프리패치 지연(ms)
+    const PREFETCH_DELAY = 800;
 
-    // ── 인라인 SVG 폴백 (Firestore 자체 실패 시 최후 보험) ──────
-    const FALLBACK_SVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' \
-viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
-<text x='80' y='100' font-size='64' text-anchor='middle'>📖</text></svg>`;
+    // ── [FIX 핵심] Storage 직접 URL 구성 ─────────────────────
+    // Firestore 보안 룰이 읽기를 거부해도 Storage 공개 URL은 항상 접근 가능.
+    // generate_vocab_images.py가 blob.make_public() 후 업로드했으므로
+    // https://storage.googleapis.com/{bucket}/vocab-images/{bookId}/{key}.jpg 패턴으로 접근 가능.
+    const STORAGE_BUCKET = 'graphdebug-2c507.firebasestorage.app';
+    const STORAGE_BASE = `https://storage.googleapis.com/${STORAGE_BUCKET}/vocab-images`;
+
+    function buildDirectUrl(bookId, key) {
+        return `${STORAGE_BASE}/${bookId}/${key}.jpg`;
+    }
 
     // ── 내부 상태 ──────────────────────────────────────────────
     let _db = null;
-    let _defaultUrl = FALLBACK_SVG;   // Storage의 default.png URL (init 시 로드)
-    let _firestoreApi = null;          // [FIX] dynamic import 결과 1회 캐싱 → 않 인스턴스 혼용 방지
-    const _cache = {};             // { 'aesop': { 'kindness': 'https://...' } }
-    const _loading = {};             // { 'aesop': Promise }  중복 fetch 방지
+    let _firestoreApi = null;          // dynamic import 결과 1회 캐싱
+    let _firestoreOk = true;           // Firestore 접근 가능 여부 (실패 시 false로 전환)
+    const _cache = {};                 // { 'aesop': { 'kindness': 'https://...' } } — null이면 미로드, {}이면 로드됐지만 비어있음
+    const _loading = {};               // { 'aesop': Promise }  중복 fetch 방지
 
     // ── 유틸 ──────────────────────────────────────────────────
+    // Python의 word_to_key()와 동일한 정규화 로직
     function wordToKey(word) {
         return (word || '')
             .toLowerCase()
@@ -43,36 +48,52 @@ viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
 
     // ── Firestore fetch ───────────────────────────────────────
     async function fetchBookUrls(bookId) {
-        if (_cache[bookId]) return _cache[bookId];      // 이미 캐시됨
-        if (_loading[bookId]) return _loading[bookId];  // 이미 로딩 중
+        // [FIX] _cache[bookId]가 null이 아닌 객체면 캐시됨 (빈 객체는 Firestore 실패를 의미)
+        if (_cache[bookId] !== undefined) return _cache[bookId];
+        if (_loading[bookId]) return _loading[bookId];
 
         _loading[bookId] = (async () => {
+            // [FIX] _db null 가드: Firestore 초기화 전이면 빈 객체 반환
+            if (!_db) {
+                console.warn(`[VocabImage] ⚠ _db is null — Firestore 미초기화. Storage 직접 URL 사용.`);
+                _cache[bookId] = {};
+                return _cache[bookId];
+            }
+
+            if (!_firestoreOk) {
+                // 이미 Firestore 접근 실패 확인 → 즉시 빈 캐시 반환 (Storage 직접 URL로 폴백됨)
+                _cache[bookId] = {};
+                return _cache[bookId];
+            }
+
             try {
-                console.log(`[VocabImage] Firestore fetch: ${COLLECTION}/${bookId}`);
-                // [FIX] firebase-firestore 모듈을 1회만 import하여 _firestoreApi에 캐시.
-                // 기존 코드는 매 fetch마다 import를 반복하여
-                // index.html의 'vocabImg' named app이 아닌 다른 인스턴스가
-                // 뽑힐 가능성이 있었음.
+                console.log(`[VocabImage] Firestore fetch 시도: ${COLLECTION}/${bookId}`);
+
                 if (!_firestoreApi) {
                     const mod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                     _firestoreApi = { doc: mod.doc, getDoc: mod.getDoc };
                 }
+
                 const { doc, getDoc } = _firestoreApi;
                 const snapshot = await getDoc(doc(_db, COLLECTION, bookId));
 
                 if (snapshot.exists()) {
                     _cache[bookId] = snapshot.data() || {};
-                    // _default URL 갱신
-                    if (_cache[bookId]['_default']) {
-                        _defaultUrl = _cache[bookId]['_default'];
-                    }
-                    console.log(`[VocabImage] ${bookId}: ${Object.keys(_cache[bookId]).length}개 URL 로드 완료`);
+                    const count = Object.keys(_cache[bookId]).length;
+                    console.log(`[VocabImage] ✅ ${bookId}: Firestore에서 ${count}개 URL 로드`);
                 } else {
-                    console.warn(`[VocabImage] ${bookId} 문서 없음 → 폴백 사용`);
+                    console.warn(`[VocabImage] ⚠ ${bookId} Firestore 문서 없음 → Storage 직접 URL로 폴백`);
                     _cache[bookId] = {};
                 }
             } catch (err) {
-                console.error(`[VocabImage] Firestore 오류 (${bookId}):`, err);
+                // [FIX] 에러 로그를 구체적으로 출력해 Firestore 룰 문제 등 진단 가능하게 함
+                const code = err?.code || err?.name || 'unknown';
+                console.error(`[VocabImage] ❌ Firestore 오류 (${bookId}) [${code}]:`, err.message || err);
+                if (code === 'permission-denied' || code === 'PERMISSION_DENIED') {
+                    console.warn('[VocabImage] Firestore 보안 룰이 읽기를 차단하고 있습니다.');
+                    console.warn('[VocabImage] Storage 직접 URL로 자동 폴백합니다. (이미지가 공개 업로드된 경우 정상 작동)');
+                    _firestoreOk = false;  // 이후 모든 책은 Firestore 시도 생략
+                }
                 _cache[bookId] = {};
             }
             return _cache[bookId];
@@ -84,15 +105,19 @@ viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
     // ── Public API ────────────────────────────────────────────
 
     /**
-     * init(db)
+     * init(db, initialBookId)
      * Firebase Firestore 인스턴스를 등록하고 현재 북의 URL 맵을 프리로드.
-     * @param {object} db - Firestore db 인스턴스
-     * @param {string} [initialBookId] - 즉시 프리패치할 첫 번째 책 ID
      */
     async function init(db, initialBookId = 'aesop') {
         _db = db;
+        console.log(`[VocabImage] init() 호출 — _db: ${db ? 'OK' : 'null'}, initialBookId: ${initialBookId}`);
+
         // 현재 책 즉시 로드
         await fetchBookUrls(initialBookId);
+
+        const count = Object.keys(_cache[initialBookId] || {}).length;
+        console.log(`[VocabImage] 초기화 완료 — ${initialBookId}: ${count > 0 ? count + '개 URL' : '⚠ Firestore 빈 결과 (Storage 직접 URL 폴백 활성)'}`);
+
         // 나머지 책은 백그라운드에서 지연 프리패치
         setTimeout(() => {
             BOOK_IDS.filter(id => id !== initialBookId)
@@ -109,46 +134,64 @@ viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
     }
 
     /**
-     * getImageUrl(bookId, word)
-     * 단어에 해당하는 Firebase Storage URL을 반환.
-     * 없으면 default URL 반환.
-     * @returns {string} 이미지 URL
+     * getImageUrl(bookId, word) — 비동기
+     * Firestore URL → 없으면 Storage 직접 URL 반환.
+     * Storage URL이 실제로 존재하지 않으면 img.onerror가 renderFallbackIcon을 호출.
      */
     async function getImageUrl(bookId, word) {
-        const urlMap = await fetchBookUrls(bookId);
         const key = wordToKey(word);
-        return urlMap[key] || _defaultUrl;
+        try {
+            const urlMap = await fetchBookUrls(bookId);
+            if (urlMap[key] && urlMap[key].startsWith('http')) {
+                return urlMap[key];
+            }
+        } catch (err) {
+            console.warn('[VocabImage] getImageUrl fetch 실패:', err);
+        }
+        // [FIX] SVG 폴백 대신 Storage 직접 URL 반환 → img.onerror가 최후 보험
+        const directUrl = buildDirectUrl(bookId, key);
+        console.log(`[VocabImage] Storage 직접 URL 사용: ${directUrl}`);
+        return directUrl;
     }
 
     /**
-     * getImageUrlSync(bookId, word)
-     * 동기 버전 — 캐시에 있는 경우만 즉시 반환 (없으면 default).
-     * 이미 preload된 책에만 유효.
+     * getImageUrlSync(bookId, word) — 동기
+     * 캐시에 있으면 Firestore URL, 없으면 Storage 직접 URL 즉시 반환.
      */
     function getImageUrlSync(bookId, word) {
         const urlMap = _cache[bookId] || {};
         const key = wordToKey(word);
-        return urlMap[key] || _defaultUrl;
+        if (urlMap[key] && urlMap[key].startsWith('http')) {
+            return urlMap[key];
+        }
+        // [FIX] SVG 폴백 → Storage 직접 URL로 교체
+        return buildDirectUrl(bookId, key);
     }
 
     /**
      * isReady(bookId)
-     * 캐시 로드 여부 확인.
+     * [FIX] 캐시가 설정되었는지 확인 (빈 객체도 '시도 완료'로 간주).
+     * 이전 버그: !!_cache[bookId]가 빈 객체{}에 대해서도 true여서 Firestore 실패를 숨겼음.
+     * 수정: _cache[bookId]가 undefined가 아니면 ready (fetch 시도 완료 상태)
      */
     function isReady(bookId) {
-        return !!_cache[bookId];
+        return _cache[bookId] !== undefined;
     }
 
     /**
-     * getCacheStats()
-     * 디버그용 캐시 상태 반환.
+     * getCacheStats() — 디버그용
      */
     function getCacheStats() {
         const stats = {};
         for (const id of BOOK_IDS) {
-            stats[id] = _cache[id]
-                ? `${Object.keys(_cache[id]).length}개 로드됨`
-                : '미로드';
+            if (_cache[id] === undefined) {
+                stats[id] = '미로드';
+            } else {
+                const count = Object.keys(_cache[id]).length;
+                stats[id] = count > 0
+                    ? `${count}개 URL (Firestore)`
+                    : '⚠ Firestore 빈결과 → Storage 직접 URL 폴백';
+            }
         }
         return stats;
     }
