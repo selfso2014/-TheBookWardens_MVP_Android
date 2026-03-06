@@ -117,7 +117,7 @@ export class BookSelectManager {
      * 4. Amplitude event
      * 5. Navigate to Word Forge
      */
-    selectBook(bookId, cardEl, btnEl) {
+    async selectBook(bookId, cardEl, btnEl) {
         if (this._locked) return;
         this._locked = true;
 
@@ -156,13 +156,17 @@ export class BookSelectManager {
             this.game.vocabManager.init(book.vocabList, book.id);
         }
 
-        // VocabImageManager: 해당 책 URL 맵 프리로드
+        // [FIX] VocabImageManager: preloadBook을 await하여 이미지 URL 맵이
+        // 완전히 로드된 후 vocab 화면으로 전환. (기존: fire-and-forget → 이미지 미로드 상태에서 화면 전환)
         if (window.VocabImageManager && window._firestoreDb) {
-            // 이미 init되었으면 preload만, 맨 첫 실행이면 init
             if (!window.VocabImageManager.isReady(book.id)) {
-                window.VocabImageManager.preloadBook(book.id).catch(e =>
-                    console.warn('[BookSelectManager] VocabImage preload 실패:', e)
-                );
+                console.log(`[BookSelectManager] VocabImage preload 대기 중: ${book.id}`);
+                try {
+                    await window.VocabImageManager.preloadBook(book.id);
+                    console.log(`[BookSelectManager] VocabImage preload 완료: ${book.id}`);
+                } catch (e) {
+                    console.warn('[BookSelectManager] VocabImage preload 실패 (폴백 사용):', e);
+                }
             }
         }
 

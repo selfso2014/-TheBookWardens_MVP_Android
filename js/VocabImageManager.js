@@ -29,6 +29,7 @@ viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
     // ── 내부 상태 ──────────────────────────────────────────────
     let _db = null;
     let _defaultUrl = FALLBACK_SVG;   // Storage의 default.png URL (init 시 로드)
+    let _firestoreApi = null;          // [FIX] dynamic import 결과 1회 캐싱 → 않 인스턴스 혼용 방지
     const _cache = {};             // { 'aesop': { 'kindness': 'https://...' } }
     const _loading = {};             // { 'aesop': Promise }  중복 fetch 방지
 
@@ -48,9 +49,15 @@ viewBox='0 0 160 160'><rect width='160' height='160' rx='12' fill='%231a1d27'/>\
         _loading[bookId] = (async () => {
             try {
                 console.log(`[VocabImage] Firestore fetch: ${COLLECTION}/${bookId}`);
-                const { getFirestore, doc, getDoc } = await import(
-                    'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
-                );
+                // [FIX] firebase-firestore 모듈을 1회만 import하여 _firestoreApi에 캐시.
+                // 기존 코드는 매 fetch마다 import를 반복하여
+                // index.html의 'vocabImg' named app이 아닌 다른 인스턴스가
+                // 뽑힐 가능성이 있었음.
+                if (!_firestoreApi) {
+                    const mod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                    _firestoreApi = { doc: mod.doc, getDoc: mod.getDoc };
+                }
+                const { doc, getDoc } = _firestoreApi;
                 const snapshot = await getDoc(doc(_db, COLLECTION, bookId));
 
                 if (snapshot.exists()) {

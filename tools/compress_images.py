@@ -101,11 +101,16 @@ def main():
         if doc_snap.exists:
             url_map = doc_snap.to_dict() or {}
 
-        png_files = [f for f in os.listdir(img_dir) if f.endswith(".png")]
+        # [FIX] default.png 는 book 전용 이미지가 아니므로 제외
+        png_files = [f for f in os.listdir(img_dir)
+                     if f.endswith(".png") and f != "default.png"]
 
         for fname in sorted(png_files):
             src = os.path.join(img_dir, fname)
-            key = fname[:-4]  # 확장자 제거
+            # [FIX] word_to_key()와 동일 로직: 파일명은 이미 소문자+언더스코어 형식이므로
+            # 확장자 제거 후 정규화 적용 → Firestore 키와 100% 일치 보장
+            raw_key = fname[:-4]
+            key = re.sub(r"[^a-z0-9_]", "", raw_key.lower())
             orig_kb = os.path.getsize(src) // 1024
 
             # 압축
@@ -128,8 +133,8 @@ def main():
             print(f"  {key:20s}  {orig_kb:>5}KB → {comp_kb:>4}KB  (-{ratio}%)  Q{quality}")
             time.sleep(DELAY)
 
-        # Firestore 저장 (URL은 .jpg 경로로 갱신됨)
-        doc_ref.set(url_map)
+        # [FIX] merge=True: 기존 Firestore 키(_default 등)를 보존하면서 .jpg URL 갱신
+        doc_ref.set(url_map, merge=True)
         print(f"  → Firestore 업데이트 완료: {len(url_map)}개 키")
 
     print(f"\n{'='*55}")
