@@ -22,13 +22,10 @@ export class VocabManager {
         const titleEl = document.getElementById("vocab-word");
         if (titleEl) titleEl.textContent = data.word;
 
-        // ── 이미지: COEP-safe fetch → blob URL 방식으로 로드 ────
-        // coi-serviceworker.js가 COEP를 활성화하므로 cross-origin 이미지를
-        // img.src로 직접 설정하면 net::ERR_FAILED 발생.
-        // fetch()로 바이트를 직접 가져와 로컬 blob URL을 생성하면 COEP 제한 우회 가능.
+        // ── 이미지 로드 ──────────────────────────────────────────
+        // VocabImageManager v4: same-origin 로컬 이미지 → COEP/CORS 문제 없음
         const imgPlaceholder = document.querySelector(".word-image-placeholder");
         if (imgPlaceholder) {
-            // 로딩 스피너 표시
             imgPlaceholder.innerHTML = `<div style="
                 width:60px;height:60px;border-radius:50%;
                 border:4px solid rgba(255,215,0,0.3);
@@ -38,7 +35,6 @@ export class VocabManager {
 
             let imageUrl = null;
 
-            // 1순위: VocabImageManager (Storage 공개 URL)
             if (window.VocabImageManager && window.VocabImageManager.isReady(this.bookId)) {
                 imageUrl = window.VocabImageManager.getImageUrlSync(this.bookId, data.word);
             } else if (window.VocabImageManager) {
@@ -49,16 +45,22 @@ export class VocabManager {
                 }
             }
 
-            // 2순위: vocab JSON에 직접 포함된 URL
-            if (!imageUrl && data.image && data.image.startsWith('http')) {
-                imageUrl = data.image;
-            }
-
             if (imageUrl) {
-                // [FIX] COEP 환경에서 cross-origin 이미지 로드:
-                // img.src = crossOriginUrl → net::ERR_FAILED (COEP 차단)
-                // fetch(url) → blob URL → img.src = blobUrl → 정상 로드
-                this._loadImageViaBlobUrl(imageUrl, imgPlaceholder, data.word);
+                const img = document.createElement("img");
+                img.alt = data.word;
+                img.style.maxWidth = "100%";
+                img.style.maxHeight = "100%";
+                img.style.objectFit = "contain";
+                img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
+                img.onload = () => {
+                    imgPlaceholder.innerHTML = "";
+                    imgPlaceholder.appendChild(img);
+                };
+                img.onerror = () => {
+                    console.warn(`[VocabManager] 이미지 로드 실패: ${imageUrl}`);
+                    this.renderFallbackIcon(imgPlaceholder, data.word);
+                };
+                img.src = imageUrl;
             } else {
                 this.renderFallbackIcon(imgPlaceholder, data.word);
             }
