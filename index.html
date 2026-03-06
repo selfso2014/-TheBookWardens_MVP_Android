@@ -1568,6 +1568,39 @@
   <!-- WardenManager removed (Imported by game.js) -->
   <script type="module" src="./js/game.js?v=20260224-FinalQuiz"></script>
 
+  <!-- 3. VocabImageManager — Firebase Firestore에서 vocab 이미지 URL 로드 -->
+  <script src="./js/VocabImageManager.js?v=20260306-VIM"></script>
+  <script type="module">
+    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const cfg = window.FIREBASE_CONFIG || {
+          apiKey: "AIzaSyA_hopi6Xam996KfCXKq4piFZ-9ThoehjA",
+          authDomain: "graphdebug-2c507.firebaseapp.com",
+          projectId: "graphdebug-2c507",
+          storageBucket: "graphdebug-2c507.firebasestorage.app",
+          messagingSenderId: "976043612079",
+          appId: "1:976043612079:web:17cd90582151970bc3815a"
+        };
+        const app = getApps().find(a => a.name === 'vocabImg') ||
+          initializeApp(cfg, 'vocabImg');
+        const db = getFirestore(app);
+        window._firestoreDb = db;
+        if (window.VocabImageManager) {
+          window.VocabImageManager.init(db, 'aesop').then(() => {
+            console.log('[VocabImage] 초기화 완료 (aesop 프리로드)');
+          }).catch(e => {
+            console.warn('[VocabImage] 초기화 실패 (폴백 모드):', e.message);
+          });
+        }
+      } catch (e) {
+        console.warn('[VocabImage] Firebase 초기화 실패:', e.message);
+      }
+    });
+  </script>
+
   <!-- 3. Explicit Event Binding for Debug Button (With STANDALONE BATTLE LOGIC) -->
 
   <!-- CUSTOM SUBMISSION SUCCESS MODAL -->

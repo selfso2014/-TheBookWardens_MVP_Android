@@ -153,7 +153,17 @@ export class BookSelectManager {
         this.game.state.finalBossQuiz = book.finalBossQuiz;
 
         if (this.game.vocabManager) {
-            this.game.vocabManager.init(book.vocabList);
+            this.game.vocabManager.init(book.vocabList, book.id);
+        }
+
+        // VocabImageManager: 해당 책 URL 맵 프리로드
+        if (window.VocabImageManager && window._firestoreDb) {
+            // 이미 init되었으면 preload만, 맨 첫 실행이면 init
+            if (!window.VocabImageManager.isReady(book.id)) {
+                window.VocabImageManager.preloadBook(book.id).catch(e =>
+                    console.warn('[BookSelectManager] VocabImage preload 실패:', e)
+                );
+            }
         }
 
         // Amplitude

@@ -6,28 +6,53 @@ export class VocabManager {
         this.isProcessing = false;
     }
 
-    init(vocabList) {
+    init(vocabList, bookId) {
         this.vocabList = vocabList || [];
         this.currentIndex = 0;
+        this.bookId = bookId || 'aesop';   // Firebase URL fetch에 사용
     }
 
-    loadVocab(index) {
+    async loadVocab(index) {
         if (!this.vocabList || index >= this.vocabList.length) return;
 
         this.currentIndex = index;
         const data = this.vocabList[index];
 
-        // Update Title and Sentence
+        // ── 단어 제목 업데이트 ──────────────────────────────────
         const titleEl = document.getElementById("vocab-word");
         if (titleEl) titleEl.textContent = data.word;
 
-        // Update Image
+        // ── 이미지: Firebase URL 비동기 로드 ────────────────────
         const imgPlaceholder = document.querySelector(".word-image-placeholder");
         if (imgPlaceholder) {
-            imgPlaceholder.innerHTML = ""; // Clear text
-            if (data.image) {
+            // 로딩 스피너 표시
+            imgPlaceholder.innerHTML = `<div style="
+                width:60px;height:60px;border-radius:50%;
+                border:4px solid rgba(255,215,0,0.3);
+                border-top-color:#ffd700;
+                animation:spin 0.8s linear infinite;
+            "></div>`;
+
+            let imageUrl = null;
+
+            // 1순위: VocabImageManager (Firebase Firestore → Storage URL)
+            if (window.VocabImageManager && window.VocabImageManager.isReady(this.bookId)) {
+                imageUrl = window.VocabImageManager.getImageUrlSync(this.bookId, data.word);
+            } else if (window.VocabImageManager) {
+                try {
+                    imageUrl = await window.VocabImageManager.getImageUrl(this.bookId, data.word);
+                } catch (e) {
+                    console.warn('[VocabManager] Firebase 이미지 로드 실패:', e);
+                }
+            }
+
+            // 2순위: vocab JSON에 직접 포함된 URL
+            if (!imageUrl && data.image && data.image.startsWith('http')) {
+                imageUrl = data.image;
+            }
+
+            if (imageUrl) {
                 const img = document.createElement("img");
-                img.src = data.image;
                 img.alt = data.word;
                 img.style.maxWidth = "100%";
                 img.style.maxHeight = "100%";
@@ -37,24 +62,29 @@ export class VocabManager {
                     img.style.display = "none";
                     this.renderFallbackIcon(imgPlaceholder, data.word);
                 };
-                imgPlaceholder.appendChild(img);
+                img.onload = () => {
+                    imgPlaceholder.innerHTML = "";
+                    imgPlaceholder.appendChild(img);
+                };
+                img.src = imageUrl;   // src 설정은 이벤트 등록 후
             } else {
+                // 3순위: fallback 아이콘
                 this.renderFallbackIcon(imgPlaceholder, data.word);
             }
         }
 
-        // Update Sentence
+        // ── 예문 업데이트 ─────────────────────────────────────────
         const card = document.querySelector(".word-card");
         if (card) {
             const p = card.querySelector("p");
             if (p) p.innerHTML = data.sentence;
         }
 
-        // Update Counter
+        // ── 카운터 업데이트 ───────────────────────────────────────
         const counterDiv = document.querySelector("#screen-word > div:first-child");
         if (counterDiv) counterDiv.textContent = `WORD FORGE (${index + 1}/${this.vocabList.length})`;
 
-        // Update Options
+        // ── 선택지 업데이트 ───────────────────────────────────────
         const optionsDiv = document.getElementById("vocab-options");
         if (optionsDiv) {
             optionsDiv.innerHTML = "";
@@ -62,18 +92,10 @@ export class VocabManager {
                 const btn = document.createElement("button");
                 btn.className = "option-btn";
                 btn.textContent = optText;
-                // Use Game proxy or direct manager call if exposed
-                // Assuming Game.checkVocab proxies to this manager
                 btn.onclick = (e) => this.game.checkVocab(idx, e);
-
-                // [iOS Fix] Sticky-hover 방어:
-                // iOS WebKit은 터치 후 :hover 상태가 고착되어 연한 보라색이 잔류함.
-                // touchstart 직후 blur()를 호출하면 브라우저가 hover 상태를 해제함.
                 btn.addEventListener('touchstart', () => {
-                    // requestAnimationFrame 으로 클릭 이벤트가 먼저 처리된 뒤 blur 실행
                     requestAnimationFrame(() => btn.blur());
                 }, { passive: true });
-
                 optionsDiv.appendChild(btn);
             });
         }
