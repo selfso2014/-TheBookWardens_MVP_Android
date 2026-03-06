@@ -1,0 +1,17 @@
+[
+    {
+        "origin": [
+            "https://selfso2014.github.io"
+        ],
+        "method": [
+            "GET",
+            "HEAD"
+        ],
+        "responseHeader": [
+            "Content-Type",
+            "Content-Length",
+            "Cross-Origin-Resource-Policy"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]

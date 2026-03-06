@@ -22,7 +22,10 @@ export class VocabManager {
         const titleEl = document.getElementById("vocab-word");
         if (titleEl) titleEl.textContent = data.word;
 
-        // ── 이미지: Firebase URL 비동기 로드 ────────────────────
+        // ── 이미지: COEP-safe fetch → blob URL 방식으로 로드 ────
+        // coi-serviceworker.js가 COEP를 활성화하므로 cross-origin 이미지를
+        // img.src로 직접 설정하면 net::ERR_FAILED 발생.
+        // fetch()로 바이트를 직접 가져와 로컬 blob URL을 생성하면 COEP 제한 우회 가능.
         const imgPlaceholder = document.querySelector(".word-image-placeholder");
         if (imgPlaceholder) {
             // 로딩 스피너 표시
@@ -35,14 +38,14 @@ export class VocabManager {
 
             let imageUrl = null;
 
-            // 1순위: VocabImageManager (Firebase Firestore → Storage URL)
+            // 1순위: VocabImageManager (Storage 공개 URL)
             if (window.VocabImageManager && window.VocabImageManager.isReady(this.bookId)) {
                 imageUrl = window.VocabImageManager.getImageUrlSync(this.bookId, data.word);
             } else if (window.VocabImageManager) {
                 try {
                     imageUrl = await window.VocabImageManager.getImageUrl(this.bookId, data.word);
                 } catch (e) {
-                    console.warn('[VocabManager] Firebase 이미지 로드 실패:', e);
+                    console.warn('[VocabManager] VocabImageManager 오류:', e);
                 }
             }
 
@@ -52,23 +55,11 @@ export class VocabManager {
             }
 
             if (imageUrl) {
-                const img = document.createElement("img");
-                img.alt = data.word;
-                img.style.maxWidth = "100%";
-                img.style.maxHeight = "100%";
-                img.style.objectFit = "contain";
-                img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
-                img.onerror = () => {
-                    img.style.display = "none";
-                    this.renderFallbackIcon(imgPlaceholder, data.word);
-                };
-                img.onload = () => {
-                    imgPlaceholder.innerHTML = "";
-                    imgPlaceholder.appendChild(img);
-                };
-                img.src = imageUrl;   // src 설정은 이벤트 등록 후
+                // [FIX] COEP 환경에서 cross-origin 이미지 로드:
+                // img.src = crossOriginUrl → net::ERR_FAILED (COEP 차단)
+                // fetch(url) → blob URL → img.src = blobUrl → 정상 로드
+                this._loadImageViaBlobUrl(imageUrl, imgPlaceholder, data.word);
             } else {
-                // 3순위: fallback 아이콘
                 this.renderFallbackIcon(imgPlaceholder, data.word);
             }
         }
@@ -99,6 +90,48 @@ export class VocabManager {
                 optionsDiv.appendChild(btn);
             });
         }
+    }
+
+
+    /**
+     * _loadImageViaBlobUrl(url, container, word)
+     * [COEP Fix] fetch → blob URL 방식으로 cross-origin 이미지 로드.
+     *
+     * coi-serviceworker.js가 Cross-Origin-Embedder-Policy를 활성화하므로
+     * img.src = "https://storage.googleapis.com/..." 방식은 차단됨.
+     * fetch()로 이미지 바이트를 직접 가져와 로컬 blob URL을 생성하면
+     * same-origin으로 취급되어 COEP 제한이 적용되지 않음.
+     */
+    _loadImageViaBlobUrl(url, container, word) {
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.blob();
+            })
+            .then(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                const img = document.createElement("img");
+                img.alt = word;
+                img.style.maxWidth = "100%";
+                img.style.maxHeight = "100%";
+                img.style.objectFit = "contain";
+                img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
+                img.onload = () => {
+                    container.innerHTML = "";
+                    container.appendChild(img);
+                    // blob URL은 img 로드 후 즉시 해제 (메모리 누수 방지)
+                    URL.revokeObjectURL(blobUrl);
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    this.renderFallbackIcon(container, word);
+                };
+                img.src = blobUrl;
+            })
+            .catch(err => {
+                console.warn(`[VocabManager] 이미지 fetch 실패 (${word}):`, err);
+                this.renderFallbackIcon(container, word);
+            });
     }
 
     renderFallbackIcon(container, word) {
