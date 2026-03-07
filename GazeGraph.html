@@ -394,69 +394,52 @@
                 return;
             }
 
-            // ── 방법 1: session_list (정규 경로) ────────────────────────────
-            const refList = db.ref('session_list').orderByChild('timestamp').limitToLast(15);
-            // ── 방법 2: sessions 직접 읽기 (session_list가 비었을 때 폴백) ──
+            // 항상 sessions/ 경로에서 직접 읽기
+            // session_list는 20자리 ID만 있고 4자리 ID 세션은 빠져있으므로 신뢰 불가
             const refSessions = db.ref('sessions');
 
-            refList.once('value', snap => {
-                if (snap.exists() && snap.numChildren() > 0) {
-                    // session_list에 데이터 있음 → 그대로 사용
-                    renderSessionButtons(listEl, snap, 'session_list');
-                    setStatus('✅ Firebase 연결됨 (session_list)');
-                } else {
-                    // session_list가 비었으면 sessions/ 직접 순회
-                    console.log('[GazeGraph] session_list empty → scanning sessions/ directly');
-                    setStatus('🔄 sessions/ 직접 스캔 중...');
-                    refSessions.once('value', sessSnap => {
-                        if (!sessSnap.exists()) {
-                            listEl.innerHTML = '<p style="color:var(--muted)">No sessions found anywhere.</p>';
-                            setStatus('⚠️ Firebase에 세션 데이터 없음');
-                            return;
-                        }
-                        renderSessionButtons(listEl, sessSnap, 'sessions');
-                        setStatus('✅ Firebase 연결됨 (sessions 직접)');
-                    }, err => {
-                        listEl.innerHTML = `<p style="color:var(--red)">❌ sessions 읽기 오류: ${err.message}</p>`;
-                    });
+            refSessions.once('value', snap => {
+                if (!snap.exists()) {
+                    listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
+                    setStatus('⚠️ Firebase에 세션 데이터 없음');
+                    return;
                 }
+                renderSessionButtons(listEl, snap);
+                setStatus('✅ Firebase 연결됨');
             }, err => {
-                // session_list 읽기 실패 → sessions 직접 시도
-                console.warn('[GazeGraph] session_list error, trying sessions/:', err.message);
-                refSessions.once('value', sessSnap => {
-                    if (!sessSnap.exists()) {
-                        listEl.innerHTML = `<p style="color:var(--red)">❌ ${err.message}</p>`;
-                        return;
-                    }
-                    renderSessionButtons(listEl, sessSnap, 'sessions');
-                    setStatus('✅ Firebase 연결됨 (sessions fallback)');
-                }, err2 => {
-                    listEl.innerHTML = `<p style="color:var(--red)">❌ 양쪽 모두 실패: ${err.message} / ${err2.message}</p>`;
-                });
+                listEl.innerHTML = `<p style="color:var(--red)">❌ sessions 읽기 오류: <b>${err.code}</b><br>${err.message}</p>`;
+                setStatus(`<span style="color:var(--red)">❌ ${err.code}: ${err.message}</span>`);
             });
         }
 
-        function renderSessionButtons(listEl, snap, source) {
+        function renderSessionButtons(listEl, snap) {
             listEl.innerHTML = '';
             const items = [];
             snap.forEach(c => {
                 const val = c.val();
-                // source=session_list → val 자체가 meta
-                // source=sessions → val.meta 안에 timestamp 있음
-                const meta = (source === 'sessions') ? (val?.meta || val) : val;
+                if (!val || typeof val !== 'object') return;
+                const meta = val.meta || val;
                 const ts = meta?.timestamp || 0;
-                items.push({ key: c.key, meta: meta, ts: ts });
+                const samples = meta?.totalSamples ?? 0;
+                const hasChunks = !!(val.chunks || val.data);
+                items.push({ key: c.key, meta, ts, samples, hasChunks });
             });
-            // 최신순 정렬, 최대 20개
-            items.sort((a, b) => b.ts - a.ts);
-            items.slice(0, 20).forEach(item => {
+            // 데이터 있는 세션 우선, 그 다음 최신순
+            items.sort((a, b) => {
+                if (a.hasChunks !== b.hasChunks) return a.hasChunks ? -1 : 1;
+                return b.ts - a.ts;
+            });
+            items.slice(0, 25).forEach(item => {
                 const d = item.ts ? new Date(item.ts) : null;
                 const time = d ? `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString()}` : '?';
                 const agent = getDeviceName(item.meta?.userAgent || '');
-                const samples = item.meta?.totalSamples ?? '?';
+                const label = item.hasChunks
+                    ? `<span style="color:var(--green)">✅ ${item.samples}pts</span>`
+                    : `<span style="color:var(--muted)">${item.samples}pts</span>`;
                 const btn = document.createElement('button');
                 btn.className = 'session-btn';
-                btn.innerHTML = `<b>${item.key}</b><br><small>${time} · ${agent} · ${samples}pts</small>`;
+                if (item.hasChunks) btn.style.borderColor = 'var(--green)';
+                btn.innerHTML = `<b>${item.key}</b><br><small>${time} · ${agent} · ${label}</small>`;
                 btn.onclick = () => loadSession(item.key);
                 listEl.appendChild(btn);
             });
@@ -528,9 +511,19 @@
                         👉 Android에서 지문 읽기 → 소형빌런 등장까지 진행하면 자동 업로드됩니다.
                     </span>`);
                 }
+                // [FIX] 옛 형식: data 키에 배열로 직접 저장된 경우 (chunks 대신)
+                if (full.data && !full.chunks) {
+                    let arr = full.data;
+                    if (!Array.isArray(arr)) arr = Object.values(arr);
+                    if (arr.length > 0) {
+                        currentData = arr;
+                        setStatus(`✅ <b>${currentData.length}</b> samples (data 형식) — [${sessionId}]`);
+                        processAndRender();
+                    }
+                }
             });
 
-            // ② Gaze chunks (incremental)
+            // ② Gaze chunks (incremental) — 새 형식
             ref.child('chunks').on('child_added', snap => {
                 const chunk = snap.val();
                 if (Array.isArray(chunk)) {
