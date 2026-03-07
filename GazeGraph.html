@@ -450,7 +450,8 @@
             // 최신순 정렬, 최대 20개
             items.sort((a, b) => b.ts - a.ts);
             items.slice(0, 20).forEach(item => {
-                const time = item.ts ? new Date(item.ts).toLocaleTimeString() : '?';
+                const d = item.ts ? new Date(item.ts) : null;
+                const time = d ? `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString()}` : '?';
                 const agent = getDeviceName(item.meta?.userAgent || '');
                 const samples = item.meta?.totalSamples ?? '?';
                 const btn = document.createElement('button');
