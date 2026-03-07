@@ -473,6 +473,23 @@
                 setStatus(`<span style="color:var(--red)">❌ meta 오류: ${err.code} — ${err.message}</span>`);
             });
 
+            // 【진단】 세션 전체 구조를 한 번 읽어서 상태 안내
+            ref.once('value', snap => {
+                const full = snap.val();
+                if (!full) {
+                    setStatus(`<span style="color:var(--red)">❌ [${sessionId}] 세션 없음 — ID 확인</span>`);
+                    return;
+                }
+                const keys = Object.keys(full);
+                console.log(`[GazeGraph] Session keys: ${keys.join(', ')}`);
+                if (!full.chunks && !full.data) {
+                    setStatus(`<span style="color:var(--orange)">
+                        ⚠️ [${sessionId}] gaze 데이터 없음 (totalSamples: ${full.meta?.totalSamples ?? '?'})<br>
+                        👉 Android에서 지문 읽기 → 소형빌런 등장까지 진행하면 자동 업로드됩니다.
+                    </span>`);
+                }
+            });
+
             // ② Gaze chunks (incremental)
             ref.child('chunks').on('child_added', snap => {
                 const chunk = snap.val();
