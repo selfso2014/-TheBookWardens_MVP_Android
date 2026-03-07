@@ -357,10 +357,23 @@
         } catch (e) { console.error('[GazeGraph] Firebase Init:', e); }
 
         window.onload = function () {
-            if (!window.firebase || !window.FIREBASE_CONFIG) {
-                alert('Firebase SDK or Config Missing!'); return;
+            // ── Firebase 상태 확인 ──────────────────────────────────────────
+            if (!window.firebase) {
+                setStatus('<span style="color:var(--red)">❌ Firebase SDK 로드 실패 (CDN 연결 확인)</span>'); return;
             }
-            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            if (!window.FIREBASE_CONFIG) {
+                setStatus('<span style="color:var(--red)">❌ firebase-config.js 로드 실패 (경로 확인)</span>'); return;
+            }
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            } catch (e) {
+                setStatus(`<span style="color:var(--red)">❌ Firebase 초기화 오류: ${e.message}</span>`); return;
+            }
+
+            // goOnline() — 이전 goOffline() 잔류 상태 해소
+            try { firebase.database().goOnline(); } catch (_) { }
+
+            setStatus('🔌 Firebase 연결 중...');
             loadRecentSessions();
         };
 
@@ -368,13 +381,30 @@
         //  RECENT SESSIONS
         // ─────────────────────────────────────────────
         function loadRecentSessions() {
-            const db = firebase.database();
+            const listEl = document.getElementById('sessionList');
+            // ← 콜백 밖에서 즉시 상태 표시 (콜백이 안 와도 알 수 있게)
+            listEl.innerHTML = '<span style="color:var(--muted)">🔄 session_list 조회 중...</span>';
+
+            let db;
+            try {
+                db = firebase.database();
+                db.goOnline();
+            } catch (e) {
+                listEl.innerHTML = `<p style="color:var(--red)">❌ DB 인스턴스 생성 오류: ${e.message}</p>`;
+                setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
+                return;
+            }
+
             const ref = db.ref('session_list').orderByChild('timestamp').limitToLast(15);
 
             ref.on('value', snap => {
-                const listEl = document.getElementById('sessionList');
                 listEl.innerHTML = '';
-                if (!snap.exists()) { listEl.innerHTML = '<p style="color:var(--muted)">No sessions.</p>'; return; }
+                setStatus('✅ Firebase 연결됨');
+
+                if (!snap.exists()) {
+                    listEl.innerHTML = '<p style="color:var(--muted)">No sessions yet. (게임 플레이 후 소형빌런 등장 시 업로드)</p>';
+                    return;
+                }
 
                 const sessions = [];
                 snap.forEach(c => sessions.push({ key: c.key, val: c.val() }));
@@ -388,6 +418,10 @@
                     btn.onclick = () => loadSession(item.key);
                     listEl.appendChild(btn);
                 });
+            }, err => {
+                // ← 에러 핸들러: 퍼미션 거부, 네트워크 오류 등 표시
+                listEl.innerHTML = `<p style="color:var(--red)">❌ Firebase 오류: <b>${err.code}</b><br>${err.message}</p>`;
+                setStatus(`<span style="color:var(--red)">❌ ${err.code}: ${err.message}</span>`);
             });
         }
 
@@ -408,24 +442,35 @@
         // ─────────────────────────────────────────────
         function loadSession(sessionId) {
             document.getElementById('sessionIdInput').value = sessionId;
-            setStatus(`Connecting to [${sessionId}]...`);
+            setStatus(`🔄 [${sessionId}] 연결 중...`);
 
             currentData = [];
             currentMeta = {};
             currentPangLog = [];
 
-            const db = firebase.database();
+            let db;
+            try {
+                db = firebase.database();
+                db.goOnline();
+            } catch (e) {
+                setStatus(`<span style="color:var(--red)">❌ DB 오류: ${e.message}</span>`);
+                return;
+            }
+
             const ref = db.ref('sessions/' + sessionId);
+            ref.off();  // 이전 리스너 해제
 
-            // Detach previous listeners
-            ref.off();
-
-            // ① Meta (includes wpmData)
+            // ① Meta
             ref.child('meta').on('value', snap => {
                 const val = snap.val();
-                if (!val) return;
+                if (!val) {
+                    setStatus(`<span style="color:var(--orange)">⚠️ [${sessionId}] meta 없음 — 세션 ID 확인</span>`);
+                    return;
+                }
                 currentMeta = val;
                 if (currentData.length > 0) processAndRender();
+            }, err => {
+                setStatus(`<span style="color:var(--red)">❌ meta 오류: ${err.code} — ${err.message}</span>`);
             });
 
             // ② Gaze chunks (incremental)
@@ -433,17 +478,22 @@
                 const chunk = snap.val();
                 if (Array.isArray(chunk)) {
                     currentData = currentData.concat(chunk);
-                    setStatus(`<b>${currentData.length}</b> samples loaded`);
+                    setStatus(`✅ <b>${currentData.length}</b> samples — [${sessionId}]`);
                     processAndRender();
                 }
+            }, err => {
+                setStatus(`<span style="color:var(--red)">❌ chunks 오류: ${err.code} — ${err.message}</span>`);
             });
 
-            // ③ PangLogs per paragraph  →  sessions/{id}/pangLogs/{paraIndex}
+            // ③ PangLogs — sessions/{id}/pangLogs/{paraIndex}
             ref.child('pangLogs').on('value', snap => {
                 const val = snap.val();
-                if (!val) return;
+                if (!val) {
+                    // pangLogs 없는 것은 오래된 세션이거나 아직 플레이 안 함. 오류 아님.
+                    console.log('[GazeGraph] pangLogs not found — using didFire fallback.');
+                    return;
+                }
                 currentPangLog = [];
-                // each key is paraIndex, each value is array of {t, line, type, vx}
                 Object.keys(val).sort((a, b) => Number(a) - Number(b)).forEach(paraIdx => {
                     const arr = val[paraIdx];
                     if (Array.isArray(arr)) {
@@ -451,6 +501,9 @@
                     }
                 });
                 if (currentData.length > 0) processAndRender();
+            }, err => {
+                console.warn('[GazeGraph] pangLogs error:', err.message);
+                // 오류여도 didFire fallback으로 계속 진행
             });
         }
 
