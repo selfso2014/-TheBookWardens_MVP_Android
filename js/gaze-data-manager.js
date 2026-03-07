@@ -370,6 +370,31 @@ export class GazeDataManager {
         setTimeout(() => this.isCollectingLineStart = false, 200);
     }
 
+    // [NEW] Upload pangLog for a specific paragraph to Firebase.
+    // Called by game.js BEFORE clearGazeData(), at mid-boss entry.
+    // Stores at: sessions/{id}/pangLogs/{paraIndex}  (array of {t, line, type, vx})
+    async uploadPangLog(sessionId, paraIndex) {
+        if (!window.firebase || !window.FIREBASE_CONFIG) return;
+        if (!this.pangLog || this.pangLog.length === 0) return;
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            const db = firebase.database();
+            db.goOnline();
+
+            // Sanitize
+            const payload = JSON.parse(JSON.stringify(this.pangLog, (key, value) => {
+                if (typeof value === 'number' && isNaN(value)) return null;
+                return value;
+            }));
+
+            await db.ref(`sessions/${sessionId}/pangLogs/${paraIndex}`).set(payload);
+            console.log(`[PangLog] Para ${paraIndex}: ${payload.length} pangs uploaded.`);
+        } catch (e) {
+            console.warn('[PangLog] Upload failed:', e);
+        }
+    }
+
     // [FIX-iOS] Free the accumulated gaze data array AFTER replay has consumed it.
     // Called explicitly by game.js inside the playGazeReplay onComplete callback —
     // i.e. AFTER replay finishes and BEFORE playNextParagraph() starts.
@@ -534,7 +559,8 @@ export class GazeDataManager {
                 lineMetadata: this.lineMetadata,
                 totalSamples: this.data.length,
                 firstContentTime: this.firstContentTime,
-                wpmData: this.wpmData || []
+                wpmData: this.wpmData || [],
+                pangLog: this.pangLog || []  // [NEW] For GazeGraph.html analysis
             };
 
             // A. Full Session Path

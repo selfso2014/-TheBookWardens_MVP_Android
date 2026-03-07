@@ -1372,11 +1372,30 @@ Game.typewriter = {
                     // Restore cursor opacity just in case (though screen switch follows)
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
 
+                    const gdm = window.gazeDataManager;
+
+                    // [NEW] Upload gaze data + pangLog BEFORE clearing memory.
+                    // Timing: replay just ended = villain is about to appear (소형빌런 진입).
+                    // MUST be called before clearGazeData() — after that, this.data is empty.
+                    if (gdm && Game.sessionId) {
+                        const paraIdx = this.currentParaIndex;
+                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} data...`);
+                        // ① pangLog upload (small, fast — per paragraph path)
+                        if (typeof gdm.uploadPangLog === 'function') {
+                            gdm.uploadPangLog(Game.sessionId, paraIdx).catch(e =>
+                                console.warn('[Upload] pangLog failed:', e)
+                            );
+                        }
+                        // ② gaze chunk + meta upload (incremental, async)
+                        gdm.uploadToCloud(Game.sessionId).catch(e =>
+                            console.warn('[Upload] uploadToCloud failed:', e)
+                        );
+                    }
+
                     // [FIX-iOS] Free gaze data now — replay has already consumed sessionData.
                     // Next paragraph will start with an empty array (fresh t=0 timeline).
                     // Called here to avoid the race condition of clearing inside resetTriggers()
                     // while gaze data is already flowing in from setSeesoTracking(true).
-                    const gdm = window.gazeDataManager;
                     if (gdm && typeof gdm.clearGazeData === 'function') {
                         gdm.clearGazeData();
                     }
