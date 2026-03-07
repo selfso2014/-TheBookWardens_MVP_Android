@@ -382,8 +382,7 @@
         // ─────────────────────────────────────────────
         function loadRecentSessions() {
             const listEl = document.getElementById('sessionList');
-            // ← 콜백 밖에서 즉시 상태 표시 (콜백이 안 와도 알 수 있게)
-            listEl.innerHTML = '<span style="color:var(--muted)">🔄 session_list 조회 중...</span>';
+            listEl.innerHTML = '<span style="color:var(--muted)">🔄 세션 목록 조회 중...</span>';
 
             let db;
             try {
@@ -395,34 +394,74 @@
                 return;
             }
 
-            const ref = db.ref('session_list').orderByChild('timestamp').limitToLast(15);
+            // ── 방법 1: session_list (정규 경로) ────────────────────────────
+            const refList = db.ref('session_list').orderByChild('timestamp').limitToLast(15);
+            // ── 방법 2: sessions 직접 읽기 (session_list가 비었을 때 폴백) ──
+            const refSessions = db.ref('sessions');
 
-            ref.on('value', snap => {
-                listEl.innerHTML = '';
-                setStatus('✅ Firebase 연결됨');
-
-                if (!snap.exists()) {
-                    listEl.innerHTML = '<p style="color:var(--muted)">No sessions yet. (게임 플레이 후 소형빌런 등장 시 업로드)</p>';
-                    return;
+            refList.once('value', snap => {
+                if (snap.exists() && snap.numChildren() > 0) {
+                    // session_list에 데이터 있음 → 그대로 사용
+                    renderSessionButtons(listEl, snap, 'session_list');
+                    setStatus('✅ Firebase 연결됨 (session_list)');
+                } else {
+                    // session_list가 비었으면 sessions/ 직접 순회
+                    console.log('[GazeGraph] session_list empty → scanning sessions/ directly');
+                    setStatus('🔄 sessions/ 직접 스캔 중...');
+                    refSessions.once('value', sessSnap => {
+                        if (!sessSnap.exists()) {
+                            listEl.innerHTML = '<p style="color:var(--muted)">No sessions found anywhere.</p>';
+                            setStatus('⚠️ Firebase에 세션 데이터 없음');
+                            return;
+                        }
+                        renderSessionButtons(listEl, sessSnap, 'sessions');
+                        setStatus('✅ Firebase 연결됨 (sessions 직접)');
+                    }, err => {
+                        listEl.innerHTML = `<p style="color:var(--red)">❌ sessions 읽기 오류: ${err.message}</p>`;
+                    });
                 }
-
-                const sessions = [];
-                snap.forEach(c => sessions.push({ key: c.key, val: c.val() }));
-                sessions.reverse().forEach(item => {
-                    const meta = item.val;
-                    const time = meta?.timestamp ? new Date(meta.timestamp).toLocaleTimeString() : '?';
-                    const agent = getDeviceName(meta?.userAgent || '');
-                    const btn = document.createElement('button');
-                    btn.className = 'session-btn';
-                    btn.innerHTML = `<b>${item.key}</b><br><small>${time} · ${agent}</small>`;
-                    btn.onclick = () => loadSession(item.key);
-                    listEl.appendChild(btn);
-                });
             }, err => {
-                // ← 에러 핸들러: 퍼미션 거부, 네트워크 오류 등 표시
-                listEl.innerHTML = `<p style="color:var(--red)">❌ Firebase 오류: <b>${err.code}</b><br>${err.message}</p>`;
-                setStatus(`<span style="color:var(--red)">❌ ${err.code}: ${err.message}</span>`);
+                // session_list 읽기 실패 → sessions 직접 시도
+                console.warn('[GazeGraph] session_list error, trying sessions/:', err.message);
+                refSessions.once('value', sessSnap => {
+                    if (!sessSnap.exists()) {
+                        listEl.innerHTML = `<p style="color:var(--red)">❌ ${err.message}</p>`;
+                        return;
+                    }
+                    renderSessionButtons(listEl, sessSnap, 'sessions');
+                    setStatus('✅ Firebase 연결됨 (sessions fallback)');
+                }, err2 => {
+                    listEl.innerHTML = `<p style="color:var(--red)">❌ 양쪽 모두 실패: ${err.message} / ${err2.message}</p>`;
+                });
             });
+        }
+
+        function renderSessionButtons(listEl, snap, source) {
+            listEl.innerHTML = '';
+            const items = [];
+            snap.forEach(c => {
+                const val = c.val();
+                // source=session_list → val 자체가 meta
+                // source=sessions → val.meta 안에 timestamp 있음
+                const meta = (source === 'sessions') ? (val?.meta || val) : val;
+                const ts = meta?.timestamp || 0;
+                items.push({ key: c.key, meta: meta, ts: ts });
+            });
+            // 최신순 정렬, 최대 20개
+            items.sort((a, b) => b.ts - a.ts);
+            items.slice(0, 20).forEach(item => {
+                const time = item.ts ? new Date(item.ts).toLocaleTimeString() : '?';
+                const agent = getDeviceName(item.meta?.userAgent || '');
+                const samples = item.meta?.totalSamples ?? '?';
+                const btn = document.createElement('button');
+                btn.className = 'session-btn';
+                btn.innerHTML = `<b>${item.key}</b><br><small>${time} · ${agent} · ${samples}pts</small>`;
+                btn.onclick = () => loadSession(item.key);
+                listEl.appendChild(btn);
+            });
+            if (items.length === 0) {
+                listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
+            }
         }
 
         function getDeviceName(ua) {
