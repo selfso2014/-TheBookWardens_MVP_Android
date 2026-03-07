@@ -380,50 +380,57 @@
         // ─────────────────────────────────────────────
         //  RECENT SESSIONS
         // ─────────────────────────────────────────────
-        function loadRecentSessions() {
+        async function loadRecentSessions() {
             const listEl = document.getElementById('sessionList');
             listEl.innerHTML = '<span style="color:var(--muted)">🔄 세션 목록 조회 중...</span>';
 
-            let db;
+            const BASE = 'https://graphdebug-2c507-default-rtdb.firebaseio.com';
+
             try {
-                db = firebase.database();
-                db.goOnline();
-            } catch (e) {
-                listEl.innerHTML = `<p style="color:var(--red)">❌ DB 인스턴스 생성 오류: ${e.message}</p>`;
-                setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
-                return;
-            }
-
-            // 항상 sessions/ 경로에서 직접 읽기
-            // session_list는 20자리 ID만 있고 4자리 ID 세션은 빠져있으므로 신뢰 불가
-            const refSessions = db.ref('sessions');
-
-            refSessions.once('value', snap => {
-                if (!snap.exists()) {
+                // Step 1: shallow read — 키 목록만 가져옴 (데이터 다운로드 없음)
+                const keysRes = await fetch(`${BASE}/sessions.json?shallow=true`);
+                if (!keysRes.ok) throw new Error(`HTTP ${keysRes.status}`);
+                const keysObj = await keysRes.json();
+                if (!keysObj) {
                     listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
-                    setStatus('⚠️ Firebase에 세션 데이터 없음');
+                    setStatus('⚠️ 세션 없음');
                     return;
                 }
-                renderSessionButtons(listEl, snap);
+                const sessionKeys = Object.keys(keysObj);
+                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${sessionKeys.length}개 세션 meta 로드 중...</span>`;
+
+                // Step 2: 각 세션의 meta만 병렬 fetch
+                const items = await Promise.all(sessionKeys.map(async (key) => {
+                    try {
+                        const metaRes = await fetch(`${BASE}/sessions/${key}/meta.json`);
+                        const meta = await metaRes.json();
+                        // chunks 존재 여부도 확인 (shallow로 키만)
+                        const structRes = await fetch(`${BASE}/sessions/${key}.json?shallow=true`);
+                        const struct = await structRes.json();
+                        const hasChunks = !!(struct?.chunks || struct?.data);
+                        return {
+                            key,
+                            meta: meta || {},
+                            ts: meta?.timestamp || 0,
+                            samples: meta?.totalSamples ?? 0,
+                            hasChunks
+                        };
+                    } catch (_) {
+                        return { key, meta: {}, ts: 0, samples: 0, hasChunks: false };
+                    }
+                }));
+
+                // Step 3: 렌더링
+                renderSessionButtons(listEl, items);
                 setStatus('✅ Firebase 연결됨');
-            }, err => {
-                listEl.innerHTML = `<p style="color:var(--red)">❌ sessions 읽기 오류: <b>${err.code}</b><br>${err.message}</p>`;
-                setStatus(`<span style="color:var(--red)">❌ ${err.code}: ${err.message}</span>`);
-            });
+            } catch (e) {
+                listEl.innerHTML = `<p style="color:var(--red)">❌ 세션 목록 오류: ${e.message}</p>`;
+                setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
+            }
         }
 
-        function renderSessionButtons(listEl, snap) {
+        function renderSessionButtons(listEl, items) {
             listEl.innerHTML = '';
-            const items = [];
-            snap.forEach(c => {
-                const val = c.val();
-                if (!val || typeof val !== 'object') return;
-                const meta = val.meta || val;
-                const ts = meta?.timestamp || 0;
-                const samples = meta?.totalSamples ?? 0;
-                const hasChunks = !!(val.chunks || val.data);
-                items.push({ key: c.key, meta, ts, samples, hasChunks });
-            });
             // 데이터 있는 세션 우선, 그 다음 최신순
             items.sort((a, b) => {
                 if (a.hasChunks !== b.hasChunks) return a.hasChunks ? -1 : 1;
