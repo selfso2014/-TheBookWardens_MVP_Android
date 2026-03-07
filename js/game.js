@@ -1377,20 +1377,25 @@ Game.typewriter = {
                     // [NEW] Upload gaze data + pangLog BEFORE clearing memory.
                     // Timing: replay just ended = villain is about to appear (소형빌런 진입).
                     // MUST be called before clearGazeData() — after that, this.data is empty.
-                    if (gdm && Game.sessionId) {
+                    // [FIX] Use firebaseSessionId (20-char) — same key visible in session_list
+                    const uploadId = Game.firebaseSessionId || Game.sessionId;
+                    if (gdm && uploadId) {
                         const paraIdx = this.currentParaIndex;
-                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} data...`);
+                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} → session [${uploadId}]`);
                         // ① pangLog upload (small, fast — per paragraph path)
                         if (typeof gdm.uploadPangLog === 'function') {
-                            gdm.uploadPangLog(Game.sessionId, paraIdx).catch(e =>
+                            gdm.uploadPangLog(uploadId, paraIdx).catch(e =>
                                 console.warn('[Upload] pangLog failed:', e)
                             );
                         }
                         // ② gaze chunk + meta upload (incremental, async)
-                        gdm.uploadToCloud(Game.sessionId).catch(e =>
+                        gdm.uploadToCloud(uploadId).catch(e =>
                             console.warn('[Upload] uploadToCloud failed:', e)
                         );
+                    } else {
+                        console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
                     }
+
 
                     // [FIX-iOS] Free gaze data now — replay has already consumed sessionData.
                     // Next paragraph will start with an empty array (fresh t=0 timeline).
