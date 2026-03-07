@@ -397,17 +397,10 @@
                     return;
                 }
                 const allKeys = Object.keys(keysObj);
+                // 최근 10개만 (키 정렬 = 시간순)
+                const targetKeys = allKeys.sort().slice(-10);
 
-                // Step 2: 로드할 키 선별 (최대 ~10개만 fetch)
-                // A) 짧은 키 (< 10자) = 4자리 Game.sessionId 세션 (실제 chunk 데이터 있음)
-                const shortKeys = allKeys.filter(k => k.length < 10);
-                // B) Firebase push ID (20자리, '-'로 시작) → 시간순 정렬 가능. 최근 5개만
-                const pushKeys = allKeys.filter(k => k.length >= 10).sort();
-                const recentKeys = pushKeys.slice(-5);
-                // C) 합치기 (중복 제거)
-                const targetKeys = [...new Set([...shortKeys, ...recentKeys])];
-
-                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${targetKeys.length}개 세션 로드 중... (전체 ${allKeys.length})</span>`;
+                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${targetKeys.length}개 세션 로드 중...</span>`;
 
                 // Step 3: 선별된 키만 meta + 구조 fetch
                 const items = await Promise.all(targetKeys.map(async (key) => {
