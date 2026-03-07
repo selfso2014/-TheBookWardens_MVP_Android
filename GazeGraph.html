@@ -387,7 +387,7 @@
             const BASE = 'https://graphdebug-2c507-default-rtdb.firebaseio.com';
 
             try {
-                // Step 1: shallow read — 키 목록만 가져옴 (데이터 다운로드 없음)
+                // Step 1: shallow read — 키 목록만 (747개라도 ~15KB 수준)
                 const keysRes = await fetch(`${BASE}/sessions.json?shallow=true`);
                 if (!keysRes.ok) throw new Error(`HTTP ${keysRes.status}`);
                 const keysObj = await keysRes.json();
@@ -396,16 +396,27 @@
                     setStatus('⚠️ 세션 없음');
                     return;
                 }
-                const sessionKeys = Object.keys(keysObj);
-                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${sessionKeys.length}개 세션 meta 로드 중...</span>`;
+                const allKeys = Object.keys(keysObj);
 
-                // Step 2: 각 세션의 meta만 병렬 fetch
-                const items = await Promise.all(sessionKeys.map(async (key) => {
+                // Step 2: 로드할 키 선별 (최대 ~10개만 fetch)
+                // A) 짧은 키 (< 10자) = 4자리 Game.sessionId 세션 (실제 chunk 데이터 있음)
+                const shortKeys = allKeys.filter(k => k.length < 10);
+                // B) Firebase push ID (20자리, '-'로 시작) → 시간순 정렬 가능. 최근 5개만
+                const pushKeys = allKeys.filter(k => k.length >= 10).sort();
+                const recentKeys = pushKeys.slice(-5);
+                // C) 합치기 (중복 제거)
+                const targetKeys = [...new Set([...shortKeys, ...recentKeys])];
+
+                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${targetKeys.length}개 세션 로드 중... (전체 ${allKeys.length})</span>`;
+
+                // Step 3: 선별된 키만 meta + 구조 fetch
+                const items = await Promise.all(targetKeys.map(async (key) => {
                     try {
-                        const metaRes = await fetch(`${BASE}/sessions/${key}/meta.json`);
+                        const [metaRes, structRes] = await Promise.all([
+                            fetch(`${BASE}/sessions/${key}/meta.json`),
+                            fetch(`${BASE}/sessions/${key}.json?shallow=true`)
+                        ]);
                         const meta = await metaRes.json();
-                        // chunks 존재 여부도 확인 (shallow로 키만)
-                        const structRes = await fetch(`${BASE}/sessions/${key}.json?shallow=true`);
                         const struct = await structRes.json();
                         const hasChunks = !!(struct?.chunks || struct?.data);
                         return {
@@ -420,9 +431,8 @@
                     }
                 }));
 
-                // Step 3: 렌더링
                 renderSessionButtons(listEl, items);
-                setStatus('✅ Firebase 연결됨');
+                setStatus(`✅ 연결됨 (${targetKeys.length}/${allKeys.length} 세션 로드)`);
             } catch (e) {
                 listEl.innerHTML = `<p style="color:var(--red)">❌ 세션 목록 오류: ${e.message}</p>`;
                 setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
