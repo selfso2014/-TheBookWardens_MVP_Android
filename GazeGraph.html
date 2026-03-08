@@ -1251,241 +1251,251 @@
                 return;
             }
 
-            // ★ 데이터 소스 결정: Firebase replaySegments > 로컬 계산
-            const useFirebase = replaySegments && replaySegments.length > 0;
-            const sourceLabel = useFirebase ? '✅ Firebase (실제 리플레이)' : '⚠️ 로컬 근사치';
+            const getGx = (d) => d.gx !== undefined ? d.gx : d.x;
+            const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
 
-            // 차트 제목 업데이트
+            // ★ 데이터 소스 결정
+            const useFirebase = replaySegments && replaySegments.length > 0;
+            const sourceLabel = useFirebase ? '✅ Firebase (실제 리플레이)' : '🔁 로컬 미러링 (동일 알고리즘)';
             const titleEl = document.getElementById('chartReplay').parentElement.querySelector('h2');
-            if (titleEl) {
-                titleEl.textContent = `🔄 Replay Segment Map — ${sourceLabel}`;
-            }
+            if (titleEl) titleEl.textContent = `🔄 Replay Segment Map — ${sourceLabel}`;
 
             const labels = data.map(d => d.t);
-
-            // ── Dataset 1: gx 곡선 (노란색) ──────────────────────
-            const ds_gx = {
-                label: 'gx (스무딩)',
-                data: data.map(d => d.gx !== undefined ? d.gx : d.x),
-                borderColor: 'rgba(255,200,50,0.8)',
-                borderWidth: 1.5,
-                pointRadius: 0,
-                yAxisID: 'yPos',
-                order: 5
-            };
-
-            // ── Dataset 2: lineIndex 계단식 ──────────────────────
-            const ds_lineIdx = {
-                label: 'lineIndex',
-                data: data.map(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0 ? d.lineIndex : null),
-                borderColor: 'rgba(100,200,255,0.7)',
-                borderWidth: 2,
-                stepped: 'before',
-                pointRadius: 0,
-                yAxisID: 'yLine',
-                order: 6
-            };
-
-            // ── 세그먼트 어노테이션 구성 ──────────────────────────
-            const annotations = {};
-            const SEG_COLORS = [
-                'rgba(100,150,255,0.12)',
-                'rgba(255,150,100,0.12)',
-                'rgba(100,255,150,0.12)',
-                'rgba(255,255,100,0.12)',
-                'rgba(200,100,255,0.12)',
-            ];
-
-            let segments;
-            // 실제 데이터 범위 (X축 제한용)
             const dataMinT = data.length > 0 ? data[0].t : 0;
             const dataMaxT = data.length > 0 ? data[data.length - 1].t : 0;
 
+            // ── Dataset 1: gx 곡선 ──
+            const ds_gx = {
+                label: 'gx (스무딩)', data: data.map(d => getGx(d)),
+                borderColor: 'rgba(255,200,50,0.8)', borderWidth: 1.5,
+                pointRadius: 0, yAxisID: 'yPos', order: 5
+            };
+
+            // ── Dataset 2: lineIndex 계단식 ──
+            const ds_lineIdx = {
+                label: 'lineIndex',
+                data: data.map(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0 ? d.lineIndex : null),
+                borderColor: 'rgba(100,200,255,0.7)', borderWidth: 2,
+                stepped: 'before', pointRadius: 0, yAxisID: 'yLine', order: 6
+            };
+
+            // ── 세그먼트 계산 (TextRendererV2 동일 알고리즘) ──
+            const annotations = {};
+            const valleyPoints = [];
+            const peakPoints = [];
+            const SEG_COLORS = [
+                'rgba(100,150,255,0.15)', 'rgba(255,150,100,0.15)',
+                'rgba(100,255,150,0.15)', 'rgba(255,255,100,0.15)',
+                'rgba(200,100,255,0.15)',
+            ];
+
+            let segments = [];
+
             if (useFirebase) {
-                // ★ Firebase 세그먼트: 실제 리플레이에서 계산된 값
-                // segStart/segEnd는 원본 Date.now() 기준 → contentStart 오프셋 적용
-                segments = replaySegments.map(seg => ({
-                    idx: seg.idx,
-                    targetLine: seg.targetLine,
+                segments = replaySegments.map((seg, i) => ({
+                    idx: seg.idx, targetLine: seg.targetLine,
                     segStart: Math.max(seg.segStart - contentStart, dataMinT),
                     segEnd: seg.segEnd - contentStart,
-                    srcMin: seg.sourceMinX,
-                    srcMax: seg.sourceMaxX,
-                    targetLeft: seg.targetLeft,
-                    targetWidth: seg.targetWidth,
-                    samples: seg.samples
+                    srcMin: seg.sourceMinX, srcMax: seg.sourceMaxX,
+                    targetLeft: seg.targetLeft, targetWidth: seg.targetWidth,
+                    samples: seg.samples,
+                    pangTime: i < sortedPangs.length ? sortedPangs[i].t_pang : null
                 }));
             } else {
-                // 로컬 계산 fallback
-                const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
-                segments = [];
-                let lastEnd = 0;
-                sortedPangs.forEach((pe, idx) => {
-                    let srcMin = Infinity, srcMax = -Infinity;
-                    data.forEach(d => {
-                        if (d.t < lastEnd || d.t > pe.t_pang) return;
-                        if (d.lineIndex !== pe.targetLine) return;
-                        const gx = d.gx !== undefined ? d.gx : d.x;
-                        if (gx < srcMin) srcMin = gx;
-                        if (gx > srcMax) srcMax = gx;
-                    });
-                    if (srcMin !== Infinity) {
-                        segments.push({
-                            idx, targetLine: pe.targetLine,
-                            segStart: lastEnd, segEnd: pe.t_pang,
-                            srcMin, srcMax,
-                            targetLeft: null, targetWidth: null, samples: null
-                        });
+                // ★ 로컬 미러링: TextRendererV2와 동일한 극소~극대 알고리즘
+                let avgReadTime = 3000;
+                if (sortedPangs.length >= 2) {
+                    let totalGap = 0, gapCount = 0;
+                    for (let i = 1; i < sortedPangs.length; i++) {
+                        const gap = sortedPangs[i].t_pang - sortedPangs[i - 1].t_pang;
+                        if (gap > 0 && gap < 10000) { totalGap += gap; gapCount++; }
                     }
-                    lastEnd = pe.t_pang;
+                    if (gapCount > 0) avgReadTime = totalGap / gapCount;
+                }
+
+                let lastPangT = 0;
+                sortedPangs.forEach((pe, idx) => {
+                    const pangTime = pe.t_pang;
+                    const targetLine = pe.targetLine;
+
+                    // 후보 수집: lastPangT ~ pangTime, lineIndex === targetLine
+                    const candidates = [];
+                    for (let i = 0; i < data.length; i++) {
+                        if (data[i].t <= lastPangT) continue;
+                        if (data[i].t > pangTime) break;
+                        if (data[i].lineIndex === targetLine) candidates.push(data[i]);
+                    }
+                    if (candidates.length < 5) { lastPangT = pangTime; return; }
+
+                    // segEnd: 뒤쪽 50%에서 gx 최대값 (극대값)
+                    let peakIdx = candidates.length - 1;
+                    let peakGx = getGx(candidates[peakIdx]);
+                    const searchStart = Math.max(0, Math.floor(candidates.length * 0.5));
+                    for (let i = candidates.length - 1; i >= searchStart; i--) {
+                        const gx = getGx(candidates[i]);
+                        if (gx > peakGx) { peakGx = gx; peakIdx = i; }
+                    }
+                    const segEndTime = candidates[peakIdx].t;
+
+                    // segStart: gx 최소값 (극소값)
+                    const prevLineHadPang = idx > 0;
+                    const searchFromTime = prevLineHadPang
+                        ? lastPangT : Math.max(0, segEndTime - avgReadTime);
+
+                    let valleyIdx = 0, valleyGx = Infinity;
+                    for (let i = 0; i < candidates.length; i++) {
+                        if (candidates[i].t < searchFromTime) continue;
+                        if (candidates[i].t > segEndTime) break;
+                        const gx = getGx(candidates[i]);
+                        if (gx < valleyGx) { valleyGx = gx; valleyIdx = i; }
+                    }
+                    const segStartTime = candidates[valleyIdx].t;
+
+                    const segCount = peakIdx - valleyIdx + 1;
+                    if (segCount < 3) { lastPangT = pangTime; return; }
+
+                    segments.push({
+                        idx, targetLine,
+                        segStart: segStartTime, segEnd: segEndTime,
+                        srcMin: valleyGx, srcMax: peakGx,
+                        targetLeft: null, targetWidth: null,
+                        samples: segCount, pangTime: pangTime
+                    });
+                    lastPangT = pangTime;
                 });
             }
 
-            // ── 어노테이션 생성 ──────────────────────────────────
+            // ── 어노테이션 + 마커 생성 ──
             segments.forEach((seg, i) => {
-                const { idx, targetLine, segStart, segEnd, srcMin, srcMax, targetLeft, targetWidth, samples } = seg;
+                const { idx, targetLine, segStart, segEnd, srcMin, srcMax,
+                    targetLeft, targetWidth, samples, pangTime } = seg;
 
-                // 세그먼트 배경 박스
-                let boxLabel = `Seg${idx} → L${targetLine}`;
+                // 극소/극대 마커 데이터
+                valleyPoints.push({ x: segStart, y: srcMin });
+                peakPoints.push({ x: segEnd, y: srcMax });
+
+                // ① 유효 구간 박스 (segStart ~ segEnd)
+                let boxLabel = `Seg${idx}→L${targetLine}`;
                 if (samples != null) boxLabel += ` (${samples}pts)`;
                 annotations[`segBox_${i}`] = {
-                    type: 'box',
-                    xMin: segStart, xMax: segEnd,
+                    type: 'box', xMin: segStart, xMax: segEnd,
                     backgroundColor: SEG_COLORS[i % SEG_COLORS.length],
-                    borderColor: 'rgba(255,255,255,0.15)',
-                    borderWidth: 1,
-                    z: -1,
+                    borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, z: -1,
                     label: {
-                        content: boxLabel,
-                        display: true,
+                        content: boxLabel, display: true,
                         position: { x: 'center', y: 'start' },
-                        color: '#e6edf3',
-                        backgroundColor: 'rgba(0,0,0,0.6)',
-                        font: { size: 9, weight: 'bold' },
-                        padding: { x: 3, y: 1 }
+                        color: '#e6edf3', backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 9, weight: 'bold' }, padding: { x: 3, y: 1 }
                     }
                 };
 
-                // sourceMinX 수평선 (초록 실선)
-                const minLabel = targetLeft != null
-                    ? `srcMin=${srcMin} → tgtLeft=${targetLeft}`
-                    : `min=${Math.round(srcMin)}`;
+                // ② Return Sweep 제외 구간 (segEnd ~ pangTime)
+                if (pangTime && pangTime > segEnd + 50) {
+                    annotations[`sweep_${i}`] = {
+                        type: 'box', xMin: segEnd, xMax: pangTime,
+                        backgroundColor: 'rgba(128,128,128,0.08)',
+                        borderColor: 'rgba(128,128,128,0.3)',
+                        borderWidth: 1, z: -2,
+                        label: {
+                            content: 'Sweep', display: true,
+                            position: { x: 'center', y: 'end' },
+                            color: 'rgba(128,128,128,0.6)',
+                            font: { size: 7, style: 'italic' }, padding: { x: 2, y: 1 }
+                        }
+                    };
+                }
+
+                // ③ sourceMinX 수평선 (초록)
+                const minLbl = targetLeft != null
+                    ? `srcMin=${srcMin}→tgtL=${targetLeft}` : `srcMin=${Math.round(srcMin)}`;
                 annotations[`srcMin_${i}`] = {
-                    type: 'line',
-                    yMin: srcMin, yMax: srcMin,
-                    xMin: segStart, xMax: segEnd,
-                    yScaleID: 'yPos',
-                    borderColor: '#3fb950',
-                    borderWidth: 2,
-                    borderDash: [],
+                    type: 'line', yMin: srcMin, yMax: srcMin,
+                    xMin: segStart, xMax: segEnd, yScaleID: 'yPos',
+                    borderColor: '#3fb950', borderWidth: 2, borderDash: [],
                     label: {
-                        content: minLabel,
-                        display: true,
-                        position: 'start',
-                        color: '#3fb950',
-                        backgroundColor: 'rgba(0,0,0,0.6)',
-                        font: { size: 8 },
-                        padding: { x: 2, y: 1 }
+                        content: minLbl, display: true, position: 'start',
+                        color: '#3fb950', backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 8 }, padding: { x: 2, y: 1 }
                     }
                 };
 
-                // sourceMaxX 수평선 (빨강 점선)
-                const maxLabel = targetWidth != null
-                    ? `srcMax=${srcMax} → tgtRight=${targetLeft + targetWidth}`
-                    : `max=${Math.round(srcMax)}`;
+                // ④ sourceMaxX 수평선 (빨강)
+                const maxLbl = targetWidth != null
+                    ? `srcMax=${srcMax}→tgtR=${targetLeft + targetWidth}` : `srcMax=${Math.round(srcMax)}`;
                 annotations[`srcMax_${i}`] = {
-                    type: 'line',
-                    yMin: srcMax, yMax: srcMax,
-                    xMin: segStart, xMax: segEnd,
-                    yScaleID: 'yPos',
-                    borderColor: '#f85149',
-                    borderWidth: 2,
-                    borderDash: [8, 4],
+                    type: 'line', yMin: srcMax, yMax: srcMax,
+                    xMin: segStart, xMax: segEnd, yScaleID: 'yPos',
+                    borderColor: '#f85149', borderWidth: 2, borderDash: [8, 4],
                     label: {
-                        content: maxLabel,
-                        display: true,
-                        position: 'end',
-                        color: '#f85149',
-                        backgroundColor: 'rgba(0,0,0,0.6)',
-                        font: { size: 8 },
-                        padding: { x: 2, y: 1 }
+                        content: maxLbl, display: true, position: 'end',
+                        color: '#f85149', backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 8 }, padding: { x: 2, y: 1 }
                     }
                 };
 
-                // 팡 수직선
+                // ⑤ PANG 수직선
+                const pangX = pangTime || segEnd;
                 annotations[`pangLine_${i}`] = {
-                    type: 'line',
-                    xMin: segEnd, xMax: segEnd,
-                    borderColor: 'rgba(248,81,73,0.8)',
-                    borderWidth: 2,
+                    type: 'line', xMin: pangX, xMax: pangX,
+                    borderColor: 'rgba(248,81,73,0.8)', borderWidth: 2,
                     label: {
-                        content: `PANG L${targetLine}`,
-                        display: true,
-                        position: 'end',
-                        color: '#f85149',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        font: { size: 9, weight: 'bold' },
-                        padding: { x: 3, y: 1 }
+                        content: `PANG L${targetLine}`, display: true, position: 'end',
+                        color: '#f85149', backgroundColor: 'rgba(0,0,0,0.7)',
+                        font: { size: 9, weight: 'bold' }, padding: { x: 3, y: 1 }
                     }
                 };
             });
 
-            // ── 차트 생성 ──────────────────────────────────────────
+            // ── Dataset 3: 극소값 마커 (녹색 ◆) ──
+            const ds_valley = {
+                label: '극소값 (읽기시작)', data: valleyPoints, type: 'scatter',
+                pointStyle: 'rectRot', pointRadius: 7,
+                backgroundColor: '#3fb950', borderColor: '#fff', borderWidth: 1,
+                yAxisID: 'yPos', order: 1
+            };
+
+            // ── Dataset 4: 극대값 마커 (빨강 ◆) ──
+            const ds_peak = {
+                label: '극대값 (읽기끝)', data: peakPoints, type: 'scatter',
+                pointStyle: 'rectRot', pointRadius: 7,
+                backgroundColor: '#f85149', borderColor: '#fff', borderWidth: 1,
+                yAxisID: 'yPos', order: 1
+            };
+
+            // ── 차트 생성 ──
             chartReplay = new Chart(document.getElementById('chartReplay'), {
                 type: 'line',
-                data: {
-                    labels,
-                    datasets: [ds_gx, ds_lineIdx]
-                },
+                data: { labels, datasets: [ds_gx, ds_lineIdx, ds_valley, ds_peak] },
                 options: {
-                    animation: false,
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    animation: false, responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'nearest', axis: 'x', intersect: false },
                     scales: {
                         x: {
-                            type: 'linear',
-                            min: dataMinT - 200,
-                            max: dataMaxT + 200,
+                            type: 'linear', min: dataMinT - 200, max: dataMaxT + 200,
                             ticks: { maxTicksLimit: 20, color: '#8b949e', font: { size: 10 } },
                             grid: { color: 'rgba(48,54,61,0.8)' },
                             title: { display: true, text: 'Time (ms)', color: '#8b949e' }
                         },
                         yPos: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
+                            type: 'linear', display: true, position: 'left',
                             title: { display: true, text: 'gx Position (px)', color: '#ffc832' },
-                            ticks: { color: '#ffc832' },
-                            grid: { color: 'rgba(48,54,61,0.5)' }
+                            ticks: { color: '#ffc832' }, grid: { color: 'rgba(48,54,61,0.5)' }
                         },
                         yLine: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
+                            type: 'linear', display: true, position: 'right',
                             title: { display: true, text: 'Line Index', color: '#64c8ff' },
                             ticks: { color: '#64c8ff', stepSize: 1 },
-                            grid: { drawOnChartArea: false },
-                            reverse: true,
-                            min: -0.5
+                            grid: { drawOnChartArea: false }, reverse: true, min: -0.5
                         }
                     },
                     plugins: {
-                        legend: {
-                            labels: { color: '#8b949e', boxWidth: 20, font: { size: 11 } }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(22,27,34,0.95)',
-                            titleColor: '#e6edf3',
-                            bodyColor: '#8b949e'
-                        },
+                        legend: { labels: { color: '#8b949e', boxWidth: 20, font: { size: 11 } } },
+                        tooltip: { backgroundColor: 'rgba(22,27,34,0.95)', titleColor: '#e6edf3', bodyColor: '#8b949e' },
                         annotation: { annotations }
                     }
                 }
             });
-
-            // canvas 높이 조정
-            document.getElementById('chartReplay').parentElement.style.height = '400px';
+            document.getElementById('chartReplay').parentElement.style.height = '450px';
         }
 
 
