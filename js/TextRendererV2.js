@@ -1316,76 +1316,181 @@ export class TextRenderer {
         return container;
     }
 
-// ─── Phase 4: body 레벨 결과 메시지 (fixed, 선명하게 표시) ─────────────────
-_showInlineResult(isSealed, onDone) {
-    // title 라벨 숨기기
-    const titleEl = document.getElementById('replay-rift-title');
-    if (titleEl) titleEl.style.opacity = '0';
+    // === Phase 3: Multi-strand Zigzag Lightning =================================
+    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
+        const totalLines = visualLines.length;
+        const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
+        const isSealed = finalPct >= 60;
+        let completed = false;
+        const hardTimeout = setTimeout(() => {
+            if (!completed) { completed = true;
+                try { if (isSealed) this._waveTextWhite(visualLines); } catch(e){}
+                this._showInlineResult(isSealed, onDone);
+            }
+        }, 8000);
 
-    // body 직접 append → overflow 제한 없음
-    const msgEl = document.createElement('div');
-    msgEl.id = 'replay-rift-result';
-    msgEl.style.cssText = [
-        'position:fixed',
-        'bottom:68px',          // 프로그레스바(bottom:28px + bar 14px + 여백 26px)
-        'left:50%',
-        'transform:translateX(-50%)',
-        'font-size:17px',
-        'font-weight:700',
-        'font-family:monospace',
-        'letter-spacing:4px',
-        'text-transform:uppercase',
-        'white-space:nowrap',
-        'pointer-events:none',
-        'z-index:9999990',
-        'opacity:0',
-        'transition:opacity 0.4s ease',
-        isSealed
-            ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff,0 0 40px rgba(155,89,182,0.6)'
-            : 'color:rgba(180,180,210,0.85);text-shadow:none',
-    ].join(';');
-    msgEl.textContent = isSealed ? '✦ RIFT SEALED ✦' : '⋆ RIFT NOT YET SEALED';
-    document.body.appendChild(msgEl);
+        if (litLines.size === 0) {
+            clearTimeout(hardTimeout); completed = true;
+            this._showInlineResult(isSealed, onDone); return;
+        }
 
-    // fade-in
-    requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
+        const fill  = document.getElementById('replay-progress-fill');
+        const label = document.getElementById('replay-progress-label');
+        const barRect = progressContainer.getBoundingClientRect();
+        const barLeft  = barRect.width  ? barRect.left  : window.innerWidth  * 0.11;
+        const barRight = barRect.width  ? barRect.right : window.innerWidth  * 0.89;
+        const barCY    = barRect.height ? barRect.top + barRect.height / 2 : window.innerHeight * 0.95;
 
-    // 2.5초 표시 후 fade-out → 자체 remove → onDone
-    setTimeout(() => {
-        msgEl.style.opacity = '0';
-        setTimeout(() => {
-            if (msgEl.parentNode) msgEl.remove();
-            onDone();
-        }, 500);
-    }, 2500);
-}
+        const lineArray = Array.from(litLines).sort((a, b) => a - b);
+        const BEAM_DUR = 520, STAGGER = 150, N_EMIT = 4;
 
-// ─── Phase 4-A: Wave text white top→bottom ────────────────────────────────
-_waveTextWhite(visualLines) {
-    if (!visualLines || !this.words) return;
-    visualLines.forEach((line, i) => {
-        setTimeout(() => {
-            if (!line.wordIndices) return;
-            line.wordIndices.forEach(wIdx => {
-                const word = this.words[wIdx];
-                if (word && word.element) {
-                    word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
-                    word.element.style.color = '#ffffff';
-                    word.element.style.textShadow =
-                        '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
+        const beams = lineArray.map((lineIdx, i) => {
+            const line = visualLines[lineIdx];
+            const lx = (line.rect && line.rect.left  != null) ? line.rect.left  : 0;
+            const rw = (line.rect && line.rect.width != null) ? line.rect.width : window.innerWidth;
+            const by = line.visualY || 0;
+            const n  = N_EMIT + (Math.random() > 0.5 ? 1 : 0);
+            const emitPoints = [];
+            for (let e = 0; e < n; e++) {
+                const frac   = n === 1 ? 0.5 : e / (n - 1);
+                const jitter = (Math.random() - 0.5) * Math.max(rw * 0.06, 10);
+                emitPoints.push({
+                    sx: lx + rw * frac + jitter, sy: by + (Math.random()-0.5)*8,
+                    tx: barLeft + (barRight-barLeft)*frac + jitter*0.4, ty: barCY,
+                    alpha: 0.6 + Math.random()*0.4
+                });
+            }
+            return { lineIdx, progress:0, delay:i*STAGGER, arrived:false, emitPoints };
+        });
+
+        const makeZigzag = (x0,y0,x1,y1,t,nK) => {
+            const pts=[{x:x0,y:y0}];
+            for(let k=1;k<=nK;k++){
+                const f=(k/(nK+1))*t;
+                pts.push({x:x0+(x1-x0)*f+(Math.random()-0.5)*30, y:y0+(y1-y0)*f+(Math.random()-0.5)*24});
+            }
+            pts.push({x:x0+(x1-x0)*t, y:y0+(y1-y0)*t});
+            return pts;
+        };
+
+        const bc = document.createElement('canvas');
+        bc.width=window.innerWidth; bc.height=window.innerHeight;
+        bc.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:999997;';
+        document.body.appendChild(bc);
+        const bCtx=bc.getContext('2d');
+        let arrivedCount=0, beamTs=null;
+
+        const animateBeams=(ts)=>{
+            if(completed) return;
+            try{
+                if(!beamTs) beamTs=ts;
+                const elapsed=ts-beamTs;
+                bCtx.clearRect(0,0,bc.width,bc.height);
+                let allArrived=true;
+                beams.forEach(beam=>{
+                    const be=elapsed-beam.delay;
+                    if(be<0){allArrived=false;return;}
+                    beam.progress=Math.min(1,be/BEAM_DUR);
+                    if(beam.progress<1) allArrived=false;
+                    const ga=beam.progress>0.88? 1-(beam.progress-0.88)/0.12 :1;
+                    beam.emitPoints.forEach(ep=>{
+                        const pts=makeZigzag(ep.sx,ep.sy,ep.tx,ep.ty,beam.progress,3);
+                        bCtx.save(); bCtx.globalAlpha=ep.alpha*ga;
+                        bCtx.beginPath();
+                        pts.forEach((p,pi)=>pi===0?bCtx.moveTo(p.x,p.y):bCtx.lineTo(p.x,p.y));
+                        bCtx.strokeStyle='rgba(155,89,182,0.65)';bCtx.lineWidth=5;
+                        bCtx.shadowColor='#9b59b6';bCtx.shadowBlur=20;bCtx.stroke();
+                        bCtx.beginPath();
+                        pts.forEach((p,pi)=>pi===0?bCtx.moveTo(p.x,p.y):bCtx.lineTo(p.x,p.y));
+                        bCtx.strokeStyle='#ffffff';bCtx.lineWidth=1.5;
+                        bCtx.shadowColor='#ffffff';bCtx.shadowBlur=8;bCtx.stroke();
+                        bCtx.restore();
+                    });
+                    if(beam.progress>=1&&!beam.arrived){
+                        beam.arrived=true; arrivedCount++;
+                        const pct=Math.min(100,Math.round((arrivedCount/totalLines)*100));
+                        if(fill) fill.style.width=pct+'%';
+                        if(label) label.textContent=pct+'%';
+                    }
+                });
+                if(!allArrived){ requestAnimationFrame(animateBeams); }
+                else{
+                    bCtx.clearRect(0,0,bc.width,bc.height); bc.remove();
+                    clearTimeout(hardTimeout);
+                    if(!completed){ completed=true;
+                        if(isSealed) this._waveTextWhite(visualLines);
+                        this._showInlineResult(isSealed,onDone);
+                    }
                 }
-            });
-        }, i * 70);
-    });
-}
+            }catch(err){
+                console.error('[EnergyTransfer] error:',err);
+                try{bc.remove();}catch(e){}
+                clearTimeout(hardTimeout);
+                if(!completed){completed=true;
+                    if(isSealed) this._waveTextWhite(visualLines);
+                    this._showInlineResult(isSealed,onDone);
+                }
+            }
+        };
+        requestAnimationFrame(animateBeams);
+    }
 
-// ─── Phase 4: Rift popup (폐기 — _showInlineResult로 대체) ───────────────
-_showRiftPopup() { }
+    // === Phase 4: inline result message =======================================
+    _showInlineResult(isSealed, onDone) {
+        try{
+            const titleEl=document.getElementById('replay-rift-title');
+            if(titleEl) titleEl.style.opacity='0';
+            const msgEl=document.createElement('div');
+            msgEl.id='replay-rift-result';
+            const sealed=isSealed;
+            msgEl.style.cssText=[
+                'position:fixed','bottom:68px','left:50%',
+                'transform:translateX(-50%)',
+                'font-size:17px','font-weight:700','font-family:monospace',
+                'letter-spacing:4px','text-transform:uppercase',
+                'white-space:nowrap','pointer-events:none','z-index:9999990',
+                'opacity:0','transition:opacity 0.4s ease',
+                sealed
+                    ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff'
+                    : 'color:rgba(180,180,210,0.85)'
+            ].join(';');
+            msgEl.textContent=sealed?'\u2726 RIFT SEALED \u2726':'\u22c6 RIFT NOT YET SEALED';
+            document.body.appendChild(msgEl);
+            requestAnimationFrame(()=>{ msgEl.style.opacity='1'; });
+            setTimeout(()=>{
+                msgEl.style.opacity='0';
+                setTimeout(()=>{ try{if(msgEl.parentNode)msgEl.remove();}catch(e){} if(typeof onDone==='function') onDone(); },500);
+            },2500);
+        }catch(err){
+            console.error('[showInlineResult]',err);
+            if(typeof onDone==='function') onDone();
+        }
+    }
 
-// ─── Legacy stubs (kept for external compatibility, no longer called) ─────
-_checkReplayCombo() { }
-_showMiniScore() { }
-_animateScoreToHud() { }
-_spawnReplayPulse() { }
+    // === Phase 4-A: Wave text ================================================
+    _waveTextWhite(visualLines) {
+        if(!visualLines||!this.words) return;
+        visualLines.forEach((line,i)=>{
+            setTimeout(()=>{
+                if(!line.wordIndices) return;
+                line.wordIndices.forEach(wIdx=>{
+                    const word=this.words[wIdx];
+                    if(word&&word.element){
+                        word.element.style.transition='color 0.45s ease, text-shadow 0.45s ease';
+                        word.element.style.color='#ffffff';
+                        word.element.style.textShadow='0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
+                    }
+                });
+            },i*70);
+        });
+    }
+
+    // === Legacy stubs =========================================================
+    _showRiftPopup(){}
+    _checkReplayCombo(){}
+    _showMiniScore(){}
+    _animateScoreToHud(){}
+    _spawnReplayPulse(){}
 }
 window.TextRenderer = TextRenderer;
+
