@@ -680,33 +680,43 @@ export class GazeDataManager {
                 await db.ref('sessions/' + sessionId + '/replayData').set(this.replayData);
             }
 
-            // 5. Upload Replay Segments
+            // 5. Upload Replay Segments (try-catch 내부 버전 — 여기서도 시도하되 외부에서 재시도)
             if (this.replaySegments && this.replaySegments.length > 0) {
                 try {
-                    // NaN/Infinity/undefined → null 치환 (Firebase 거부 방지)
                     const sanitizedSegs = JSON.parse(JSON.stringify(
                         this.replaySegments,
                         (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
                     ));
                     await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitizedSegs);
-                    console.log(`[Firebase] ✅ replaySegments: ${sanitizedSegs.length} segments uploaded`);
+                    console.log(`[Firebase] ✅ replaySegments (inner): ${sanitizedSegs.length} segments`);
                 } catch (segErr) {
-                    console.error(`[Firebase] ❌ replaySegments FAILED: ${segErr.message || segErr}`);
+                    console.warn(`[Firebase] replaySegments inner failed (will retry outside): ${segErr.message}`);
                 }
             }
 
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
-            // [FIX-v32] goOffline()은 실패 시에만 호출.
-            // LSN 폭발 원인은 "실패한 재연결 루프"이지 "성공한 연결"이 아님.
-            // 성공 시 연결을 끊으면 다음 uploadToCloud() 호출 시 매번 재연결 필요.
-            // 실패 시에만 goOffline()으로 재연결 루프를 차단한다.
             if (db) {
                 try { db.goOffline(); } catch (_) { }
             }
         }
-        // [FIX-v32] finally 블록에서 goOffline() 제거:
-        //   성공한 연결은 계속 유지 → 디버그 버튼이 어느 화면에서든 즉시 동작
+
+        // ★ replaySegments 업로드: meta/chunks 실패와 무관하게 항상 시도
+        // (외부 try-catch에서 제외하여 독립 실행 보장)
+        if (db && this.replaySegments && this.replaySegments.length > 0) {
+            try {
+                const sanitizedSegs = JSON.parse(JSON.stringify(
+                    this.replaySegments,
+                    (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
+                ));
+                await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitizedSegs);
+                console.log(`[Firebase] ✅ replaySegments: ${sanitizedSegs.length} segments uploaded`);
+            } catch (segErr) {
+                console.error(`[Firebase] ❌ replaySegments FAILED: ${segErr.message || segErr}`);
+            }
+        } else {
+            console.warn(`[Firebase] replaySegments skip: db=${!!db}, segs=${this.replaySegments ? this.replaySegments.length : 'null'}`);
+        }
     }
 
     async exportChartImage(deviceType, startTime = 0, endTime = Infinity) {
