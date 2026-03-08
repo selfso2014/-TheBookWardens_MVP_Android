@@ -589,16 +589,26 @@
                 simGLI: 0
             }));
 
+            // ── Filter: 지문 시작 시점 이후만 표시 ────────────────────────────────
+            // firstContentTime이 있으면 그 시점, 없으면 lineIndex >= 0인 최초 시점
+            let contentStart = currentMeta?.firstContentTime || 0;
+            if (!contentStart) {
+                const firstLinePoint = raw.find(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0);
+                contentStart = firstLinePoint ? firstLinePoint.t : 0;
+            }
+            const filtered = contentStart > 0 ? raw.filter(d => d.t >= contentStart) : raw;
+            if (filtered.length < 2) { console.warn('[GazeGraph] No data after contentStart'); return; }
+
             // ── Health Check ────────────────────────────────────────────────────────
-            doHealthCheck(raw);
+            doHealthCheck(filtered);
 
             // ── Step 0: Simulation (Peak / Valley / Trigger / GLI) ─────────────────
-            runSimulation(raw);
+            runSimulation(filtered);
 
             // ── Step A: Line time ranges ────────────────────────────────────────────
             // lineRanges[N] = { start: t, end: t }
             const lineRanges = {};
-            raw.forEach(d => {
+            filtered.forEach(d => {
                 const N = d.lineIndex;
                 if (typeof N !== 'number' || N < 0) return;
                 if (!lineRanges[N]) lineRanges[N] = { start: d.t, end: d.t };
@@ -624,7 +634,7 @@
                 }));
             } else {
                 // Fallback: derive from didFire flag on gaze data
-                raw.forEach(d => {
+                filtered.forEach(d => {
                     if (!d.didFire && !d.rsType) return;
                     const N = typeof d.lineIndex === 'number' && d.lineIndex > 0
                         ? d.lineIndex - 1
@@ -644,7 +654,7 @@
             // ── Step C: xMin / xMax per line ───────────────────────────────────────
             // For line N: min and max rawX among all points where d.lineIndex === N
             const xMin = {}, xMax = {};
-            raw.forEach(d => {
+            filtered.forEach(d => {
                 const N = d.lineIndex;
                 if (typeof N !== 'number' || N < 0) return;
                 const gx = d.gx;
@@ -653,27 +663,27 @@
             });
 
             // ── Step D: Per-data-point band series ────────────────────────────────
-            const xMinSeries = raw.map(d => {
+            const xMinSeries = filtered.map(d => {
                 const N = d.lineIndex;
                 return (typeof N === 'number' && N >= 0 && xMin[N] !== undefined) ? xMin[N] : null;
             });
-            const xMaxSeries = raw.map(d => {
+            const xMaxSeries = filtered.map(d => {
                 const N = d.lineIndex;
                 return (typeof N === 'number' && N >= 0 && xMax[N] !== undefined) ? xMax[N] : null;
             });
 
             // ── Step E: Line transition timestamps ────────────────────────────────
             const lineTransitions = [];
-            for (let i = 1; i < raw.length; i++) {
-                const prev = raw[i - 1].lineIndex;
-                const curr = raw[i].lineIndex;
+            for (let i = 1; i < filtered.length; i++) {
+                const prev = filtered[i - 1].lineIndex;
+                const curr = filtered[i].lineIndex;
                 if (typeof prev === 'number' && typeof curr === 'number' && curr !== prev) {
-                    lineTransitions.push({ t: raw[i].t, fromLine: prev, toLine: curr });
+                    lineTransitions.push({ t: filtered[i].t, fromLine: prev, toLine: curr });
                 }
             }
 
             // ── Render ─────────────────────────────────────────────────────────────
-            renderChart7(raw, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions);
+            renderChart7(filtered, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax);
             renderPangTable(pangEvents, xMin, xMax, lineRanges);
             renderLineTable(lineRanges, xMin, xMax, pangEvents);
 
@@ -778,7 +788,7 @@
         // ─────────────────────────────────────────────
         //  CHART 7 — PANG DETAIL
         // ─────────────────────────────────────────────
-        function renderChart7(data, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions) {
+        function renderChart7(data, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax) {
             if (chart7) chart7.destroy();
 
             const labels = data.map(d => d.t);
@@ -948,6 +958,35 @@
                     }
                 };
             });
+
+            // ── Horizontal bands: rawX Min / Max per line ──────────────────────
+            if (xMin && xMax) {
+                Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b)).forEach(N => {
+                    const rng = lineRanges[N];
+                    if (xMin[N] !== undefined) {
+                        annotations[`hMin_L${N}`] = {
+                            type: 'line',
+                            yMin: xMin[N], yMax: xMin[N],
+                            xMin: rng.start, xMax: rng.end,
+                            yScaleID: 'yPos',
+                            borderColor: 'rgba(0,170,68,0.5)',
+                            borderDash: [4, 3],
+                            borderWidth: 1
+                        };
+                    }
+                    if (xMax[N] !== undefined) {
+                        annotations[`hMax_L${N}`] = {
+                            type: 'line',
+                            yMin: xMax[N], yMax: xMax[N],
+                            xMin: rng.start, xMax: rng.end,
+                            yScaleID: 'yPos',
+                            borderColor: 'rgba(204,34,34,0.5)',
+                            borderDash: [4, 3],
+                            borderWidth: 1
+                        };
+                    }
+                });
+            }
 
             // ── Create chart ──────────────────────────────────────────────────────
             chart7 = new Chart(document.getElementById('chart7'), {
