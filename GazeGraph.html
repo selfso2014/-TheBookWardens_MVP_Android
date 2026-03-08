@@ -598,6 +598,10 @@
             }
             const filtered = contentStart > 0 ? raw.filter(d => d.t >= contentStart) : raw;
             if (filtered.length < 2) { console.warn('[GazeGraph] No data after contentStart'); return; }
+            // t를 상대 시간으로 변환 (0ms부터 시작)
+            if (contentStart > 0) {
+                filtered.forEach(d => { d.t -= contentStart; });
+            }
 
             // ── Health Check ────────────────────────────────────────────────────────
             doHealthCheck(filtered);
@@ -625,7 +629,7 @@
 
             if (currentPangLog.length > 0) {
                 pangEvents = currentPangLog.map(p => ({
-                    t_pang: Number(p.t),
+                    t_pang: Number(p.t) - contentStart,
                     targetLine: Number(p.line),
                     type: p.type || 'Immediate',
                     vx: Number(p.vx ?? 0),
