@@ -382,45 +382,39 @@
         // ─────────────────────────────────────────────
         async function loadRecentSessions() {
             const listEl = document.getElementById('sessionList');
-            listEl.innerHTML = '<span style="color:var(--muted)">🔄 세션 목록 조회 중...</span>';
+            listEl.innerHTML = '<span style="color:var(--muted)">🔄 최근 세션 조회 중...</span>';
 
             const BASE = 'https://graphdebug-2c507-default-rtdb.firebaseio.com';
 
             try {
-                // Step 1: shallow read — 키 목록만 (747개라도 ~15KB 수준)
-                const keysRes = await fetch(`${BASE}/sessions.json?shallow=true`);
-                if (!keysRes.ok) throw new Error(`HTTP ${keysRes.status}`);
-                const keysObj = await keysRes.json();
-                if (!keysObj) {
+                // session_list에서 timestamp 기준 최근 10개 (REST query)
+                const url = `${BASE}/session_list.json?orderBy="timestamp"&limitToLast=10`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (!data) {
                     listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
                     setStatus('⚠️ 세션 없음');
                     return;
                 }
-                const allKeys = Object.keys(keysObj);
-                // 최근 10개만 (키 정렬 = 시간순)
-                const targetKeys = allKeys.sort().slice(-10);
 
-                listEl.innerHTML = `<span style="color:var(--muted)">🔄 ${targetKeys.length}개 세션 로드 중...</span>`;
-
-                // Step 3: 선별된 키만 meta + 구조 fetch
-                const items = await Promise.all(targetKeys.map(async (key) => {
+                // 각 세션의 chunks 존재 여부 확인
+                const keys = Object.keys(data);
+                const items = await Promise.all(keys.map(async (key) => {
+                    const meta = data[key] || {};
                     try {
-                        const [metaRes, structRes] = await Promise.all([
-                            fetch(`${BASE}/sessions/${key}/meta.json`),
-                            fetch(`${BASE}/sessions/${key}.json?shallow=true`)
-                        ]);
-                        const meta = await metaRes.json();
+                        const structRes = await fetch(`${BASE}/sessions/${key}.json?shallow=true`);
                         const struct = await structRes.json();
                         const hasChunks = !!(struct?.chunks || struct?.data);
                         return {
                             key,
-                            meta: meta || {},
-                            ts: meta?.timestamp || 0,
-                            samples: meta?.totalSamples ?? 0,
+                            meta,
+                            ts: meta.timestamp || 0,
+                            samples: meta.totalSamples ?? 0,
                             hasChunks
                         };
                     } catch (_) {
-                        return { key, meta: {}, ts: 0, samples: 0, hasChunks: false };
+                        return { key, meta, ts: meta.timestamp || 0, samples: meta.totalSamples ?? 0, hasChunks: false };
                     }
                 }));
 
