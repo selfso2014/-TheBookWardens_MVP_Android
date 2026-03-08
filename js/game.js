@@ -1382,16 +1382,56 @@ Game.typewriter = {
                     if (gdm && uploadId) {
                         const paraIdx = this.currentParaIndex;
                         console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} → session [${uploadId}]`);
+
+                        const uploadPromises = [];
                         // ① pangLog upload (small, fast — per paragraph path)
                         if (typeof gdm.uploadPangLog === 'function') {
-                            gdm.uploadPangLog(uploadId, paraIdx).catch(e =>
-                                console.warn('[Upload] pangLog failed:', e)
+                            uploadPromises.push(
+                                gdm.uploadPangLog(uploadId, paraIdx).catch(e => {
+                                    console.warn('[Upload] pangLog failed:', e);
+                                    return 'pangLog_failed';
+                                })
                             );
                         }
                         // ② gaze chunk + meta upload (incremental, async)
-                        gdm.uploadToCloud(uploadId).catch(e =>
-                            console.warn('[Upload] uploadToCloud failed:', e)
+                        uploadPromises.push(
+                            gdm.uploadToCloud(uploadId).catch(e => {
+                                console.warn('[Upload] uploadToCloud failed:', e);
+                                return 'gaze_failed';
+                            })
                         );
+
+                        // ★ 업로드 완료 팝업
+                        Promise.all(uploadPromises).then(results => {
+                            const failed = results.filter(r => typeof r === 'string' && r.includes('failed'));
+                            const msg = failed.length === 0
+                                ? `✅ 데이터 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}`
+                                : `⚠️ 일부 업로드 실패 (${failed.join(', ')})\n세션: ${uploadId}`;
+
+                            // 화면 팝업 (3초 후 자동 사라짐)
+                            const popup = document.createElement('div');
+                            popup.textContent = msg;
+                            Object.assign(popup.style, {
+                                position: 'fixed', top: '20px', left: '50%',
+                                transform: 'translateX(-50%)', zIndex: '999999',
+                                padding: '14px 24px', borderRadius: '12px',
+                                background: failed.length === 0
+                                    ? 'linear-gradient(135deg, #1a6b3c, #2ea55a)'
+                                    : 'linear-gradient(135deg, #8b4513, #cc6600)',
+                                color: '#fff', fontSize: '14px', fontWeight: 'bold',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                                whiteSpace: 'pre-line', textAlign: 'center',
+                                opacity: '0', transition: 'opacity 0.4s ease'
+                            });
+                            document.body.appendChild(popup);
+                            requestAnimationFrame(() => popup.style.opacity = '1');
+                            setTimeout(() => {
+                                popup.style.opacity = '0';
+                                setTimeout(() => popup.remove(), 500);
+                            }, 3000);
+
+                            console.log(`[Upload] ${msg.replace(/\n/g, ' | ')}`);
+                        });
                     } else {
                         console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
                     }
