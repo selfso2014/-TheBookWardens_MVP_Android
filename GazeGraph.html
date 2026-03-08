@@ -9,7 +9,7 @@
     <!-- Chart.js + Annotation Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script
-        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2/dist/chartjs-plugin-annotation.min.js"></script>
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -915,12 +915,11 @@
                     borderColor: 'transparent',
                     borderWidth: 0,
                     label: {
-                        content: `L${N}  (${Math.round(rng.start)}~${Math.round(rng.end)}ms, ${dur}ms)`,
-                        enabled: true,
+                        content: `L${N}  (${Math.round(rng.start)}~${Math.round(rng.end)}ms)`,
                         display: true,
                         position: { x: 'center', y: 'start' },
-                        color: 'rgba(220,220,220,0.85)',
-                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        color: '#e6edf3',
+                        backgroundColor: 'rgba(0,0,0,0.65)',
                         font: { size: 10, weight: 'bold' },
                         padding: { x: 4, y: 2 }
                     }
