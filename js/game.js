@@ -1393,34 +1393,28 @@ Game.typewriter = {
                                 })
                             );
                         }
-                        // ② gaze chunk + meta upload (incremental, async)
-                        uploadPromises.push(
-                            gdm.uploadToCloud(uploadId).catch(e => {
-                                console.warn('[Upload] uploadToCloud failed:', e);
-                                return 'gaze_failed';
-                            })
-                        );
-                        // ③ replaySegments 직접 업로드 (uploadToCloud와 독립)
-                        if (gdm.replaySegments && gdm.replaySegments.length > 0) {
-                            uploadPromises.push(
-                                (async () => {
-                                    try {
-                                        if (typeof firebase === 'undefined') return 'replaySegments_no_firebase';
-                                        if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
-                                        const db = firebase.database();
-                                        db.goOnline();
-                                        await db.ref('sessions/' + uploadId + '/replaySegments').set(gdm.replaySegments);
-                                        console.log(`[Upload] ✅ replaySegments direct upload OK: ${gdm.replaySegments.length} segments`);
-                                        return 'replaySegments_ok';
-                                    } catch (e) {
-                                        console.error('[Upload] ❌ replaySegments direct upload FAILED:', e);
-                                        return 'replaySegments_failed';
-                                    }
-                                })()
-                            );
-                        } else {
-                            console.warn(`[Upload] ⚠️ replaySegments not available: exists=${!!gdm.replaySegments}, length=${gdm.replaySegments ? gdm.replaySegments.length : 'N/A'}`);
-                        }
+                        // ② gaze + meta 업로드 → 완료 후 replaySegments 업로드 (Firebase SDK 로드 보장)
+                        const gazePromise = gdm.uploadToCloud(uploadId).then(async () => {
+                            // uploadToCloud 완료 시점 = Firebase SDK 로드 완료 보장
+                            if (gdm.replaySegments && gdm.replaySegments.length > 0) {
+                                try {
+                                    const db = firebase.database();
+                                    await db.ref('sessions/' + uploadId + '/replaySegments').set(gdm.replaySegments);
+                                    console.log(`[Upload] ✅ replaySegments OK: ${gdm.replaySegments.length} segments`);
+                                    return 'replaySegments_ok';
+                                } catch (e) {
+                                    console.error('[Upload] ❌ replaySegments FAILED:', e);
+                                    return 'replaySegments_failed';
+                                }
+                            } else {
+                                console.warn(`[Upload] ⚠️ replaySegments empty after uploadToCloud`);
+                                return 'replaySegments_empty';
+                            }
+                        }).catch(e => {
+                            console.warn('[Upload] uploadToCloud failed:', e);
+                            return 'gaze_failed';
+                        });
+                        uploadPromises.push(gazePromise);
 
                         // ★ 업로드 완료 팝업 + clearGazeData
                         Promise.all(uploadPromises).then(results => {
