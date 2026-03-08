@@ -879,25 +879,25 @@
                 order: 1
             };
 
-            // ── Dataset 6: Line xMin (dark green dashed) ──────────────────────────
+            // ── Dataset 6: Line xMin (초록 실선 — 극소값) ──────────────────────────
             const ds_xMin = {
-                label: 'Line xMin (reading start)',
+                label: 'Line xMin (극소)',
                 data: xMinSeries,
-                borderColor: '#00aa44',
-                borderDash: [6, 4],
-                borderWidth: 1.5,
+                borderColor: '#3fb950',
+                borderDash: [],             // 실선
+                borderWidth: 2,
                 pointRadius: 0,
                 yAxisID: 'yPos',
                 order: 7
             };
 
-            // ── Dataset 7: Line xMax (dark red dashed) ────────────────────────────
+            // ── Dataset 7: Line xMax (빨강 긴점선 — 극대값) ────────────────────────
             const ds_xMax = {
-                label: 'Line xMax (reading end)',
+                label: 'Line xMax (극대)',
                 data: xMaxSeries,
-                borderColor: '#cc2222',
-                borderDash: [6, 4],
-                borderWidth: 1.5,
+                borderColor: '#f85149',
+                borderDash: [10, 4],        // 긴 점선
+                borderWidth: 2,
                 pointRadius: 0,
                 yAxisID: 'yPos',
                 order: 8
