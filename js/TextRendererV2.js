@@ -1342,22 +1342,23 @@ export class TextRenderer {
         const barCY    = barRect.height ? barRect.top + barRect.height / 2 : window.innerHeight * 0.95;
 
         const lineArray = Array.from(litLines).sort((a, b) => a - b);
-        const BEAM_DUR = 520, STAGGER = 150, N_EMIT = 4;
+        const BEAM_DUR = 520, STAGGER = 150;
 
         const beams = lineArray.map((lineIdx, i) => {
             const line = visualLines[lineIdx];
             const lx = (line.rect && line.rect.left  != null) ? line.rect.left  : 0;
             const rw = (line.rect && line.rect.width != null) ? line.rect.width : window.innerWidth;
             const by = line.visualY || 0;
-            const n  = N_EMIT + (Math.random() > 0.5 ? 1 : 0);
+            // 줄마다 3~6개 완전 랜덤 방출점
+            const n = 3 + Math.floor(Math.random() * 4);
             const emitPoints = [];
             for (let e = 0; e < n; e++) {
-                const frac   = n === 1 ? 0.5 : e / (n - 1);
-                const jitter = (Math.random() - 0.5) * Math.max(rw * 0.06, 10);
                 emitPoints.push({
-                    sx: lx + rw * frac + jitter, sy: by + (Math.random()-0.5)*8,
-                    tx: barLeft + (barRight-barLeft)*frac + jitter*0.4, ty: barCY,
-                    alpha: 0.6 + Math.random()*0.4
+                    sx: lx + Math.random() * rw,
+                    sy: by + (Math.random() - 0.5) * 10,
+                    tx: barLeft + Math.random() * (barRight - barLeft),
+                    ty: barCY,
+                    alpha: 0.5 + Math.random() * 0.5
                 });
             }
             return { lineIdx, progress:0, delay:i*STAGGER, arrived:false, emitPoints };
@@ -1414,12 +1415,13 @@ export class TextRenderer {
                     }
                 });
                 if(!allArrived){ requestAnimationFrame(animateBeams); }
+                if(!allArrived){ requestAnimationFrame(animateBeams); }
                 else{
                     bCtx.clearRect(0,0,bc.width,bc.height); bc.remove();
                     clearTimeout(hardTimeout);
                     if(!completed){ completed=true;
-                        if(isSealed) this._waveTextWhite(visualLines);
-                        this._showInlineResult(isSealed,onDone);
+                        if(isSealed) this._sealRiftVFX(visualLines, ()=>this._showInlineResult(isSealed,onDone));
+                        else this._showInlineResult(isSealed,onDone);
                     }
                 }
             }catch(err){
@@ -1427,8 +1429,8 @@ export class TextRenderer {
                 try{bc.remove();}catch(e){}
                 clearTimeout(hardTimeout);
                 if(!completed){completed=true;
-                    if(isSealed) this._waveTextWhite(visualLines);
-                    this._showInlineResult(isSealed,onDone);
+                    if(isSealed) this._sealRiftVFX(visualLines, ()=>this._showInlineResult(isSealed,onDone));
+                    else this._showInlineResult(isSealed,onDone);
                 }
             }
         };
@@ -1485,6 +1487,70 @@ export class TextRenderer {
         });
     }
 
+    // === Phase 4-B: Rift Sealed VFX (overflow → flash → wave) ================
+    _sealRiftVFX(visualLines, onDone) {
+        const fill = document.getElementById('replay-progress-fill');
+        // Step 1: 프로그레스바 범람 (0ms)
+        if(fill){
+            fill.style.transition='width 0.3s ease-out, box-shadow 0.3s ease-out';
+            fill.style.width='108%';
+            fill.style.boxShadow='0 0 50px rgba(155,89,182,1), 0 0 20px #fff';
+        }
+        // Step 2: 전체 Flash overlay + 컨테이너 강조 (300ms 후)
+        setTimeout(()=>{
+            // Flash overlay
+            const flash = document.createElement('div');
+            flash.style.cssText=[
+                'position:fixed','inset:0','z-index:9999995','pointer-events:none',
+                'background:radial-gradient(ellipse at center,rgba(215,189,226,0.55) 0%,rgba(155,89,182,0.25) 50%,transparent 80%)',
+                'opacity:1','transition:opacity 0.6s ease-out'
+            ].join(';');
+            document.body.appendChild(flash);
+            // 텍스트 컨테이너 border & shadow 강조
+            const cont = this.container;
+            if(cont){
+                cont.style.transition='box-shadow 0.15s ease-out, border-color 0.15s ease-out';
+                cont.style.boxShadow='0 0 60px rgba(155,89,182,0.9), inset 0 0 30px rgba(155,89,182,0.35)';
+                cont.style.borderColor='rgba(215,189,226,0.95)';
+            }
+            // Step 3: overlay 소멸 + 파도 점등 (병렬, 같은 타이밍)
+            requestAnimationFrame(()=>{ flash.style.opacity='0'; });
+            setTimeout(()=>{ try{flash.remove();}catch(e){} },700);
+            // 줄별 순차 점등 (55ms 간격, 빠르게)
+            if(visualLines && this.words){
+                visualLines.forEach((line,i)=>{
+                    setTimeout(()=>{
+                        if(!line.wordIndices) return;
+                        line.wordIndices.forEach(wIdx=>{
+                            const word=this.words[wIdx];
+                            if(word&&word.element){
+                                word.element.style.transition='color 0.35s ease, text-shadow 0.35s ease, filter 0.35s ease';
+                                word.element.style.color='#ffffff';
+                                word.element.style.textShadow='0 0 10px rgba(155,89,182,0.6), 0 0 2px rgba(255,255,255,0.5)';
+                                word.element.style.filter='brightness(1.0)';
+                            }
+                        });
+                    },i*55);
+                });
+            }
+            // 점등 완료 후 컨테이너 복귀
+            const waveDur = (visualLines ? visualLines.length * 55 : 0) + 400;
+            setTimeout(()=>{
+                if(cont){
+                    cont.style.transition='box-shadow 0.8s ease, border-color 0.8s ease';
+                    cont.style.boxShadow='';
+                    cont.style.borderColor='';
+                }
+                if(fill){
+                    fill.style.transition='width 0.4s ease-out';
+                    fill.style.width='100%';
+                    fill.style.boxShadow='0 0 18px rgba(155,89,182,0.85)';
+                }
+                // 점등 완료 후 onDone 호출
+                if(typeof onDone==='function') onDone();
+            }, waveDur);
+        }, 300);
+    }
     // === Legacy stubs =========================================================
     _showRiftPopup(){}
     _checkReplayCombo(){}
