@@ -1126,22 +1126,18 @@ export class TextRenderer {
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine OR targetLine+1 ──
-                // [FIX] pang 발생 시점에 gaze의 d.line은 이미 targetLine+1(다음 줄)로 이동해 있음.
-                // pangLog.line = d0.line - 1 = targetLine 으로 기록되어, 필터가 항상 불일치했음.
-                // 따라서 targetLine 또는 targetLine+1 모두 후보로 수집.
+                // ── 후보 데이터 수집: lastPangTime ~ pangTime (시간 구간만 사용) ──
+                // [FIX] d.line 필터 제거 — 줄 좌표는 visualLines로 고정되므로 d.line 검증 불필요.
+                // 시간 구간만으로 수집하면 모든 팡에 대해 세그먼트 생성 가능.
                 const candidateData = [];
                 for (let i = 0; i < sortedGaze.length; i++) {
                     const d = sortedGaze[i];
                     if (d.t <= lastPangTime) continue;
                     if (d.t > pangTime) break;
-                    if (typeof d.line === 'number' &&
-                        (d.line === targetLineIndex || d.line === targetLineIndex + 1)) {
-                        candidateData.push(d);
-                    }
+                    candidateData.push(d);
                 }
 
-                if (candidateData.length < 5) { lastPangTime = pangTime; return; }
+                if (candidateData.length < 2) { lastPangTime = pangTime; return; }
 
                 // ── segEnd 결정: 팡 직전 gx 극대값 (읽기 끝점) ──
                 // 후보 데이터를 뒤에서부터 탐색하여 로컬 극대값 찾기
