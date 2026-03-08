@@ -1254,11 +1254,27 @@
             const getGx = (d) => d.gx !== undefined ? d.gx : d.x;
             const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
 
-            // ★ 데이터 소스 결정
-            const useFirebase = replaySegments && replaySegments.length > 0;
-            const sourceLabel = useFirebase ? '✅ Firebase (실제 리플레이)' : '🔁 로컬 미러링 (동일 알고리즘)';
+            // ★ Firebase replaySegments만 사용 (로컬 fallback 없음)
+            if (!replaySegments || replaySegments.length === 0) {
+                const titleEl = document.getElementById('chartReplay').parentElement.querySelector('h2');
+                if (titleEl) titleEl.textContent = '🔄 Replay Segment Map — ❌ Firebase에 replaySegments 없음';
+                document.getElementById('chartReplay').parentElement.style.display = 'block';
+                // 빈 차트 대신 안내 메시지
+                const canvas = document.getElementById('chartReplay');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f85149';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️ replaySegments가 Firebase에 없습니다.', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '13px sans-serif';
+                ctx.fillText('새로 게임을 플레이한 후 다시 로드하세요.', canvas.width / 2, canvas.height / 2 + 15);
+                return;
+            }
+
             const titleEl = document.getElementById('chartReplay').parentElement.querySelector('h2');
-            if (titleEl) titleEl.textContent = `🔄 Replay Segment Map — ${sourceLabel}`;
+            if (titleEl) titleEl.textContent = '🔄 Replay Segment Map — ✅ Firebase (실제 리플레이)';
 
             const labels = data.map(d => d.t);
             const dataMinT = data.length > 0 ? data[0].t : 0;
@@ -1279,7 +1295,6 @@
                 stepped: 'before', pointRadius: 0, yAxisID: 'yLine', order: 6
             };
 
-            // ── 세그먼트 계산 (TextRendererV2 동일 알고리즘) ──
             const annotations = {};
             const valleyPoints = [];
             const peakPoints = [];
@@ -1289,81 +1304,16 @@
                 'rgba(200,100,255,0.15)',
             ];
 
-            let segments = [];
-
-            if (useFirebase) {
-                segments = replaySegments.map((seg, i) => ({
-                    idx: seg.idx, targetLine: seg.targetLine,
-                    segStart: Math.max(seg.segStart - contentStart, dataMinT),
-                    segEnd: seg.segEnd - contentStart,
-                    srcMin: seg.sourceMinX, srcMax: seg.sourceMaxX,
-                    targetLeft: seg.targetLeft, targetWidth: seg.targetWidth,
-                    samples: seg.samples,
-                    pangTime: seg.pangTime ? seg.pangTime - contentStart : (i < sortedPangs.length ? sortedPangs[i].t_pang : null)
-                }));
-            } else {
-                // ★ 로컬 미러링: TextRendererV2와 동일한 극소~극대 알고리즘
-                let avgReadTime = 3000;
-                if (sortedPangs.length >= 2) {
-                    let totalGap = 0, gapCount = 0;
-                    for (let i = 1; i < sortedPangs.length; i++) {
-                        const gap = sortedPangs[i].t_pang - sortedPangs[i - 1].t_pang;
-                        if (gap > 0 && gap < 10000) { totalGap += gap; gapCount++; }
-                    }
-                    if (gapCount > 0) avgReadTime = totalGap / gapCount;
-                }
-
-                let lastPangT = 0;
-                sortedPangs.forEach((pe, idx) => {
-                    const pangTime = pe.t_pang;
-                    const targetLine = pe.targetLine;
-
-                    // 후보 수집: lastPangT ~ pangTime, lineIndex === targetLine
-                    const candidates = [];
-                    for (let i = 0; i < data.length; i++) {
-                        if (data[i].t <= lastPangT) continue;
-                        if (data[i].t > pangTime) break;
-                        if (data[i].lineIndex === targetLine) candidates.push(data[i]);
-                    }
-                    if (candidates.length < 5) { lastPangT = pangTime; return; }
-
-                    // segEnd: 뒤쪽 50%에서 gx 최대값 (극대값)
-                    let peakIdx = candidates.length - 1;
-                    let peakGx = getGx(candidates[peakIdx]);
-                    const searchStart = Math.max(0, Math.floor(candidates.length * 0.5));
-                    for (let i = candidates.length - 1; i >= searchStart; i--) {
-                        const gx = getGx(candidates[i]);
-                        if (gx > peakGx) { peakGx = gx; peakIdx = i; }
-                    }
-                    const segEndTime = candidates[peakIdx].t;
-
-                    // segStart: gx 최소값 (극소값)
-                    const prevLineHadPang = idx > 0;
-                    const searchFromTime = prevLineHadPang
-                        ? lastPangT : Math.max(0, segEndTime - avgReadTime);
-
-                    let valleyIdx = 0, valleyGx = Infinity;
-                    for (let i = 0; i < candidates.length; i++) {
-                        if (candidates[i].t < searchFromTime) continue;
-                        if (candidates[i].t > segEndTime) break;
-                        const gx = getGx(candidates[i]);
-                        if (gx < valleyGx) { valleyGx = gx; valleyIdx = i; }
-                    }
-                    const segStartTime = candidates[valleyIdx].t;
-
-                    const segCount = peakIdx - valleyIdx + 1;
-                    if (segCount < 3) { lastPangT = pangTime; return; }
-
-                    segments.push({
-                        idx, targetLine,
-                        segStart: segStartTime, segEnd: segEndTime,
-                        srcMin: valleyGx, srcMax: peakGx,
-                        targetLeft: null, targetWidth: null,
-                        samples: segCount, pangTime: pangTime
-                    });
-                    lastPangT = pangTime;
-                });
-            }
+            // ★ Firebase 세그먼트만 사용
+            const segments = replaySegments.map((seg, i) => ({
+                idx: seg.idx, targetLine: seg.targetLine,
+                segStart: Math.max(seg.segStart - contentStart, dataMinT),
+                segEnd: seg.segEnd - contentStart,
+                srcMin: seg.sourceMinX, srcMax: seg.sourceMaxX,
+                targetLeft: seg.targetLeft, targetWidth: seg.targetWidth,
+                samples: seg.samples,
+                pangTime: seg.pangTime ? seg.pangTime - contentStart : (i < sortedPangs.length ? sortedPangs[i].t_pang : null)
+            }));
 
             // ── 어노테이션 + 마커 생성 ──
             segments.forEach((seg, i) => {
