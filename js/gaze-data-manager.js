@@ -696,15 +696,15 @@ export class GazeDataManager {
 
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
-            if (db) {
-                try { db.goOffline(); } catch (_) { }
-            }
+            // goOffline은 replaySegments 업로드 후에 호출 (아래 참조)
         }
 
         // ★ replaySegments 업로드: meta/chunks 실패와 무관하게 항상 시도
-        // (외부 try-catch에서 제외하여 독립 실행 보장)
+        // db.goOffline()을 catch에서 바로 호출하지 않는 이유:
+        //   → goOffline() 후 db가 OFFLINE 상태가 되어 여기서도 실패하기 때문
         if (db && this.replaySegments && this.replaySegments.length > 0) {
             try {
+                db.goOnline(); // 혹시 offline 상태라면 복구
                 const sanitizedSegs = JSON.parse(JSON.stringify(
                     this.replaySegments,
                     (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
@@ -716,6 +716,11 @@ export class GazeDataManager {
             }
         } else {
             console.warn(`[Firebase] replaySegments skip: db=${!!db}, segs=${this.replaySegments ? this.replaySegments.length : 'null'}`);
+        }
+
+        // 모든 업로드 시도 후 Firebase 연결 종료
+        if (db) {
+            try { db.goOffline(); } catch (_) { }
         }
     }
 
