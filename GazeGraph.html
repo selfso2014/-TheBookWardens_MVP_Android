@@ -655,12 +655,33 @@
             }
             pangEvents.sort((a, b) => a.t_pang - b.t_pang);
 
-            // ── Step C: xMin / xMax per line ───────────────────────────────────────
-            // For line N: min and max rawX among all points where d.lineIndex === N
+            // ── Step C: xMin / xMax per line (팡 이전의 첫 읽기 구간만) ────────────
+            // 각 라인 N의 팡 시점을 찾아 그 이전 데이터만으로 xMin/xMax 계산
+            // → 리플레이 시 순수한 첫 독서 궤적의 좌우 범위
+            const pangTimeForLine = {};  // pangTimeForLine[N] = 라인 N의 첫 팡 시점
+            pangEvents.forEach(pe => {
+                const N = pe.targetLine;
+                if (pangTimeForLine[N] === undefined || pe.t_pang < pangTimeForLine[N]) {
+                    pangTimeForLine[N] = pe.t_pang;
+                }
+            });
+
             const xMin = {}, xMax = {};
             filtered.forEach(d => {
                 const N = d.lineIndex;
                 if (typeof N !== 'number' || N < 0) return;
+                // 팡 이전 데이터만 사용 (팡 없으면 전체 사용)
+                if (pangTimeForLine[N] !== undefined && d.t > pangTimeForLine[N]) return;
+                const gx = d.gx;
+                if (xMin[N] === undefined || gx < xMin[N]) xMin[N] = gx;
+                if (xMax[N] === undefined || gx > xMax[N]) xMax[N] = gx;
+            });
+
+            // 팡 없는 줄 중 xMin이 없으면 전체 데이터로 fallback
+            filtered.forEach(d => {
+                const N = d.lineIndex;
+                if (typeof N !== 'number' || N < 0) return;
+                if (xMin[N] !== undefined) return;  // 이미 계산됨
                 const gx = d.gx;
                 if (xMin[N] === undefined || gx < xMin[N]) xMin[N] = gx;
                 if (xMax[N] === undefined || gx > xMax[N]) xMax[N] = gx;
