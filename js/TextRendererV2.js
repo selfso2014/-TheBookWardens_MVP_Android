@@ -1276,7 +1276,8 @@ export class TextRenderer {
             'border-radius:7px',
             'border:1px solid rgba(155,89,182,0.55)',
             'box-shadow:0 0 14px rgba(155,89,182,0.3)',
-            'z-index:999998', 'overflow:hidden',
+            'z-index:999998',
+            'overflow:visible',   // resultEl 제거했으면 hidden 불필요, visible로 다른 자식도 보여줌
         ].join(';');
 
         const fill = document.createElement('div');
@@ -1301,227 +1302,90 @@ export class TextRenderer {
         const titleEl = document.createElement('div');
         titleEl.id = 'replay-rift-title';
         titleEl.style.cssText = [
-            'position:absolute', 'top:-24px', 'left:0',
-            'color:rgba(155,89,182,0.75)', 'font-size:12px',
+            'position:absolute', 'top:-22px', 'left:0',
+            'color:rgba(155,89,182,0.75)', 'font-size:11px',
             'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
             'transition:opacity 0.4s ease',
         ].join(';');
         titleEl.textContent = 'Rift Sealing';
 
-        // result message label (hidden initially)
-        const resultEl = document.createElement('div');
-        resultEl.id = 'replay-rift-result';
-        resultEl.style.cssText = [
-            'position:absolute', 'top:-44px', 'left:50%',
-            'transform:translateX(-50%)',
-            'font-size:13px', 'font-family:monospace',
-            'letter-spacing:3px', 'text-transform:uppercase',
-            'font-weight:700', 'white-space:nowrap',
-            'opacity:0', 'transition:opacity 0.4s ease',
-        ].join(';');
-
         container.appendChild(fill);
         container.appendChild(label);
         container.appendChild(titleEl);
-        container.appendChild(resultEl);
         document.body.appendChild(container);
         return container;
     }
 
-    // ─── Phase 3: Multi-strand Zigzag Lightning → progress bar ──────────────
-    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
-        const totalLines = visualLines.length;
-        const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
-        const isSealed = finalPct >= 60;
+// ─── Phase 4: body 레벨 결과 메시지 (fixed, 선명하게 표시) ─────────────────
+_showInlineResult(isSealed, onDone) {
+    // title 라벨 숨기기
+    const titleEl = document.getElementById('replay-rift-title');
+    if (titleEl) titleEl.style.opacity = '0';
 
-        if (litLines.size === 0) {
-            this._showInlineResult(isSealed, progressContainer, onDone);
-            return;
-        }
+    // body 직접 append → overflow 제한 없음
+    const msgEl = document.createElement('div');
+    msgEl.id = 'replay-rift-result';
+    msgEl.style.cssText = [
+        'position:fixed',
+        'bottom:68px',          // 프로그레스바(bottom:28px + bar 14px + 여백 26px)
+        'left:50%',
+        'transform:translateX(-50%)',
+        'font-size:17px',
+        'font-weight:700',
+        'font-family:monospace',
+        'letter-spacing:4px',
+        'text-transform:uppercase',
+        'white-space:nowrap',
+        'pointer-events:none',
+        'z-index:9999990',
+        'opacity:0',
+        'transition:opacity 0.4s ease',
+        isSealed
+            ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff,0 0 40px rgba(155,89,182,0.6)'
+            : 'color:rgba(180,180,210,0.85);text-shadow:none',
+    ].join(';');
+    msgEl.textContent = isSealed ? '✦ RIFT SEALED ✦' : '⋆ RIFT NOT YET SEALED';
+    document.body.appendChild(msgEl);
 
-        const fill = document.getElementById('replay-progress-fill');
-        const label = document.getElementById('replay-progress-label');
-        const barRect = progressContainer.getBoundingClientRect();
-        const barCX = barRect.left + barRect.width / 2;
-        const barCY = barRect.top + barRect.height / 2;
+    // fade-in
+    requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
 
-        const lineArray = Array.from(litLines).sort((a, b) => a - b);
-        const BEAM_DUR = 500;
-        const STAGGER = 160;
-        const STRANDS = 4; // 가닥 수
+    // 2.5초 표시 후 fade-out → 자체 remove → onDone
+    setTimeout(() => {
+        msgEl.style.opacity = '0';
+        setTimeout(() => {
+            if (msgEl.parentNode) msgEl.remove();
+            onDone();
+        }, 500);
+    }, 2500);
+}
 
-        // 각 줄마다 여러 가닥(strand) 생성
-        const beams = lineArray.map((lineIdx, i) => {
-            const line = visualLines[lineIdx];
-            const baseX = line.rect ? (line.rect.left + line.rect.width * 0.78) : window.innerWidth * 0.78;
-            const baseY = line.visualY;
-            const strands = [];
-            for (let s = 0; s < STRANDS; s++) {
-                // 가닥마다 시작점 Y 오프셋 ±8px, 투명도 랜덤
-                strands.push({
-                    dx: (Math.random() - 0.5) * 16,
-                    dy: (Math.random() - 0.5) * 12,
-                    alpha: 0.55 + Math.random() * 0.45,
-                    midPts: [],   // 꺾임점 (매 프레임 재생성)
-                });
-            }
-            return { lineIdx, baseX, baseY, progress: 0, delay: i * STAGGER, arrived: false, strands };
-        });
-
-        // ── 번개 꺾임점 생성 헬퍼 ──
-        const makeZigzag = (x0, y0, x1, y1, t, nKinks) => {
-            const pts = [{ x: x0, y: y0 }];
-            for (let k = 1; k <= nKinks; k++) {
-                const frac = (k / (nKinks + 1)) * t;
-                const mx = x0 + (x1 - x0) * frac + (Math.random() - 0.5) * 28;
-                const my = y0 + (y1 - y0) * frac + (Math.random() - 0.5) * 22;
-                pts.push({ x: mx, y: my });
-            }
-            // 현재 헤드 위치 계산 (선형 보간)
-            const hx = x0 + (x1 - x0) * t;
-            const hy = y0 + (y1 - y0) * t;
-            pts.push({ x: hx, y: hy });
-            return pts;
-        };
-
-        // beam canvas
-        const bc = document.createElement('canvas');
-        bc.width = window.innerWidth;
-        bc.height = window.innerHeight;
-        bc.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999997;';
-        document.body.appendChild(bc);
-        const bCtx = bc.getContext('2d');
-
-        let arrivedCount = 0;
-        let beamTs = null;
-
-        const animateBeams = (ts) => {
-            if (!beamTs) beamTs = ts;
-            const elapsed = ts - beamTs;
-            bCtx.clearRect(0, 0, bc.width, bc.height);
-
-            let allArrived = true;
-
-            beams.forEach((beam) => {
-                const be = elapsed - beam.delay;
-                if (be < 0) { allArrived = false; return; }
-
-                beam.progress = Math.min(1, be / BEAM_DUR);
-                if (beam.progress < 1) allArrived = false;
-
-                // 도착 직전 90% 이후 페이드아웃
-                const globalAlpha = beam.progress > 0.88
-                    ? 1 - (beam.progress - 0.88) / 0.12
-                    : 1;
-
-                // 각 가닥 그리기
-                beam.strands.forEach((strand) => {
-                    const sx = beam.baseX + strand.dx;
-                    const sy = beam.baseY + strand.dy;
-                    // 매 프레임 꺾임점 재생성 → 전기 떨림
-                    const pts = makeZigzag(sx, sy, barCX, barCY, beam.progress, 3);
-
-                    bCtx.save();
-                    bCtx.globalAlpha = strand.alpha * globalAlpha;
-
-                    // 보라 glow 레이어 (두꺼운)
-                    bCtx.beginPath();
-                    pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
-                    bCtx.strokeStyle = 'rgba(155,89,182,0.6)';
-                    bCtx.lineWidth = 5;
-                    bCtx.shadowColor = '#9b59b6';
-                    bCtx.shadowBlur = 18;
-                    bCtx.stroke();
-
-                    // 흰색 코어 레이어 (얇은)
-                    bCtx.beginPath();
-                    pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
-                    bCtx.strokeStyle = '#ffffff';
-                    bCtx.lineWidth = 1.5;
-                    bCtx.shadowColor = '#ffffff';
-                    bCtx.shadowBlur = 8;
-                    bCtx.stroke();
-
-                    bCtx.restore();
-                });
-
-                // 도착 처리
-                if (beam.progress >= 1 && !beam.arrived) {
-                    beam.arrived = true;
-                    arrivedCount++;
-                    const pct = Math.min(100, Math.round((arrivedCount / totalLines) * 100));
-                    if (fill) fill.style.width = pct + '%';
-                    if (label) label.textContent = pct + '%';
+// ─── Phase 4-A: Wave text white top→bottom ────────────────────────────────
+_waveTextWhite(visualLines) {
+    if (!visualLines || !this.words) return;
+    visualLines.forEach((line, i) => {
+        setTimeout(() => {
+            if (!line.wordIndices) return;
+            line.wordIndices.forEach(wIdx => {
+                const word = this.words[wIdx];
+                if (word && word.element) {
+                    word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
+                    word.element.style.color = '#ffffff';
+                    word.element.style.textShadow =
+                        '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
                 }
             });
+        }, i * 70);
+    });
+}
 
-            if (!allArrived) {
-                requestAnimationFrame(animateBeams);
-            } else {
-                bCtx.clearRect(0, 0, bc.width, bc.height);
-                bc.remove();
-                // 60% 이상이면 텍스트 웨이브 복원
-                if (isSealed) this._waveTextWhite(visualLines);
-                // 인라인 결과 메시지 표시 → 자동 소멸 → onDone
-                this._showInlineResult(isSealed, progressContainer, onDone);
-            }
-        };
+// ─── Phase 4: Rift popup (폐기 — _showInlineResult로 대체) ───────────────
+_showRiftPopup() { }
 
-        requestAnimationFrame(animateBeams);
-    }
-
-    // ─── Phase 4: 프로그레스바 위 인라인 결과 메시지 ──────────────────────────
-    _showInlineResult(isSealed, progressContainer, onDone) {
-        const resultEl = document.getElementById('replay-rift-result');
-        const titleEl = document.getElementById('replay-rift-title');
-        if (!resultEl) { onDone(); return; }
-
-        // title 라벨 숨기기
-        if (titleEl) titleEl.style.opacity = '0';
-
-        // 결과 메시지 스타일
-        resultEl.textContent = isSealed ? '✦ RIFT SEALED' : '✦ RIFT NOT YET SEALED';
-        resultEl.style.color = isSealed ? '#d7bde2' : 'rgba(160,160,190,0.8)';
-        resultEl.style.textShadow = isSealed
-            ? '0 0 16px rgba(155,89,182,0.9), 0 0 4px #fff'
-            : 'none';
-
-        // fade-in
-        requestAnimationFrame(() => { resultEl.style.opacity = '1'; });
-
-        // 2초 표시 후 fade-out → onDone
-        setTimeout(() => {
-            resultEl.style.opacity = '0';
-            setTimeout(() => { onDone(); }, 500);
-        }, 2000);
-    }
-
-    // ─── Phase 4-A: Wave text white top→bottom ────────────────────────────────
-    _waveTextWhite(visualLines) {
-        if (!visualLines || !this.words) return;
-        visualLines.forEach((line, i) => {
-            setTimeout(() => {
-                if (!line.wordIndices) return;
-                line.wordIndices.forEach(wIdx => {
-                    const word = this.words[wIdx];
-                    if (word && word.element) {
-                        word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
-                        word.element.style.color = '#ffffff';
-                        word.element.style.textShadow =
-                            '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
-                    }
-                });
-            }, i * 70);
-        });
-    }
-
-    // ─── Phase 4: Rift popup (폐기 — _showInlineResult로 대체) ───────────────
-    _showRiftPopup() { }
-
-    // ─── Legacy stubs (kept for external compatibility, no longer called) ─────
-    _checkReplayCombo() { }
-    _showMiniScore() { }
-    _animateScoreToHud() { }
-    _spawnReplayPulse() { }
+// ─── Legacy stubs (kept for external compatibility, no longer called) ─────
+_checkReplayCombo() { }
+_showMiniScore() { }
+_animateScoreToHud() { }
+_spawnReplayPulse() { }
 }
 window.TextRenderer = TextRenderer;
