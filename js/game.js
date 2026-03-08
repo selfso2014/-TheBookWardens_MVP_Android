@@ -1400,13 +1400,36 @@ Game.typewriter = {
                                 return 'gaze_failed';
                             })
                         );
+                        // ③ replaySegments 직접 업로드 (uploadToCloud와 독립)
+                        if (gdm.replaySegments && gdm.replaySegments.length > 0) {
+                            uploadPromises.push(
+                                (async () => {
+                                    try {
+                                        if (typeof firebase === 'undefined') return 'replaySegments_no_firebase';
+                                        if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+                                        const db = firebase.database();
+                                        db.goOnline();
+                                        await db.ref('sessions/' + uploadId + '/replaySegments').set(gdm.replaySegments);
+                                        console.log(`[Upload] ✅ replaySegments direct upload OK: ${gdm.replaySegments.length} segments`);
+                                        return 'replaySegments_ok';
+                                    } catch (e) {
+                                        console.error('[Upload] ❌ replaySegments direct upload FAILED:', e);
+                                        return 'replaySegments_failed';
+                                    }
+                                })()
+                            );
+                        } else {
+                            console.warn(`[Upload] ⚠️ replaySegments not available: exists=${!!gdm.replaySegments}, length=${gdm.replaySegments ? gdm.replaySegments.length : 'N/A'}`);
+                        }
 
                         // ★ 업로드 완료 팝업 + clearGazeData
                         Promise.all(uploadPromises).then(results => {
                             const failed = results.filter(r => typeof r === 'string' && r.includes('failed'));
+                            const segOk = results.includes('replaySegments_ok');
+                            const segInfo = segOk ? '\n리플레이: ✅' : '\n리플레이: ❌ 미업로드';
                             const msg = failed.length === 0
-                                ? `✅ 데이터 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}`
-                                : `⚠️ 일부 업로드 실패 (${failed.join(', ')})\n세션: ${uploadId}`;
+                                ? `✅ 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}${segInfo}`
+                                : `⚠️ 일부 실패 (${failed.join(', ')})\n세션: ${uploadId}${segInfo}`;
 
                             // 화면 팝업 (3초 후 자동 사라짐)
                             const popup = document.createElement('div');
