@@ -797,11 +797,22 @@
 
             const labels = data.map(d => d.t);
 
-            // ── Dataset 1: rawX (gray) ─────────────────────────────────────────────
+            // ── Dataset 1a: rawX — 원본 시선 X (연한 회색) ──────────────────────────
             const ds_rawX = {
-                label: 'rawX',
+                label: 'rawX (원본)',
+                data: data.map(d => d.x),
+                borderColor: 'rgba(160,160,160,0.35)',
+                borderWidth: 1,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 11
+            };
+
+            // ── Dataset 1b: gx — 가우시안 스무딩된 X (노란색) ────────────────────────
+            const ds_gx = {
+                label: 'gx (스무딩)',
                 data: data.map(d => d.gx !== undefined ? d.gx : d.x),
-                borderColor: 'rgba(160,160,160,0.7)',
+                borderColor: 'rgba(255,200,50,0.85)',
                 borderWidth: 1.5,
                 pointRadius: 0,
                 yAxisID: 'yPos',
@@ -1028,7 +1039,7 @@
                 type: 'line',
                 data: {
                     labels,
-                    datasets: [ds_rawX, ds_velX, ds_peak, ds_valley, ds_pang, ds_xMin, ds_xMax]
+                    datasets: [ds_rawX, ds_gx, ds_velX, ds_peak, ds_valley, ds_pang, ds_xMin, ds_xMax]
                 },
                 options: {
                     animation: false,
