@@ -681,8 +681,16 @@ export class GazeDataManager {
             }
 
             // 5. Upload Replay Segments (실제 리플레이에서 계산된 세그먼트 정보)
+            console.log(`[Firebase] replaySegments check: exists=${!!this.replaySegments}, length=${this.replaySegments ? this.replaySegments.length : 'N/A'}`);
             if (this.replaySegments && this.replaySegments.length > 0) {
-                await db.ref('sessions/' + sessionId + '/replaySegments').set(this.replaySegments);
+                try {
+                    await db.ref('sessions/' + sessionId + '/replaySegments').set(this.replaySegments);
+                    console.log(`[Firebase] ✅ replaySegments uploaded: ${this.replaySegments.length} segments → sessions/${sessionId}/replaySegments`);
+                } catch (segErr) {
+                    console.error(`[Firebase] ❌ replaySegments upload FAILED:`, segErr);
+                }
+            } else {
+                console.warn(`[Firebase] ⚠️ replaySegments EMPTY or MISSING — not uploaded!`);
             }
 
         } catch (e) {

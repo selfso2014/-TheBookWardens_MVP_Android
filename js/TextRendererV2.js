@@ -1339,6 +1339,10 @@ export class TextRenderer {
                 // ★ 세그먼트 정보도 별도 저장
                 if (window.gazeDataManager) {
                     window.gazeDataManager.replaySegments = replaySegments;
+                    console.log(`[TextRenderer] ★ replaySegments SET on gazeDataManager: ${replaySegments.length} segments`,
+                        replaySegments.map(s => `L${s.targetLine}(${s.samples}pts)`).join(', '));
+                } else {
+                    console.warn('[TextRenderer] ⚠️ window.gazeDataManager is null — replaySegments NOT saved!');
                 }
             } catch (e) {
                 console.warn("Could not expose replay data to opener", e);
