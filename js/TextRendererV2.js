@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TextRenderer.js
  * 
  * "The Stable Typesetter"
@@ -972,149 +972,90 @@ export class TextRenderer {
         });
     }
 
-    // --- NEW: Gaze Replay Visualization (GLI-based Segmentation & Scaling) ---
-    // --- NEW: Gaze Replay Visualization (Pang Event Driven + Combo System) ---
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 5-PHASE RIFT SEALING REPLAY
+    // Phase 1: Gray text  →  Phase 2: Dot + line light-up  →
+    // Phase 3: Energy beams + progress bar  →  Phase 4: Popup  →  Phase 5: Mid-Boss
+    // ═══════════════════════════════════════════════════════════════════════════
     playGazeReplay(gazeData, onComplete) {
-        // [ROBUST] Sync Markers before starting replay to ensure visibility
         this.syncPangMarkers();
 
         if (!gazeData || gazeData.length < 2) {
-            console.warn("[TextRenderer] No gaze data for replay.");
+            console.warn('[TextRenderer] No gaze data for replay.');
             if (onComplete) onComplete();
             return;
         }
 
-        // Helper to force visibility against any async fade-outs
+        // ── forceVisibility helper ──
         const forceVisibility = () => {
             if (this.container) {
-                this.container.style.transition = "none";
-                this.container.style.opacity = "1";
-                this.container.style.visibility = "visible";
+                this.container.style.transition = 'none';
+                this.container.style.opacity = '1';
+                this.container.style.visibility = 'visible';
             }
             if (this.words && this.words.length > 0) {
                 this.words.forEach(w => {
-                    if (w.element) {
-                        w.element.style.transition = "none";
-                        w.element.style.opacity = "1";
-                        w.element.style.visibility = "visible";
-
-                        // [CRITICAL FIX] Ensure position is reset to "revealed" state (0px)
-                        // Otherwise it defaults to .tr-word (10px down), causing mismatch.
-                        w.element.style.transform = "translateY(0)";
-                        w.element.classList.add("revealed");
-
-                        w.element.classList.remove("faded-out");
-                        w.element.classList.remove("chunk-fade-out"); // Specific class used by fadeOutChunk
-                        w.element.classList.remove("hidden");
-                    }
+                    if (!w.element) return;
+                    w.element.style.transition = 'none';
+                    w.element.style.opacity = '1';
+                    w.element.style.visibility = 'visible';
+                    w.element.style.transform = 'translateY(0)';
+                    w.element.classList.add('revealed');
+                    w.element.classList.remove('faded-out', 'chunk-fade-out', 'hidden');
                 });
             }
         };
 
-        // 1. Immediate Enforcement (one-shot)
         forceVisibility();
-
-        // 2. Single delayed re-enforcement (NOT an interval)
-        // [FIX-iOS] The old 10ms setInterval was doing 70,000+ DOM writes → OOM Kill.
-        // One extra call at 250ms is sufficient to override any async fade-out.
         const safetyTimer = setTimeout(forceVisibility, 250);
         this.activeAnimations.push(safetyTimer);
 
-        console.log(`[TextRenderer] Text restored. Waiting 500ms before replay...`);
-        // DELAY REPLAY START
         setTimeout(() => {
             clearTimeout(safetyTimer);
 
-            // [NEW] CRITICAL FIX: Do NOT Re-Lock Layout.
-            // We use the ORIGINAL coordinates from the reading session.
-            // Re-locking causes micro-shifts if the browser layout engine decided to reflow.
-            // if (this.words.length > 0) {
-            //    console.log("[TextRenderer] Zero-Error Mapping: Re-calculating layout...");
-            //    this.lockLayout();
-            // }
-
-            // Use the freshly calculated lines (or existing ones)
             const visualLines = this.lines || [];
-
             if (visualLines.length === 0) {
-                console.warn("[TextRenderer] No visual lines available for mapping. Forcing one-time lock.");
-                // Emergency Fallback only
+                console.warn('[TextRenderer] No visual lines. Forcing lock.');
                 this.lockLayout();
             }
 
-            console.log(`[TextRenderer] Starting Pang-Log Driven Replay...`);
-
-            // [NEW] Source of Truth: Pang Logs
-            // We ONLY replay lines that successfully triggered a Pang Event.
+            // ── Build processedPath from Pang logs ──
             const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
             const rawPangLogs = (gm && typeof gm.getPangLogs === 'function') ? gm.getPangLogs() : [];
 
-            console.log(`[TextRenderer] Found ${rawPangLogs.length} Pang Events for Replay.`);
-
-            const processedPath = [];
-            const replaySegments = [];  // ← 실제 세그먼트 정보 수집
-
-            // ---------------------------------------------------------
-            // LOGIC: Filter data based on Pang Logs
-            // ---------------------------------------------------------
-
             if (rawPangLogs.length === 0) {
-                console.log("[TextRenderer] No Pang Events recorded. Skipping Replay.");
+                console.log('[TextRenderer] No Pang Events. Skipping Replay.');
                 if (onComplete) onComplete();
                 return;
             }
 
-            // Sort Logs by Time (just in case)
             rawPangLogs.sort((a, b) => a.t - b.t);
 
-            // [REMOVED] 0단계 보너스 팡 주입 제거
-            // 팡 없는 줄은 리플레이에 포함하지 않음 (SDK 오분류 방지)
-
-            // [FIX-iOS] O(N+M) sorted-pointer approach instead of O(N×M) filter-per-pang.
-            // Old code: 8 pangs × gazeData.filter(9000) = 72,000 comparisons.
-            // New code: single pass through sorted gazeData with advancing pointer.
-            //
-            // [FIX-iOS] gazeData is already time-sorted: processGaze() timestamps with Date.now()
-            // and pushes sequentially, so t values are monotonically increasing.
-            // slice().sort() on a 9000-entry array creates a full copy + O(N log N) sort
-            // for no reordering benefit — eliminated to prevent JS heap spike at replay start.
-            const sortedGaze = gazeData; // Already sorted by t (Date.now() monotonic)
-
-            // ─── Helper: gx 값 추출 ───
+            const sortedGaze = gazeData;
             const getGx = (d) => (typeof d.gx === 'number') ? d.gx : d.x;
 
-            // ─── 1단계: 평균 줄 읽기 시간 계산 (fallback 추정용) ───
-            let avgReadTime = 3000; // 기본값 3초
+            let avgReadTime = 3000;
             if (rawPangLogs.length >= 2) {
-                let totalGap = 0, gapCount = 0;
+                let sum = 0, cnt = 0;
                 for (let i = 1; i < rawPangLogs.length; i++) {
-                    const gap = rawPangLogs[i].t - rawPangLogs[i - 1].t;
-                    if (gap > 0 && gap < 10000) { // 비정상 간격 제외
-                        totalGap += gap;
-                        gapCount++;
-                    }
+                    const g = rawPangLogs[i].t - rawPangLogs[i - 1].t;
+                    if (g > 0 && g < 10000) { sum += g; cnt++; }
                 }
-                if (gapCount > 0) avgReadTime = totalGap / gapCount;
+                if (cnt > 0) avgReadTime = sum / cnt;
             }
-            console.log(`[TextRenderer] avgReadTime = ${Math.round(avgReadTime)}ms`);
 
-            // ─── 2단계: 각 팡별 세그먼트 구성 (극소~극대 기반) ───
+            const processedPath = [];
+            const replaySegments = [];
             let lastPangTime = 0;
-            const pangLines = new Set(rawPangLogs.map(l => l.line));
 
             rawPangLogs.forEach((log, idx) => {
                 const targetLineIndex = log.line;
                 const pangTime = log.t;
-
                 if (!visualLines[targetLineIndex]) { lastPangTime = pangTime; return; }
 
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine OR targetLine+1 ──
-                // [FIX] pang 발생 시점에 gaze의 d.line은 이미 targetLine+1(다음 줄)로 이동해 있음.
-                // pangLog.line = d0.line - 1 = targetLine 으로 기록되어, 필터가 항상 불일치했음.
-                // 따라서 targetLine 또는 targetLine+1 모두 후보로 수집.
                 const candidateData = [];
                 for (let i = 0; i < sortedGaze.length; i++) {
                     const d = sortedGaze[i];
@@ -1125,81 +1066,42 @@ export class TextRenderer {
                         candidateData.push(d);
                     }
                 }
-
                 if (candidateData.length < 5) { lastPangTime = pangTime; return; }
 
-                // ── segEnd 결정: 팡 직전 gx 극대값 (읽기 끝점) ──
-                // 후보 데이터를 뒤에서부터 탐색하여 로컬 극대값 찾기
                 let peakIdx = candidateData.length - 1;
                 let peakGx = getGx(candidateData[peakIdx]);
-
-                // 뒤에서부터 gx가 가장 큰 시점 찾기 (마지막 30% 구간에서)
                 const searchStart = Math.max(0, Math.floor(candidateData.length * 0.5));
                 for (let i = candidateData.length - 1; i >= searchStart; i--) {
                     const gx = getGx(candidateData[i]);
-                    if (gx > peakGx) {
-                        peakGx = gx;
-                        peakIdx = i;
-                    }
+                    if (gx > peakGx) { peakGx = gx; peakIdx = i; }
                 }
                 const segEndTime = candidateData[peakIdx].t;
 
-                // ── segStart 결정: gx 극소값 (읽기 시작점) ──
-                // 이전 줄에 팡이 없었던 경우: avgReadTime으로 범위 추정
-                const prevLineHadPang = idx > 0; // 이전 팡이 존재하면 true
-                let searchFromTime;
-                if (prevLineHadPang) {
-                    searchFromTime = lastPangTime;
-                } else {
-                    // 첫 팡이거나 이전 줄에 팡 없음 → avgReadTime 기반 추정
-                    searchFromTime = Math.max(0, segEndTime - avgReadTime);
-                }
-
-                // searchFromTime ~ segEndTime 구간에서 gx 최솟값 찾기
-                let valleyIdx = 0;
-                let valleyGx = Infinity;
+                const searchFromTime = (idx > 0) ? lastPangTime : Math.max(0, segEndTime - avgReadTime);
+                let valleyIdx = 0, valleyGx = Infinity;
                 for (let i = 0; i < candidateData.length; i++) {
                     if (candidateData[i].t < searchFromTime) continue;
                     if (candidateData[i].t > segEndTime) break;
                     const gx = getGx(candidateData[i]);
-                    if (gx < valleyGx) {
-                        valleyGx = gx;
-                        valleyIdx = i;
-                    }
+                    if (gx < valleyGx) { valleyGx = gx; valleyIdx = i; }
                 }
-                const segStartTime = candidateData[valleyIdx].t;
 
-                // ── 실제 세그먼트 데이터 추출: segStart ~ segEnd ──
                 const segmentData = [];
-                for (let i = valleyIdx; i <= peakIdx; i++) {
-                    segmentData.push(candidateData[i]);
-                }
-
+                for (let i = valleyIdx; i <= peakIdx; i++) segmentData.push(candidateData[i]);
                 if (segmentData.length < 3) { lastPangTime = pangTime; return; }
 
-                // ── sourceMinX / sourceMaxX ──
-                const sourceMinX = valleyGx;
-                const sourceMaxX = peakGx;
+                if (processedPath.length > 0) processedPath.push({ isJump: true });
 
-                if (processedPath.length > 0) {
-                    processedPath.push({ isJump: true });
-                }
-
-                // ★ 실제 세그먼트 정보 기록
                 replaySegments.push({
-                    idx: idx,
-                    targetLine: targetLineIndex,
-                    segStart: segStartTime,
-                    segEnd: segEndTime,
-                    pangTime: pangTime,
-                    sourceMinX: Math.round(sourceMinX),
-                    sourceMaxX: Math.round(sourceMaxX),
+                    idx, targetLine: targetLineIndex,
+                    segStart: candidateData[valleyIdx].t, segEnd: segEndTime, pangTime,
+                    sourceMinX: Math.round(valleyGx), sourceMaxX: Math.round(peakGx),
                     targetLeft: Math.round(targetLineObj.rect.left),
                     targetWidth: Math.round(targetLineObj.rect.width),
-                    samples: segmentData.length
+                    samples: segmentData.length,
                 });
 
-                const sourceWidth = sourceMaxX - sourceMinX;
+                const sourceWidth = peakGx - valleyGx;
                 const targetLeft = targetLineObj.rect.left;
                 const targetWidth = targetLineObj.rect.width;
 
@@ -1207,369 +1109,431 @@ export class TextRenderer {
                     const d = segmentData[i];
                     const gx = getGx(d);
                     let scaledX = gx;
-
                     if (sourceWidth > 10 && targetWidth > 0) {
-                        let ratio = (gx - sourceMinX) / sourceWidth;
-                        ratio = Math.max(0, Math.min(1, ratio));
-                        scaledX = targetLeft + (ratio * targetWidth);
+                        let r = (gx - valleyGx) / sourceWidth;
+                        r = Math.max(0, Math.min(1, r));
+                        scaledX = targetLeft + r * targetWidth;
                     } else {
-                        scaledX = targetLeft + (gx - sourceMinX);
+                        scaledX = targetLeft + (gx - valleyGx);
                     }
-
-                    processedPath.push({
-                        x: scaledX,
-                        y: fixedY,
-                        t: d.t,
-                        isJump: false
-                    });
+                    processedPath.push({ x: scaledX, y: fixedY, t: d.t, isJump: false });
                 }
-
                 lastPangTime = pangTime;
             });
 
-            // [REMOVED] 3단계 잔여 세그먼트 처리 제거
-            // 마지막 팡 이후 데이터는 리플레이에 포함하지 않음
-            // (팡 없는 줄 = 리플레이 없음 원칙)
-
-            // [DEBUG] Expose Replay Path for Dashboard
+            // Expose for dashboard/GazeDataManager
             try {
-                if (window.opener) window.opener.dashboardReplayData = processedPath;
                 window.dashboardReplayData = processedPath;
-
-                // [NEW] Pass to GazeDataManager for Cloud Upload (경로 + 세그먼트 정보)
-                if (window.gazeDataManager && typeof window.gazeDataManager.setReplayData === 'function') {
-                    window.gazeDataManager.setReplayData(processedPath);
-                }
-                // ★ 세그먼트 정보도 별도 저장
                 if (window.gazeDataManager) {
+                    if (typeof window.gazeDataManager.setReplayData === 'function')
+                        window.gazeDataManager.setReplayData(processedPath);
                     window.gazeDataManager.replaySegments = replaySegments;
-                    console.log(`[TextRenderer] ★ replaySegments SET on gazeDataManager: ${replaySegments.length} segments`,
-                        replaySegments.map(s => `L${s.targetLine}(${s.samples}pts)`).join(', '));
-                } else {
-                    console.warn('[TextRenderer] ⚠️ window.gazeDataManager is null — replaySegments NOT saved!');
                 }
-            } catch (e) {
-                console.warn("Could not expose replay data to opener", e);
-            }
+            } catch (e) { console.warn('Could not expose replay data', e); }
 
-            // ---------------------------------------------------------
-            // VALIDATION & RENDER (CANVAS + COMBO)
-            // ---------------------------------------------------------
             if (processedPath.length < 2) {
-                console.warn("[TextRenderer] No processed path generated (maybe no data matched Pang Logs).");
+                console.warn('[TextRenderer] No processed path.');
                 if (onComplete) onComplete();
                 return;
             }
 
-            // --- 1. Canvas Setup (Existing) ---
+            // ─────────────────────────────────────────────
+            // PHASE 1: Gray out all text
+            // ─────────────────────────────────────────────
+            this._grayOutAllText();
+
+            // ─────────────────────────────────────────────
+            // PHASE 2: Canvas + Progress Bar setup
+            // ─────────────────────────────────────────────
             const canvas = document.createElement('canvas');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            canvas.style.position = 'fixed';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.pointerEvents = 'none';
-            canvas.style.zIndex = '999999';
+            canvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999999;';
             document.body.appendChild(canvas);
             const ctx = canvas.getContext('2d');
 
+            const progressContainer = this._createProgressBar();
+
             const path = processedPath;
-
-            // --- 2. Combo System Setup ---
-            const pathStartTime = path[0].t;
-            const pathEndTime = path[path.length - 1].t;
-
-            // 줄당 500ms 리플레이
             const duration = Math.max(1500, replaySegments.length * 500);
-
             let startTime = null;
-
-            // Remap logs to Progress (0..1)
-            const replayEvents = rawPangLogs.map(log => {
-                let t = log.t;
-                if (t < pathStartTime) t = pathStartTime;
-                if (t > pathEndTime) t = pathEndTime;
-
-                let ratio = (t - pathStartTime) / (pathEndTime - pathStartTime);
-                if (isNaN(ratio)) ratio = 0;
-
-                return {
-                    progressTrigger: ratio, // 0.0 ~ 1.0
-                    line: log.line,
-                    triggered: false
-                };
-            }).sort((a, b) => a.progressTrigger - b.progressTrigger);
-
-            // Combo State
-            this.comboState = {
-                current: 0,
-                lastLine: -1,
-                totalScore: 0
-            };
-
-            // No more giant UI container (_initScoreUI removed)
+            const litLines = new Set();
 
             const animate = (timestamp) => {
-                // [FIX-iOS] forceVisibility() was removed from this loop.
-                // It was doing 200 words × 7 style writes × 60fps = 84,000 DOM ops during replay.
-                // The single-shot + delayed call above is sufficient.
-
                 if (!startTime) startTime = timestamp;
-
                 const elapsed = timestamp - startTime;
                 const progress = elapsed / duration;
 
                 if (progress >= 1) {
-                    canvas.style.transition = "opacity 0.5s";
-                    canvas.style.opacity = "0";
+                    canvas.style.transition = 'opacity 0.5s';
+                    canvas.style.opacity = '0';
                     this._replayRAFId = null;
-                    setTimeout(() => { canvas.remove(); if (onComplete) onComplete(); }, 500);
+                    setTimeout(() => {
+                        canvas.remove();
+                        // ─────────────────────────────────────────
+                        // PHASE 3: Energy beams → Progress Bar
+                        // ─────────────────────────────────────────
+                        this._runEnergyTransfer(litLines, visualLines, progressContainer, (finalPct) => {
+                            // ─────────────────────────────────────
+                            // PHASE 4: Rift judgment + Popup
+                            // ─────────────────────────────────────
+                            this._showRiftPopup(finalPct, visualLines, () => {
+                                if (progressContainer.parentNode) progressContainer.remove();
+                                // PHASE 5: onComplete → Mid-Boss
+                                if (onComplete) onComplete();
+                            });
+                        });
+                    }, 500);
                     return;
                 }
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // --- 3. Combo Check ---
-                this._checkReplayCombo(progress, replayEvents, visualLines);
-
-                // --- 4. Draw Path ---
                 const maxIdx = Math.floor(path.length * progress);
-
                 if (maxIdx >= 0 && maxIdx < path.length) {
                     const head = path[maxIdx];
                     if (head && !head.isJump) {
+                        // Light up line as dot passes through
+                        const lineIdx = this._findLineForY(head.y, visualLines);
+                        if (lineIdx !== null && !litLines.has(lineIdx)) {
+                            litLines.add(lineIdx);
+                            this._lightUpLine(lineIdx);
+                        }
+                        // Draw green gaze dot
                         ctx.beginPath();
                         ctx.fillStyle = '#00ff00';
                         ctx.shadowColor = '#00ff00';
-                        ctx.shadowBlur = 10;
+                        ctx.shadowBlur = 12;
                         ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.shadowBlur = 0;
                     }
                 }
-                // [FIX-iOS] Store RAF ID so it can be cancelled by cancelAllAnimations()
+
                 this._replayRAFId = requestAnimationFrame(animate);
             };
-            // [FIX-iOS] Track the initial replay RAF
+
             this._replayRAFId = requestAnimationFrame(animate);
 
         }, 500);
     }
 
-    // --- COMBO SYSTEM HELPERS ---
+    // ─── Phase 1: Gray all text ───────────────────────────────────────────────
+    _grayOutAllText() {
+        if (!this.words) return;
+        this.words.forEach(w => {
+            if (!w.element) return;
+            w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+            w.element.style.color = 'rgba(255,255,255,0.18)';
+            w.element.style.textShadow = 'none';
+        });
+    }
 
-    _checkReplayCombo(progress, events, visualLines) {
-        events.forEach(ev => {
-            if (!ev.triggered && progress >= ev.progressTrigger) {
-                ev.triggered = true;
+    // ─── Phase 2: Find closest line index by Y ────────────────────────────────
+    _findLineForY(y, visualLines) {
+        let closest = null, minDist = Infinity;
+        visualLines.forEach((line, idx) => {
+            const d = Math.abs(line.visualY - y);
+            if (d < minDist) { minDist = d; closest = idx; }
+        });
+        return (minDist < 60) ? closest : null;
+    }
 
-                const lineIdx = ev.line;
-                let score = 10;
-
-                // Continuity: line == last + 1
-                if (lineIdx === this.comboState.lastLine + 1) {
-                    this.comboState.current++;
-                } else {
-                    if (this.comboState.lastLine === -1 && lineIdx === 0) {
-                        this.comboState.current = 1;
-                    } else {
-                        this.comboState.current = 1;
-                    }
-                }
-
-                if (this.comboState.current > 1) {
-                    score += (this.comboState.current * 10);
-                }
-
-                this.comboState.totalScore += score;
-                this.comboState.lastLine = lineIdx;
-
-                if (visualLines[lineIdx]) {
-                    const lineY = visualLines[lineIdx].visualY;
-                    // Trigger minimal popup & flash
-                    this._showMiniScore(score, lineY);
-                    this._spawnReplayPulse(lineY);
-                }
-
-                if (window.Game && typeof window.Game.addInk === 'function') {
-                    // window.Game.addInk(score); 
-                }
+    // ─── Phase 2: Light up a line's words ────────────────────────────────────
+    _lightUpLine(lineIndex) {
+        if (!this.lines || !this.lines[lineIndex]) return;
+        const line = this.lines[lineIndex];
+        if (!line.wordIndices) return;
+        line.wordIndices.forEach(wIdx => {
+            const word = this.words[wIdx];
+            if (word && word.element) {
+                word.element.style.transition = 'color 0.2s ease, text-shadow 0.2s ease';
+                word.element.style.color = '#ffffff';
+                word.element.style.textShadow = '0 0 8px rgba(255,255,255,0.5)';
             }
         });
     }
 
-    _showMiniScore(score, yPos) {
-        // [ENHANCED] Combo Text (150% Scale)
-        const el = document.createElement('div');
-        el.className = 'replay-mini-score';
-        el.innerHTML = `Combo! <br>+${score}`; // Combo text + Score
+    // ─── Phase 3: Create progress bar DOM ────────────────────────────────────
+    _createProgressBar() {
+        const container = document.createElement('div');
+        container.id = 'replay-progress-container';
+        container.style.cssText = [
+            'position:fixed', 'bottom:28px', 'left:50%', 'transform:translateX(-50%)',
+            'width:78%', 'height:14px',
+            'background:rgba(20,5,35,0.75)',
+            'border-radius:7px',
+            'border:1px solid rgba(155,89,182,0.55)',
+            'box-shadow:0 0 14px rgba(155,89,182,0.3)',
+            'z-index:999998', 'overflow:hidden',
+        ].join(';');
 
-        const xPos = window.innerWidth - 60;
+        const fill = document.createElement('div');
+        fill.id = 'replay-progress-fill';
+        fill.style.cssText = [
+            'width:0%', 'height:100%',
+            'background:linear-gradient(90deg,#4a1a6b,#8e44ad,#c39bd3)',
+            'border-radius:7px',
+            'box-shadow:0 0 18px rgba(155,89,182,0.85)',
+            'transition:width 0.35s ease-out',
+        ].join(';');
 
-        el.style.position = 'fixed';
-        el.style.left = xPos + 'px';
-        el.style.top = yPos + 'px';
-        el.style.transform = 'translate(-50%, -50%) scale(0)'; // Start scaling from 0
-        el.style.color = '#FFD700'; // Gold Color for Combo
-        el.style.fontWeight = 'bold';
-        el.style.fontSize = '14px'; // 14px Base Font
-        el.style.fontFamily = 'monospace';
-        el.style.pointerEvents = 'none';
-        el.style.zIndex = '1000000';
-        el.style.textAlign = 'center';
-        el.style.textShadow = '0 0 15px #FFD700, 0 0 5px orange'; // Stronger Glow
-        // Apply Transition for Scale & Opacity
-        el.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s 0.5s';
-        el.style.opacity = '1';
+        const label = document.createElement('div');
+        label.id = 'replay-progress-label';
+        label.style.cssText = [
+            'position:absolute', 'top:-22px', 'right:0',
+            'color:#d7bde2', 'font-size:11px',
+            'font-family:monospace', 'letter-spacing:1px',
+        ].join(';');
+        label.textContent = '0%';
 
-        document.body.appendChild(el);
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = [
+            'position:absolute', 'top:-22px', 'left:0',
+            'color:rgba(155,89,182,0.75)', 'font-size:11px',
+            'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
+        ].join(';');
+        titleEl.textContent = 'Rift Sealing';
 
-        // Pop Up Animation (Scale 1.2)
-        requestAnimationFrame(() => {
-            el.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            el.style.opacity = '1';
-        });
-
-        // Trigger Flying Ink Animation
-        this._animateScoreToHud(xPos, yPos, score);
-
-        // Remove after delay
-        setTimeout(() => {
-            el.style.opacity = '0';
-            setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
-        }, 800);
+        container.appendChild(fill);
+        container.appendChild(label);
+        container.appendChild(titleEl);
+        document.body.appendChild(container);
+        return container;
     }
 
-    _animateScoreToHud(startX, startY, score) {
-        // Find Target (Ink Icon/Counter in HUD)
-        const targetEl = document.getElementById("ink-count");
-        if (!targetEl) return;
+    // ─── Phase 3: Energy beam animation → progress bar ───────────────────────
+    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
+        const totalLines = visualLines.length;
+        const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
 
-        // Use parent for bigger target area if possible
-        const targetRect = (targetEl.parentElement || targetEl).getBoundingClientRect();
-        const targetX = targetRect.left + targetRect.width / 2;
-        const targetY = targetRect.top + targetRect.height / 2;
+        if (litLines.size === 0) { setTimeout(() => onDone(0), 300); return; }
 
-        // Calculate Control Point (CP) for Bezier Curve
-        // CP.x = startX (Vertical rise initially)
-        // CP.y = Midpoint between HUD and First Line of Text
-        let firstLineY = startY;
-        if (this.lines && this.lines.length > 0) {
-            firstLineY = this.lines[0].visualY || this.lines[0].rect.top;
-        }
-        // Ensure CP is higher than startY even if on first line
-        if (firstLineY > startY) firstLineY = startY;
+        const fill = document.getElementById('replay-progress-fill');
+        const label = document.getElementById('replay-progress-label');
+        const barRect = progressContainer.getBoundingClientRect();
+        const barCX = barRect.left + barRect.width / 2;
+        const barCY = barRect.top + barRect.height / 2;
 
-        // CP Y: Midpoint between HUD (targetY) and First Line
-        // We add an extra offset (-50) to ensure it arcs OVER the text if needed
-        const cpX = startX;
-        const cpY = (targetY + firstLineY) / 2 - 50;
+        const lineArray = Array.from(litLines).sort((a, b) => a - b);
+        const BEAM_DUR = 480;
+        const STAGGER = 170;
 
-        // Create Flying Particle
-        const p = document.createElement('div');
-        p.className = 'flying-ink';
-        p.innerText = `+${score}`;
-        p.style.position = 'fixed';
-        p.style.left = startX + 'px';
-        p.style.top = startY + 'px';
-        p.style.color = '#00ffff';
-        p.style.fontWeight = 'bold';
-        p.style.fontSize = '18px';
-        p.style.pointerEvents = 'none';
-        p.style.zIndex = '1000001';
-        p.style.transform = 'translate(-50%, -50%) scale(1.5)';
-        p.style.transition = 'transform 0.1s';
+        const beams = lineArray.map((lineIdx, i) => {
+            const line = visualLines[lineIdx];
+            const startX = line.rect ? (line.rect.left + line.rect.width * 0.82) : window.innerWidth * 0.82;
+            return { startX, startY: line.visualY, progress: 0, delay: i * STAGGER, arrived: false };
+        });
 
-        document.body.appendChild(p);
-        // [FIX #9] Register this node so cancelAllAnimations() can remove it if RAF is force-cancelled
-        if (this._activeFlyingInkNodes) this._activeFlyingInkNodes.add(p);
+        // beam canvas
+        const bc = document.createElement('canvas');
+        bc.width = window.innerWidth;
+        bc.height = window.innerHeight;
+        bc.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999997;';
+        document.body.appendChild(bc);
+        const bCtx = bc.getContext('2d');
 
-        // [120Hz FIX] Timestamp-gate to 60fps max.
-        const TARGET_FRAME_MS = 1000 / 60;
-        let startTime = null;
-        const duration = 1000;
-        let lastFrameTs = 0;
-        // [FIX-iOS] Self-cleaning RAF tracking — single slot instead of push-per-frame.
-        // Old code pushed a new id every frame → activeRAFs grew unboundedly → OOM.
-        let currentRAFId = null;
+        let arrivedCount = 0;
+        let beamTs = null;
 
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
+        const animateBeams = (ts) => {
+            if (!beamTs) beamTs = ts;
+            const el = ts - beamTs;
+            bCtx.clearRect(0, 0, bc.width, bc.height);
 
-            const shouldRender = (timestamp - lastFrameTs) >= TARGET_FRAME_MS;
-            if (shouldRender) lastFrameTs = timestamp;
+            let allArrived = true;
+            beams.forEach((beam) => {
+                const be = el - beam.delay;
+                if (be < 0) { allArrived = false; return; }
 
-            const progress = (timestamp - startTime) / duration;
+                beam.progress = Math.min(1, be / BEAM_DUR);
+                if (beam.progress < 1) allArrived = false;
 
-            if (progress >= 1) {
-                if (p.parentNode) p.remove();
-                // [FIX #9] Deregister from tracking set on natural completion
-                if (this._activeFlyingInkNodes) this._activeFlyingInkNodes.delete(p);
-                // Remove our slot from tracking
-                if (currentRAFId) {
-                    const idx = this.activeRAFs.indexOf(currentRAFId);
-                    if (idx !== -1) this.activeRAFs.splice(idx, 1);
-                    currentRAFId = null;
+                // ease-out cubic
+                const t = 1 - Math.pow(1 - beam.progress, 3);
+                // Bezier control point (arc shape)
+                const cpX = (beam.startX + barCX) / 2;
+                const cpY = Math.min(beam.startY, barCY) - 60;
+                const inv = 1 - t;
+                const hx = inv * inv * beam.startX + 2 * inv * t * cpX + t * t * barCX;
+                const hy = inv * inv * beam.startY + 2 * inv * t * cpY + t * t * barCY;
+
+                // draw curved trail (12 steps)
+                bCtx.beginPath();
+                for (let s = 0; s <= 12; s++) {
+                    const st = (s / 12) * t, sit = 1 - st;
+                    const px = sit * sit * beam.startX + 2 * sit * st * cpX + st * st * barCX;
+                    const py = sit * sit * beam.startY + 2 * sit * st * cpY + st * st * barCY;
+                    s === 0 ? bCtx.moveTo(px, py) : bCtx.lineTo(px, py);
                 }
-                if (window.Game && typeof window.Game.addInk === 'function') {
-                    window.Game.addInk(score);
+                const g = bCtx.createLinearGradient(beam.startX, beam.startY, hx, hy);
+                g.addColorStop(0, 'rgba(155,89,182,0)');
+                g.addColorStop(0.45, 'rgba(142,68,173,0.35)');
+                g.addColorStop(1, 'rgba(215,189,226,0.95)');
+                bCtx.strokeStyle = g;
+                bCtx.lineWidth = 2.5;
+                bCtx.shadowColor = '#9b59b6';
+                bCtx.shadowBlur = 10;
+                bCtx.stroke();
+                bCtx.shadowBlur = 0;
+
+                // head orb
+                bCtx.beginPath();
+                bCtx.arc(hx, hy, 5, 0, Math.PI * 2);
+                bCtx.fillStyle = '#d7bde2';
+                bCtx.shadowColor = '#9b59b6';
+                bCtx.shadowBlur = 16;
+                bCtx.fill();
+                bCtx.shadowBlur = 0;
+
+                // on arrival: update bar
+                if (beam.progress >= 1 && !beam.arrived) {
+                    beam.arrived = true;
+                    arrivedCount++;
+                    const pct = Math.min(100, Math.round((arrivedCount / totalLines) * 100));
+                    if (fill) fill.style.width = pct + '%';
+                    if (label) label.textContent = pct + '%';
                 }
-                const hudIcon = targetEl.parentElement || targetEl;
-                hudIcon.style.transition = "transform 0.1s";
-                hudIcon.style.transform = "scale(1.3)";
-                setTimeout(() => hudIcon.style.transform = "scale(1)", 150);
-                return;
+            });
+
+            if (!allArrived) {
+                requestAnimationFrame(animateBeams);
+            } else {
+                setTimeout(() => {
+                    bCtx.clearRect(0, 0, bc.width, bc.height);
+                    setTimeout(() => { bc.remove(); onDone(finalPct); }, 200);
+                }, 400);
             }
-
-            if (shouldRender) {
-                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                const t = ease;
-                const invT = 1 - t;
-                const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
-                const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
-
-                p.style.left = currentX + 'px';
-                p.style.top = currentY + 'px';
-
-                const scale = 1.5 - (progress * 0.5);
-                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            }
-
-            // Self-cleaning: remove old id, schedule new, track new
-            if (currentRAFId) {
-                const idx = this.activeRAFs.indexOf(currentRAFId);
-                if (idx !== -1) this.activeRAFs.splice(idx, 1);
-            }
-            currentRAFId = requestAnimationFrame(animate);
-            this.activeRAFs.push(currentRAFId);
         };
-        // Initial kick — track the first RAF id
-        currentRAFId = requestAnimationFrame(animate);
-        this.activeRAFs.push(currentRAFId);
+
+        requestAnimationFrame(animateBeams);
     }
 
-    _spawnReplayPulse(yPos) {
-        const pulse = document.createElement('div');
-        pulse.style.position = 'fixed';
-        pulse.style.right = '20px';
-        pulse.style.top = yPos + 'px';
-        pulse.style.width = '8px';
-        pulse.style.height = '8px';
-        pulse.style.borderRadius = '50%';
-        pulse.style.backgroundColor = 'magenta';
-        pulse.style.boxShadow = '0 0 10px magenta';
-        pulse.style.zIndex = '999999';
-        pulse.style.transform = 'translate(50%, -50%) scale(1)';
-        pulse.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-
-        document.body.appendChild(pulse);
-
-        requestAnimationFrame(() => {
-            pulse.style.transform = 'translate(50%, -50%) scale(3)';
-            pulse.style.opacity = '0';
+    // ─── Phase 4-A: Wave text white top→bottom ────────────────────────────────
+    _waveTextWhite(visualLines) {
+        if (!visualLines || !this.words) return;
+        visualLines.forEach((line, i) => {
+            setTimeout(() => {
+                if (!line.wordIndices) return;
+                line.wordIndices.forEach(wIdx => {
+                    const word = this.words[wIdx];
+                    if (word && word.element) {
+                        word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
+                        word.element.style.color = '#ffffff';
+                        word.element.style.textShadow =
+                            '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
+                    }
+                });
+            }, i * 70);
         });
-
-        setTimeout(() => pulse.remove(), 200);
     }
+
+    // ─── Phase 4: Rift popup ──────────────────────────────────────────────────
+    _showRiftPopup(finalPct, visualLines, onContinue) {
+        const isSealed = finalPct >= 60;
+        if (isSealed) this._waveTextWhite(visualLines);
+
+        const PURPLE = '#9b59b6';
+        const PURPLE_DIM = 'rgba(155,89,182,0.6)';
+        let countdown = 10;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'rift-popup-overlay';
+        overlay.style.cssText = [
+            'position:fixed', 'inset:0', 'z-index:9999999',
+            'display:flex', 'align-items:center', 'justify-content:center',
+            'background:rgba(8,0,18,0.75)',
+            'backdrop-filter:blur(5px)',
+            'opacity:0', 'transition:opacity 0.4s ease',
+        ].join(';');
+
+        const card = document.createElement('div');
+        card.style.cssText = [
+            'background:linear-gradient(145deg,rgba(28,8,48,0.97),rgba(12,3,25,0.97))',
+            'border:1px solid ' + (isSealed ? 'rgba(155,89,182,0.7)' : 'rgba(90,90,120,0.45)'),
+            'border-radius:18px', 'padding:38px 42px',
+            'max-width:360px', 'width:88%', 'text-align:center',
+            'box-shadow:0 0 48px ' + (isSealed ? 'rgba(155,89,182,0.45)' : 'rgba(40,40,70,0.4)'),
+            "font-family:'Outfit',sans-serif",
+        ].join(';');
+
+        const icon = document.createElement('div');
+        icon.style.cssText = 'font-size:3rem;margin-bottom:16px;';
+        icon.textContent = isSealed ? '🔮' : '⚠️';
+
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = [
+            'font-size:1.15rem', 'font-weight:700',
+            'letter-spacing:3px', 'text-transform:uppercase',
+            'margin-bottom:14px',
+            'color:' + (isSealed ? '#d7bde2' : '#8080a8'),
+            'text-shadow:' + (isSealed ? '0 0 14px rgba(155,89,182,0.85)' : 'none'),
+        ].join(';');
+        titleEl.textContent = isSealed ? 'RIFT SEALED' : 'RIFT NOT YET SEALED';
+
+        const msg = document.createElement('div');
+        msg.style.cssText = [
+            'font-size:0.9rem', 'line-height:1.65',
+            'color:' + (isSealed ? '#e8daef' : '#7878a0'),
+            'margin-bottom:22px',
+        ].join(';');
+        msg.textContent = isSealed
+            ? "This page has been sealed by the power of the Warden's gaze."
+            : 'The rift on this page has not yet been sealed. Keep reading.';
+
+        const pctEl = document.createElement('div');
+        pctEl.style.cssText = [
+            'font-size:2.2rem', 'font-weight:700', 'font-family:monospace',
+            'margin-bottom:22px',
+            'color:' + (isSealed ? '#c39bd3' : '#5555a0'),
+        ].join(';');
+        pctEl.textContent = Math.round(finalPct) + '%';
+
+        const btn = document.createElement('button');
+        btn.style.cssText = [
+            'background:linear-gradient(135deg,' + (isSealed ? '#6c3483,#9b59b6' : '#222244,#3a3a66') + ')',
+            'border:1px solid ' + (isSealed ? 'rgba(155,89,182,0.8)' : 'rgba(70,70,110,0.6)'),
+            'border-radius:9px', 'color:#fff',
+            'font-size:0.88rem', "font-family:'Outfit',sans-serif",
+            'letter-spacing:2px', 'text-transform:uppercase',
+            'padding:12px 30px', 'cursor:pointer',
+            'box-shadow:0 0 18px ' + (isSealed ? 'rgba(155,89,182,0.4)' : 'rgba(50,50,90,0.3)'),
+            'margin-bottom:14px', 'display:block', 'width:100%',
+        ].join(';');
+        btn.textContent = 'CONTINUE';
+
+        const cdEl = document.createElement('div');
+        cdEl.style.cssText = [
+            'font-size:0.75rem', 'font-family:monospace',
+            'color:' + PURPLE_DIM,
+        ].join(';');
+        cdEl.textContent = `Auto-continue in ${countdown}s`;
+
+        [icon, titleEl, msg, pctEl, btn, cdEl].forEach(el => card.appendChild(el));
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+
+        const cleanup = () => {
+            clearInterval(timer);
+            overlay.style.opacity = '0';
+            setTimeout(() => { if (overlay.parentNode) overlay.remove(); onContinue(); }, 420);
+        };
+
+        const timer = setInterval(() => {
+            countdown--;
+            cdEl.textContent = `Auto-continue in ${countdown}s`;
+            if (countdown <= 0) cleanup();
+        }, 1000);
+
+        btn.onclick = cleanup;
+    }
+
+    // ─── Legacy stubs (kept for external compatibility, no longer called) ─────
+    _checkReplayCombo() { }
+    _showMiniScore() { }
+    _animateScoreToHud() { }
+    _spawnReplayPulse() { }
 }
 window.TextRenderer = TextRenderer;
