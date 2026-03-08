@@ -1126,13 +1126,17 @@ export class TextRenderer {
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine ──
+                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine OR targetLine+1 ──
+                // [FIX] pang 발생 시점에 gaze의 d.line은 이미 targetLine+1(다음 줄)로 이동해 있음.
+                // pangLog.line = d0.line - 1 = targetLine 으로 기록되어, 필터가 항상 불일치했음.
+                // 따라서 targetLine 또는 targetLine+1 모두 후보로 수집.
                 const candidateData = [];
                 for (let i = 0; i < sortedGaze.length; i++) {
                     const d = sortedGaze[i];
                     if (d.t <= lastPangTime) continue;
                     if (d.t > pangTime) break;
-                    if (typeof d.line === 'number' && d.line === targetLineIndex) {
+                    if (typeof d.line === 'number' &&
+                        (d.line === targetLineIndex || d.line === targetLineIndex + 1)) {
                         candidateData.push(d);
                     }
                 }

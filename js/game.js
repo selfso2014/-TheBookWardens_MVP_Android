@@ -1431,29 +1431,31 @@ Game.typewriter = {
                                 ? `✅ 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}${segInfo}`
                                 : `⚠️ 일부 실패 (${failed.join(', ')})\n세션: ${uploadId}${segInfo}`;
 
-                            // 화면 팝업 (3초 후 자동 사라짐)
+                            // 화면 팝업 (탭하면 닫기)
                             const popup = document.createElement('div');
-                            popup.textContent = msg;
+                            const segCount = gdm.replaySegments ? gdm.replaySegments.length : 0;
+                            const debugInfo = `\n[디버그] seg=${segCount}, results=${JSON.stringify(results)}`;
+                            popup.textContent = msg + debugInfo + '\n\n(탭하면 닫기)';
                             Object.assign(popup.style, {
                                 position: 'fixed', top: '20px', left: '50%',
                                 transform: 'translateX(-50%)', zIndex: '999999',
-                                padding: '14px 24px', borderRadius: '12px',
-                                background: failed.length === 0
+                                padding: '16px 28px', borderRadius: '12px',
+                                background: failed.length === 0 && segOk
                                     ? 'linear-gradient(135deg, #1a6b3c, #2ea55a)'
                                     : 'linear-gradient(135deg, #8b4513, #cc6600)',
-                                color: '#fff', fontSize: '14px', fontWeight: 'bold',
+                                color: '#fff', fontSize: '13px', fontWeight: 'bold',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
                                 whiteSpace: 'pre-line', textAlign: 'center',
-                                opacity: '0', transition: 'opacity 0.4s ease'
+                                maxWidth: '90vw', cursor: 'pointer'
+                            });
+                            popup.addEventListener('click', () => {
+                                popup.style.opacity = '0';
+                                popup.style.transition = 'opacity 0.3s';
+                                setTimeout(() => popup.remove(), 400);
                             });
                             document.body.appendChild(popup);
-                            requestAnimationFrame(() => popup.style.opacity = '1');
-                            setTimeout(() => {
-                                popup.style.opacity = '0';
-                                setTimeout(() => popup.remove(), 500);
-                            }, 3000);
 
-                            console.log(`[Upload] ${msg.replace(/\n/g, ' | ')}`);
+                            console.log(`[Upload] ${msg.replace(/\n/g, ' | ')} | ${debugInfo.replace(/\n/g, '')}`);
 
                             // ★ 업로드 완료 후에만 데이터 클리어 (레이스 컨디션 방지)
                             if (gdm && typeof gdm.clearGazeData === 'function') {
