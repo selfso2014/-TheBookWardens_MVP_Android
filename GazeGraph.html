@@ -419,7 +419,7 @@
                 }));
 
                 renderSessionButtons(listEl, items);
-                setStatus(`✅ 연결됨 (${targetKeys.length}/${allKeys.length} 세션 로드)`);
+                setStatus(`✅ 연결됨 (${keys.length}개 세션)`);
             } catch (e) {
                 listEl.innerHTML = `<p style="color:var(--red)">❌ 세션 목록 오류: ${e.message}</p>`;
                 setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
