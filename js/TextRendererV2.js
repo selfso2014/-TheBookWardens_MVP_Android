@@ -1184,6 +1184,7 @@ export class TextRenderer {
                     targetLine: targetLineIndex,
                     segStart: segStartTime,
                     segEnd: segEndTime,
+                    pangTime: pangTime,
                     sourceMinX: Math.round(sourceMinX),
                     sourceMaxX: Math.round(sourceMaxX),
                     targetLeft: Math.round(targetLineObj.rect.left),

@@ -1299,7 +1299,7 @@
                     srcMin: seg.sourceMinX, srcMax: seg.sourceMaxX,
                     targetLeft: seg.targetLeft, targetWidth: seg.targetWidth,
                     samples: seg.samples,
-                    pangTime: i < sortedPangs.length ? sortedPangs[i].t_pang : null
+                    pangTime: seg.pangTime ? seg.pangTime - contentStart : (i < sortedPangs.length ? sortedPangs[i].t_pang : null)
                 }));
             } else {
                 // ★ 로컬 미러링: TextRendererV2와 동일한 극소~극대 알고리즘
@@ -1433,15 +1433,15 @@
                     }
                 };
 
-                // ⑤ PANG 수직선
+                // ⑤ PANG 수직선 (굵고 밝게)
                 const pangX = pangTime || segEnd;
                 annotations[`pangLine_${i}`] = {
                     type: 'line', xMin: pangX, xMax: pangX,
-                    borderColor: 'rgba(248,81,73,0.8)', borderWidth: 2,
+                    borderColor: '#ff4040', borderWidth: 3, z: 10,
                     label: {
-                        content: `PANG L${targetLine} @${Math.round(pangX)}ms`, display: true, position: 'end',
-                        color: '#f85149', backgroundColor: 'rgba(0,0,0,0.7)',
-                        font: { size: 9, weight: 'bold' }, padding: { x: 3, y: 1 }
+                        content: `PANG L${targetLine} @${Math.round(pangX)}ms`, display: true, position: 'start',
+                        color: '#fff', backgroundColor: 'rgba(255,40,40,0.85)',
+                        font: { size: 10, weight: 'bold' }, padding: { x: 4, y: 2 }
                     }
                 };
             });
