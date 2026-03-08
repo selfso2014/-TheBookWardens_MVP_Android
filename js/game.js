@@ -1401,7 +1401,7 @@ Game.typewriter = {
                             })
                         );
 
-                        // ★ 업로드 완료 팝업
+                        // ★ 업로드 완료 팝업 + clearGazeData
                         Promise.all(uploadPromises).then(results => {
                             const failed = results.filter(r => typeof r === 'string' && r.includes('failed'));
                             const msg = failed.length === 0
@@ -1431,18 +1431,18 @@ Game.typewriter = {
                             }, 3000);
 
                             console.log(`[Upload] ${msg.replace(/\n/g, ' | ')}`);
+
+                            // ★ 업로드 완료 후에만 데이터 클리어 (레이스 컨디션 방지)
+                            if (gdm && typeof gdm.clearGazeData === 'function') {
+                                gdm.clearGazeData();
+                            }
                         });
                     } else {
                         console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
-                    }
-
-
-                    // [FIX-iOS] Free gaze data now — replay has already consumed sessionData.
-                    // Next paragraph will start with an empty array (fresh t=0 timeline).
-                    // Called here to avoid the race condition of clearing inside resetTriggers()
-                    // while gaze data is already flowing in from setSeesoTracking(true).
-                    if (gdm && typeof gdm.clearGazeData === 'function') {
-                        gdm.clearGazeData();
+                        // 업로드 없어도 데이터 클리어 필요
+                        if (gdm && typeof gdm.clearGazeData === 'function') {
+                            gdm.clearGazeData();
+                        }
                     }
 
                     // [FIX-iPhone15Pro] Restore WASM processing before next paragraph.
