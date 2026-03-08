@@ -895,7 +895,7 @@
             // ── Build annotations ─────────────────────────────────────────────────
             const annotations = {};
 
-            // Box per line: alternating subtle background tint + start/end vertical lines
+            // Box per line: alternating subtle background tint + labels at start
             const PALETTE = [
                 'rgba(100,100,255,0.07)',
                 'rgba(255,100,100,0.06)',
@@ -903,10 +903,13 @@
                 'rgba(200,200,100,0.06)',
             ];
             const lineKeys = Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b));
+            // Y축 범위 계산 (label 배치용)
+            const allGx = data.map(d => d.gx !== undefined ? d.gx : d.x).filter(v => v != null);
+            const yTop = Math.max(...allGx) + 20;
+
             lineKeys.forEach((N, idx) => {
                 const rng = lineRanges[N];
-                const dur = Math.round(rng.end - rng.start);
-                // Background box
+                // Background box (no label)
                 annotations[`box_L${N}`] = {
                     type: 'box',
                     xMin: rng.start,
@@ -914,15 +917,23 @@
                     backgroundColor: PALETTE[idx % PALETTE.length],
                     borderColor: 'transparent',
                     borderWidth: 0,
-                    label: {
-                        content: `L${N}  (${Math.round(rng.start)}~${Math.round(rng.end)}ms)`,
-                        display: true,
-                        position: { x: 'center', y: 'start' },
-                        color: '#e6edf3',
-                        backgroundColor: 'rgba(0,0,0,0.65)',
-                        font: { size: 10, weight: 'bold' },
-                        padding: { x: 4, y: 2 }
-                    }
+                    z: -1
+                };
+                // Label at start point — Y position staggered to avoid overlap
+                const yPos = yTop - (idx % 4) * 25;
+                annotations[`lbl_L${N}`] = {
+                    type: 'label',
+                    xValue: rng.start + (rng.end - rng.start) * 0.02,
+                    yValue: yPos,
+                    yScaleID: 'yPos',
+                    content: [`L${N} ${Math.round(rng.start)}~${Math.round(rng.end)}ms`],
+                    color: '#e6edf3',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    font: { size: 9, weight: 'bold' },
+                    padding: { x: 4, y: 2 }
                 };
                 // Start vertical line (green)
                 annotations[`lineStart_L${N}`] = {
