@@ -1107,25 +1107,12 @@ export class TextRenderer {
                         processedPath.push({ isJump: true });
                     }
 
-                    // [FIX] sourceMinX/sourceMaxX: 해당 줄의 첫 읽기 구간만 사용
-                    // segmentData에서 해당 줄에 처음 연속으로 등장한 구간만 추출
-                    // (재방문 데이터가 섞여 있을 수 있으므로 첫 진입~첫 이탈 구간만)
-                    let firstReadEnd = segmentData.length;
-                    if (segmentData.length > 1) {
-                        // 첫 진입 시점부터 연속 체류하다 다른 줄로 갔다가 돌아온 경우 제외
-                        // segmentData는 이미 같은 line만 필터된 상태이므로,
-                        // 시간 간격이 크게 벌어지는 구간(>1000ms)이 있으면 그 이전만 사용
-                        for (let i = 1; i < segmentData.length; i++) {
-                            const gap = segmentData[i].t - segmentData[i - 1].t;
-                            if (gap > 1000) {
-                                firstReadEnd = i;
-                                break;
-                            }
-                        }
-                    }
+                    // sourceMinX/sourceMaxX: 팡 시점 경계 기반
+                    // segmentData는 이미 lastLogEndTime(이전 팡) ~ endTime(현재 팡) 구간으로
+                    // 제한되어 있으므로 첫 읽기 데이터만 포함됨. 추가 필터링 불필요.
                     let sourceMinX = Infinity;
                     let sourceMaxX = -Infinity;
-                    for (let i = 0; i < firstReadEnd; i++) {
+                    for (let i = 0; i < segmentData.length; i++) {
                         const gx = (typeof segmentData[i].gx === 'number') ? segmentData[i].gx : segmentData[i].x;
                         if (gx < sourceMinX) sourceMinX = gx;
                         if (gx > sourceMaxX) sourceMaxX = gx;
