@@ -903,6 +903,51 @@
                 order: 8
             };
 
+            // ── Dataset 8/9: gx 곡선의 로컬 극대/극소 마커 ─────────────────
+            const gxLocalMax = [];  // { x: t, y: gx }
+            const gxLocalMin = [];
+            const W = 5; // 창 크기 (앞뒤 5개 샘플 내 최대/최소)
+            for (let i = W; i < data.length - W; i++) {
+                const gx = data[i].gx !== undefined ? data[i].gx : data[i].x;
+                if (gx == null) continue;
+                let isMax = true, isMin = true;
+                for (let j = i - W; j <= i + W; j++) {
+                    if (j === i) continue;
+                    const other = data[j].gx !== undefined ? data[j].gx : data[j].x;
+                    if (other == null) { isMax = false; isMin = false; break; }
+                    if (other >= gx) isMax = false;
+                    if (other <= gx) isMin = false;
+                }
+                if (isMax) gxLocalMax.push({ x: data[i].t, y: gx });
+                if (isMin) gxLocalMin.push({ x: data[i].t, y: gx });
+            }
+
+            const ds_gxMax = {
+                label: 'gx 극대 ▲',
+                data: gxLocalMax,
+                type: 'scatter',
+                pointStyle: 'rectRot',   // ◆ 다이아몬드
+                radius: 6,
+                backgroundColor: '#f85149',
+                borderColor: '#fff',
+                borderWidth: 1,
+                yAxisID: 'yPos',
+                order: 2
+            };
+
+            const ds_gxMin = {
+                label: 'gx 극소 ▼',
+                data: gxLocalMin,
+                type: 'scatter',
+                pointStyle: 'rectRot',   // ◆ 다이아몬드
+                radius: 6,
+                backgroundColor: '#3fb950',
+                borderColor: '#fff',
+                borderWidth: 1,
+                yAxisID: 'yPos',
+                order: 2
+            };
+
             // ── Build annotations ─────────────────────────────────────────────────
             const annotations = {};
 
@@ -1039,7 +1084,7 @@
                 type: 'line',
                 data: {
                     labels,
-                    datasets: [ds_rawX, ds_gx, ds_velX, ds_peak, ds_valley, ds_pang, ds_xMin, ds_xMax]
+                    datasets: [ds_rawX, ds_gx, ds_velX, ds_peak, ds_valley, ds_pang, ds_xMin, ds_xMax, ds_gxMax, ds_gxMin]
                 },
                 options: {
                     animation: false,
