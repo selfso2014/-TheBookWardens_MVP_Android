@@ -492,6 +492,14 @@ export class GazeDataManager {
                 await db.ref('sessions/' + sessionId + '/chunks').push(payload);
                 console.log(`[GazeDataManager] _uploadSnapshot OK: ${dataSnapshot.length} samples → [${sessionId}]`);
             }
+
+            // ★ replaySegments 업로드 (uploadToCloud와 달리 이 함수는 실제 실행됨)
+            if (this.replaySegments && this.replaySegments.length > 0) {
+                const sanitized = JSON.parse(JSON.stringify(this.replaySegments,
+                    (k, v) => (typeof v === 'number' && !isFinite(v)) ? null : v));
+                await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitized);
+                console.log(`[GazeDataManager] replaySegments ✅ ${sanitized.length}개 업로드`);
+            }
         } catch (e) {
             console.error('[GazeDataManager] _uploadSnapshot error:', e);
         }
