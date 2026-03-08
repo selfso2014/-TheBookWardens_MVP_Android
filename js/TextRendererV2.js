@@ -1076,89 +1076,147 @@ export class TextRenderer {
             // slice().sort() on a 9000-entry array creates a full copy + O(N log N) sort
             // for no reordering benefit — eliminated to prevent JS heap spike at replay start.
             const sortedGaze = gazeData; // Already sorted by t (Date.now() monotonic)
-            let gazePointer = 0;
-            let lastLogEndTime = 0;
+
+            // ─── Helper: gx 값 추출 ───
+            const getGx = (d) => (typeof d.gx === 'number') ? d.gx : d.x;
+
+            // ─── 1단계: 평균 줄 읽기 시간 계산 (fallback 추정용) ───
+            let avgReadTime = 3000; // 기본값 3초
+            if (rawPangLogs.length >= 2) {
+                let totalGap = 0, gapCount = 0;
+                for (let i = 1; i < rawPangLogs.length; i++) {
+                    const gap = rawPangLogs[i].t - rawPangLogs[i - 1].t;
+                    if (gap > 0 && gap < 10000) { // 비정상 간격 제외
+                        totalGap += gap;
+                        gapCount++;
+                    }
+                }
+                if (gapCount > 0) avgReadTime = totalGap / gapCount;
+            }
+            console.log(`[TextRenderer] avgReadTime = ${Math.round(avgReadTime)}ms`);
+
+            // ─── 2단계: 각 팡별 세그먼트 구성 (극소~극대 기반) ───
+            let lastPangTime = 0;
+            const pangLines = new Set(rawPangLogs.map(l => l.line));
 
             rawPangLogs.forEach((log, idx) => {
                 const targetLineIndex = log.line;
-                const endTime = log.t;
+                const pangTime = log.t;
 
-                if (!visualLines[targetLineIndex]) { lastLogEndTime = endTime; return; }
+                if (!visualLines[targetLineIndex]) { lastPangTime = pangTime; return; }
 
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                while (gazePointer < sortedGaze.length && sortedGaze[gazePointer].t <= lastLogEndTime) {
-                    gazePointer++;
-                }
-
-                const segmentData = [];
-                let scanIdx = gazePointer;
-                while (scanIdx < sortedGaze.length && sortedGaze[scanIdx].t <= endTime) {
-                    const d = sortedGaze[scanIdx];
-                    // [FIX-iOS] Updated property name: .lineIndex -> .line (compressed format)
+                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine ──
+                const candidateData = [];
+                for (let i = 0; i < sortedGaze.length; i++) {
+                    const d = sortedGaze[i];
+                    if (d.t <= lastPangTime) continue;
+                    if (d.t > pangTime) break;
                     if (typeof d.line === 'number' && d.line === targetLineIndex) {
-                        segmentData.push(d);
+                        candidateData.push(d);
                     }
-                    scanIdx++;
                 }
 
-                if (segmentData.length >= 5) {
-                    if (processedPath.length > 0) {
-                        processedPath.push({ isJump: true });
+                if (candidateData.length < 5) { lastPangTime = pangTime; return; }
+
+                // ── segEnd 결정: 팡 직전 gx 극대값 (읽기 끝점) ──
+                // 후보 데이터를 뒤에서부터 탐색하여 로컬 극대값 찾기
+                let peakIdx = candidateData.length - 1;
+                let peakGx = getGx(candidateData[peakIdx]);
+
+                // 뒤에서부터 gx가 가장 큰 시점 찾기 (마지막 30% 구간에서)
+                const searchStart = Math.max(0, Math.floor(candidateData.length * 0.5));
+                for (let i = candidateData.length - 1; i >= searchStart; i--) {
+                    const gx = getGx(candidateData[i]);
+                    if (gx > peakGx) {
+                        peakGx = gx;
+                        peakIdx = i;
+                    }
+                }
+                const segEndTime = candidateData[peakIdx].t;
+
+                // ── segStart 결정: gx 극소값 (읽기 시작점) ──
+                // 이전 줄에 팡이 없었던 경우: avgReadTime으로 범위 추정
+                const prevLineHadPang = idx > 0; // 이전 팡이 존재하면 true
+                let searchFromTime;
+                if (prevLineHadPang) {
+                    searchFromTime = lastPangTime;
+                } else {
+                    // 첫 팡이거나 이전 줄에 팡 없음 → avgReadTime 기반 추정
+                    searchFromTime = Math.max(0, segEndTime - avgReadTime);
+                }
+
+                // searchFromTime ~ segEndTime 구간에서 gx 최솟값 찾기
+                let valleyIdx = 0;
+                let valleyGx = Infinity;
+                for (let i = 0; i < candidateData.length; i++) {
+                    if (candidateData[i].t < searchFromTime) continue;
+                    if (candidateData[i].t > segEndTime) break;
+                    const gx = getGx(candidateData[i]);
+                    if (gx < valleyGx) {
+                        valleyGx = gx;
+                        valleyIdx = i;
+                    }
+                }
+                const segStartTime = candidateData[valleyIdx].t;
+
+                // ── 실제 세그먼트 데이터 추출: segStart ~ segEnd ──
+                const segmentData = [];
+                for (let i = valleyIdx; i <= peakIdx; i++) {
+                    segmentData.push(candidateData[i]);
+                }
+
+                if (segmentData.length < 3) { lastPangTime = pangTime; return; }
+
+                // ── sourceMinX / sourceMaxX ──
+                const sourceMinX = valleyGx;
+                const sourceMaxX = peakGx;
+
+                if (processedPath.length > 0) {
+                    processedPath.push({ isJump: true });
+                }
+
+                // ★ 실제 세그먼트 정보 기록
+                replaySegments.push({
+                    idx: idx,
+                    targetLine: targetLineIndex,
+                    segStart: segStartTime,
+                    segEnd: segEndTime,
+                    sourceMinX: Math.round(sourceMinX),
+                    sourceMaxX: Math.round(sourceMaxX),
+                    targetLeft: Math.round(targetLineObj.rect.left),
+                    targetWidth: Math.round(targetLineObj.rect.width),
+                    samples: segmentData.length
+                });
+
+                const sourceWidth = sourceMaxX - sourceMinX;
+                const targetLeft = targetLineObj.rect.left;
+                const targetWidth = targetLineObj.rect.width;
+
+                for (let i = 0; i < segmentData.length; i++) {
+                    const d = segmentData[i];
+                    const gx = getGx(d);
+                    let scaledX = gx;
+
+                    if (sourceWidth > 10 && targetWidth > 0) {
+                        let ratio = (gx - sourceMinX) / sourceWidth;
+                        ratio = Math.max(0, Math.min(1, ratio));
+                        scaledX = targetLeft + (ratio * targetWidth);
+                    } else {
+                        scaledX = targetLeft + (gx - sourceMinX);
                     }
 
-                    // sourceMinX/sourceMaxX: 팡 시점 경계 기반
-                    // segmentData는 이미 lastLogEndTime(이전 팡) ~ endTime(현재 팡) 구간으로
-                    // 제한되어 있으므로 첫 읽기 데이터만 포함됨. 추가 필터링 불필요.
-                    let sourceMinX = Infinity;
-                    let sourceMaxX = -Infinity;
-                    for (let i = 0; i < segmentData.length; i++) {
-                        const gx = (typeof segmentData[i].gx === 'number') ? segmentData[i].gx : segmentData[i].x;
-                        if (gx < sourceMinX) sourceMinX = gx;
-                        if (gx > sourceMaxX) sourceMaxX = gx;
-                    }
-
-                    // ★ 실제 세그먼트 정보 기록
-                    replaySegments.push({
-                        idx: idx,
-                        targetLine: targetLineIndex,
-                        segStart: lastLogEndTime,
-                        segEnd: endTime,
-                        sourceMinX: Math.round(sourceMinX),
-                        sourceMaxX: Math.round(sourceMaxX),
-                        targetLeft: Math.round(targetLineObj.rect.left),
-                        targetWidth: Math.round(targetLineObj.rect.width),
-                        samples: segmentData.length
+                    processedPath.push({
+                        x: scaledX,
+                        y: fixedY,
+                        t: d.t,
+                        isJump: false
                     });
-
-                    const sourceWidth = sourceMaxX - sourceMinX;
-                    const targetLeft = targetLineObj.rect.left;
-                    const targetWidth = targetLineObj.rect.width;
-
-                    for (let i = 0; i < segmentData.length; i++) {
-                        const d = segmentData[i];
-                        const gx = (typeof d.gx === 'number') ? d.gx : d.x;
-                        let scaledX = gx;
-
-                        if (sourceWidth > 10 && targetWidth > 0) {
-                            let ratio = (gx - sourceMinX) / sourceWidth;
-                            ratio = Math.max(0, Math.min(1, ratio));
-                            scaledX = targetLeft + (ratio * targetWidth);
-                        } else {
-                            scaledX = targetLeft + (gx - sourceMinX);
-                        }
-
-                        processedPath.push({
-                            x: scaledX,
-                            y: fixedY,
-                            t: d.t,
-                            isJump: false
-                        });
-                    }
                 }
 
-                lastLogEndTime = endTime;
+                lastPangTime = pangTime;
             });
 
             // [DEBUG] Expose Replay Path for Dashboard
