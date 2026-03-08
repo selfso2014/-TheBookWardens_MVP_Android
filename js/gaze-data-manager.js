@@ -680,6 +680,11 @@ export class GazeDataManager {
                 await db.ref('sessions/' + sessionId + '/replayData').set(this.replayData);
             }
 
+            // 5. Upload Replay Segments (실제 리플레이에서 계산된 세그먼트 정보)
+            if (this.replaySegments && this.replaySegments.length > 0) {
+                await db.ref('sessions/' + sessionId + '/replaySegments').set(this.replaySegments);
+            }
+
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
             // [FIX-v32] goOffline()은 실패 시에만 호출.

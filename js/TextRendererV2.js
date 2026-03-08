@@ -1052,6 +1052,7 @@ export class TextRenderer {
             console.log(`[TextRenderer] Found ${rawPangLogs.length} Pang Events for Replay.`);
 
             const processedPath = [];
+            const replaySegments = [];  // ← 실제 세그먼트 정보 수집
 
             // ---------------------------------------------------------
             // LOGIC: Filter data based on Pang Logs
@@ -1118,6 +1119,19 @@ export class TextRenderer {
                         if (gx > sourceMaxX) sourceMaxX = gx;
                     }
 
+                    // ★ 실제 세그먼트 정보 기록
+                    replaySegments.push({
+                        idx: idx,
+                        targetLine: targetLineIndex,
+                        segStart: lastLogEndTime,
+                        segEnd: endTime,
+                        sourceMinX: Math.round(sourceMinX),
+                        sourceMaxX: Math.round(sourceMaxX),
+                        targetLeft: Math.round(targetLineObj.rect.left),
+                        targetWidth: Math.round(targetLineObj.rect.width),
+                        samples: segmentData.length
+                    });
+
                     const sourceWidth = sourceMaxX - sourceMinX;
                     const targetLeft = targetLineObj.rect.left;
                     const targetWidth = targetLineObj.rect.width;
@@ -1152,9 +1166,13 @@ export class TextRenderer {
                 if (window.opener) window.opener.dashboardReplayData = processedPath;
                 window.dashboardReplayData = processedPath;
 
-                // [NEW] Pass to GazeDataManager for Cloud Upload
+                // [NEW] Pass to GazeDataManager for Cloud Upload (경로 + 세그먼트 정보)
                 if (window.gazeDataManager && typeof window.gazeDataManager.setReplayData === 'function') {
                     window.gazeDataManager.setReplayData(processedPath);
+                }
+                // ★ 세그먼트 정보도 별도 저장
+                if (window.gazeDataManager) {
+                    window.gazeDataManager.replaySegments = replaySegments;
                 }
             } catch (e) {
                 console.warn("Could not expose replay data to opener", e);

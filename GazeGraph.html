@@ -355,7 +355,8 @@
         let chart7 = null;
         let currentData = [];
         let currentMeta = {};
-        let currentPangLog = [];  // from Firebase sessions/{id}/pangLogs (all paras)
+        let currentPangLog = [];
+        let currentReplaySegments = null;  // Firebase에서 로드된 실제 리플레이 세그먼트  // from Firebase sessions/{id}/pangLogs (all paras)
 
         // ─────────────────────────────────────────────
         //  FIREBASE INIT
@@ -484,6 +485,7 @@
             currentData = [];
             currentMeta = {};
             currentPangLog = [];
+            currentReplaySegments = null;
 
             let db;
             try {
@@ -568,6 +570,19 @@
             }, err => {
                 console.warn('[GazeGraph] pangLogs error:', err.message);
                 // 오류여도 didFire fallback으로 계속 진행
+            });
+
+            // ④ ReplaySegments — sessions/{id}/replaySegments
+            ref.child('replaySegments').on('value', snap => {
+                const val = snap.val();
+                if (val) {
+                    currentReplaySegments = Array.isArray(val) ? val : Object.values(val);
+                    console.log(`[GazeGraph] Loaded ${currentReplaySegments.length} replaySegments`);
+                    if (currentData.length > 0) processAndRender();
+                } else {
+                    currentReplaySegments = null;
+                    console.log('[GazeGraph] replaySegments not found — will compute locally');
+                }
             });
         }
 
@@ -721,7 +736,7 @@
             renderChart7(filtered, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax);
             renderPangTable(pangEvents, xMin, xMax, lineRanges);
             renderLineTable(lineRanges, xMin, xMax, pangEvents);
-            renderReplayChart(filtered, pangEvents, xMin, xMax, lineRanges);
+            renderReplayChart(filtered, pangEvents, xMin, xMax, lineRanges, currentReplaySegments, contentStart);
 
             document.getElementById('dashboard').style.display = 'block';
         }
@@ -1228,12 +1243,22 @@
         // ─────────────────────────────────────────────
         let chartReplay = null;
 
-        function renderReplayChart(data, pangEvents, xMin, xMax, lineRanges) {
+        function renderReplayChart(data, pangEvents, xMin, xMax, lineRanges, replaySegments, contentStart) {
             if (chartReplay) chartReplay.destroy();
 
             if (!pangEvents || pangEvents.length === 0) {
                 document.getElementById('chartReplay').parentElement.style.display = 'none';
                 return;
+            }
+
+            // ★ 데이터 소스 결정: Firebase replaySegments > 로컬 계산
+            const useFirebase = replaySegments && replaySegments.length > 0;
+            const sourceLabel = useFirebase ? '✅ Firebase (실제 리플레이)' : '⚠️ 로컬 근사치';
+
+            // 차트 제목 업데이트
+            const titleEl = document.getElementById('chartReplay').parentElement.querySelector('h2');
+            if (titleEl) {
+                titleEl.textContent = `🔄 Replay Segment Map — ${sourceLabel}`;
             }
 
             const labels = data.map(d => d.t);
@@ -1261,49 +1286,73 @@
                 order: 6
             };
 
-            // ── 팡 세그먼트별 sourceMinX/sourceMaxX 계산 ──────────
-            const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
-            const segMinData = [];  // scatter: { x: midTime, y: sourceMinX }
-            const segMaxData = [];
+            // ── 세그먼트 어노테이션 구성 ──────────────────────────
             const annotations = {};
-
-            // 세그먼트 색상 (교대)
             const SEG_COLORS = [
-                'rgba(100,150,255,0.10)',
-                'rgba(255,150,100,0.10)',
-                'rgba(100,255,150,0.10)',
-                'rgba(255,255,100,0.10)',
-                'rgba(200,100,255,0.10)',
+                'rgba(100,150,255,0.12)',
+                'rgba(255,150,100,0.12)',
+                'rgba(100,255,150,0.12)',
+                'rgba(255,255,100,0.12)',
+                'rgba(200,100,255,0.12)',
             ];
 
-            let lastEndTime = 0;
-            sortedPangs.forEach((pe, idx) => {
-                const segStart = lastEndTime;
-                const segEnd = pe.t_pang;
-                const targetLine = pe.targetLine;
-
-                // 세그먼트 내 해당 줄의 데이터로 sourceMinX/sourceMaxX 계산
-                let srcMin = Infinity, srcMax = -Infinity;
-                data.forEach(d => {
-                    if (d.t < segStart || d.t > segEnd) return;
-                    if (d.lineIndex !== targetLine) return;
-                    const gx = d.gx !== undefined ? d.gx : d.x;
-                    if (gx < srcMin) srcMin = gx;
-                    if (gx > srcMax) srcMax = gx;
+            let segments;
+            if (useFirebase) {
+                // ★ Firebase 세그먼트: 실제 리플레이에서 계산된 값
+                // segStart/segEnd는 원본 Date.now() 기준 → contentStart 오프셋 적용
+                segments = replaySegments.map(seg => ({
+                    idx: seg.idx,
+                    targetLine: seg.targetLine,
+                    segStart: seg.segStart - contentStart,
+                    segEnd: seg.segEnd - contentStart,
+                    srcMin: seg.sourceMinX,
+                    srcMax: seg.sourceMaxX,
+                    targetLeft: seg.targetLeft,
+                    targetWidth: seg.targetWidth,
+                    samples: seg.samples
+                }));
+            } else {
+                // 로컬 계산 fallback
+                const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
+                segments = [];
+                let lastEnd = 0;
+                sortedPangs.forEach((pe, idx) => {
+                    let srcMin = Infinity, srcMax = -Infinity;
+                    data.forEach(d => {
+                        if (d.t < lastEnd || d.t > pe.t_pang) return;
+                        if (d.lineIndex !== pe.targetLine) return;
+                        const gx = d.gx !== undefined ? d.gx : d.x;
+                        if (gx < srcMin) srcMin = gx;
+                        if (gx > srcMax) srcMax = gx;
+                    });
+                    if (srcMin !== Infinity) {
+                        segments.push({
+                            idx, targetLine: pe.targetLine,
+                            segStart: lastEnd, segEnd: pe.t_pang,
+                            srcMin, srcMax,
+                            targetLeft: null, targetWidth: null, samples: null
+                        });
+                    }
+                    lastEnd = pe.t_pang;
                 });
+            }
 
-                if (srcMin === Infinity) { lastEndTime = segEnd; return; }
+            // ── 어노테이션 생성 ──────────────────────────────────
+            segments.forEach((seg, i) => {
+                const { idx, targetLine, segStart, segEnd, srcMin, srcMax, targetLeft, targetWidth, samples } = seg;
 
                 // 세그먼트 배경 박스
-                annotations[`segBox_${idx}`] = {
+                let boxLabel = `Seg${idx} → L${targetLine}`;
+                if (samples != null) boxLabel += ` (${samples}pts)`;
+                annotations[`segBox_${i}`] = {
                     type: 'box',
                     xMin: segStart, xMax: segEnd,
-                    backgroundColor: SEG_COLORS[idx % SEG_COLORS.length],
+                    backgroundColor: SEG_COLORS[i % SEG_COLORS.length],
                     borderColor: 'rgba(255,255,255,0.15)',
                     borderWidth: 1,
                     z: -1,
                     label: {
-                        content: `Seg${idx} → L${targetLine}`,
+                        content: boxLabel,
                         display: true,
                         position: { x: 'center', y: 'start' },
                         color: '#e6edf3',
@@ -1313,8 +1362,11 @@
                     }
                 };
 
-                // sourceMinX 수평선 (초록)
-                annotations[`srcMin_${idx}`] = {
+                // sourceMinX 수평선 (초록 실선)
+                const minLabel = targetLeft != null
+                    ? `srcMin=${srcMin} → tgtLeft=${targetLeft}`
+                    : `min=${Math.round(srcMin)}`;
+                annotations[`srcMin_${i}`] = {
                     type: 'line',
                     yMin: srcMin, yMax: srcMin,
                     xMin: segStart, xMax: segEnd,
@@ -1323,7 +1375,7 @@
                     borderWidth: 2,
                     borderDash: [],
                     label: {
-                        content: `min=${Math.round(srcMin)}`,
+                        content: minLabel,
                         display: true,
                         position: 'start',
                         color: '#3fb950',
@@ -1333,8 +1385,11 @@
                     }
                 };
 
-                // sourceMaxX 수평선 (빨강)
-                annotations[`srcMax_${idx}`] = {
+                // sourceMaxX 수평선 (빨강 점선)
+                const maxLabel = targetWidth != null
+                    ? `srcMax=${srcMax} → tgtRight=${targetLeft + targetWidth}`
+                    : `max=${Math.round(srcMax)}`;
+                annotations[`srcMax_${i}`] = {
                     type: 'line',
                     yMin: srcMax, yMax: srcMax,
                     xMin: segStart, xMax: segEnd,
@@ -1343,7 +1398,7 @@
                     borderWidth: 2,
                     borderDash: [8, 4],
                     label: {
-                        content: `max=${Math.round(srcMax)}`,
+                        content: maxLabel,
                         display: true,
                         position: 'end',
                         color: '#f85149',
@@ -1353,8 +1408,8 @@
                     }
                 };
 
-                // 팡 수직선 (빨강 실선)
-                annotations[`pangLine_${idx}`] = {
+                // 팡 수직선
+                annotations[`pangLine_${i}`] = {
                     type: 'line',
                     xMin: segEnd, xMax: segEnd,
                     borderColor: 'rgba(248,81,73,0.8)',
@@ -1369,8 +1424,6 @@
                         padding: { x: 3, y: 1 }
                     }
                 };
-
-                lastEndTime = segEnd;
             });
 
             // ── 차트 생성 ──────────────────────────────────────────
