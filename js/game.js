@@ -1384,7 +1384,7 @@ Game.typewriter = {
                         console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} → session [${uploadId}]`);
 
                         const uploadPromises = [];
-                        // ① pangLog upload (small, fast — per paragraph path)
+                        // ① pangLog
                         if (typeof gdm.uploadPangLog === 'function') {
                             uploadPromises.push(
                                 gdm.uploadPangLog(uploadId, paraIdx).catch(e => {
@@ -1393,73 +1393,40 @@ Game.typewriter = {
                                 })
                             );
                         }
-                        // ② gaze + meta 업로드 → 완료 후 replaySegments 업로드 (Firebase SDK 로드 보장)
-                        const gazePromise = gdm.uploadToCloud(uploadId).then(async () => {
-                            // uploadToCloud 완료 시점 = Firebase SDK 로드 완료 보장
-                            if (gdm.replaySegments && gdm.replaySegments.length > 0) {
-                                try {
-                                    const db = firebase.database();
-                                    // NaN/Infinity/undefined → null 치환 (Firebase 거부 방지)
-                                    const sanitized = JSON.parse(JSON.stringify(
-                                        gdm.replaySegments,
-                                        (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
-                                    ));
-                                    await db.ref('sessions/' + uploadId + '/replaySegments').set(sanitized);
-                                    console.log(`[Upload] ✅ replaySegments OK: ${sanitized.length} segments`);
-                                    return 'replaySegments_ok';
-                                } catch (e) {
-                                    console.error('[Upload] ❌ replaySegments FAILED:', e.message || e);
-                                    return 'replaySegments_failed';
-                                }
-                            } else {
-                                console.warn(`[Upload] ⚠️ replaySegments empty after uploadToCloud`);
-                                return 'replaySegments_empty';
-                            }
-                        }).catch(e => {
-                            console.warn('[Upload] uploadToCloud failed:', e);
-                            return 'gaze_failed';
-                        });
-                        uploadPromises.push(gazePromise);
+                        // ② gaze + meta + replaySegments (uploadToCloud 내부에서 모두 처리)
+                        uploadPromises.push(
+                            gdm.uploadToCloud(uploadId).catch(e => {
+                                console.warn('[Upload] uploadToCloud failed:', e);
+                                return 'gaze_failed';
+                            })
+                        );
 
-                        // ★ 업로드 완료 팝업 + clearGazeData
+                        // ★ 완료 팝업 (탭하면 닫기)
                         Promise.all(uploadPromises).then(results => {
                             const failed = results.filter(r => typeof r === 'string' && r.includes('failed'));
-                            const segOk = results.includes('replaySegments_ok');
-                            const segInfo = segOk ? '\n리플레이: ✅' : '\n리플레이: ❌ 미업로드';
-                            const msg = failed.length === 0
-                                ? `✅ 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}${segInfo}`
-                                : `⚠️ 일부 실패 (${failed.join(', ')})\n세션: ${uploadId}${segInfo}`;
-
-                            // 화면 팝업 (탭하면 닫기)
-                            const popup = document.createElement('div');
                             const segCount = gdm.replaySegments ? gdm.replaySegments.length : 0;
-                            const debugInfo = `\n[디버그] seg=${segCount}, results=${JSON.stringify(results)}`;
-                            popup.textContent = msg + debugInfo + '\n\n(탭하면 닫기)';
+                            const msg = failed.length === 0
+                                ? `✅ 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}\n세그먼트: ${segCount}개`
+                                : `⚠️ 일부 실패: ${failed.join(', ')}\n세션: ${uploadId}\n세그먼트: ${segCount}개`;
+
+                            const popup = document.createElement('div');
+                            popup.textContent = msg + '\n\n[ 탭하면 닫기 ]';
                             Object.assign(popup.style, {
-                                position: 'fixed', top: '20px', left: '50%',
-                                transform: 'translateX(-50%)', zIndex: '999999',
-                                padding: '16px 28px', borderRadius: '12px',
-                                background: failed.length === 0 && segOk
-                                    ? 'linear-gradient(135deg, #1a6b3c, #2ea55a)'
-                                    : 'linear-gradient(135deg, #8b4513, #cc6600)',
-                                color: '#fff', fontSize: '13px', fontWeight: 'bold',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                                position: 'fixed', top: '15%', left: '50%',
+                                transform: 'translateX(-50%)', zIndex: '1000000',
+                                padding: '20px 28px', borderRadius: '14px',
+                                background: failed.length === 0
+                                    ? 'linear-gradient(135deg,#1e7e34,#28a745)'
+                                    : 'linear-gradient(135deg,#bd2130,#dc3545)',
+                                color: '#fff', fontSize: '14px', fontWeight: 'bold',
+                                boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
                                 whiteSpace: 'pre-line', textAlign: 'center',
-                                maxWidth: '90vw', cursor: 'pointer'
+                                width: '80%', maxWidth: '400px', cursor: 'pointer'
                             });
-                            popup.addEventListener('click', () => {
-                                popup.style.opacity = '0';
-                                popup.style.transition = 'opacity 0.3s';
-                                setTimeout(() => popup.remove(), 400);
-                            });
+                            popup.onclick = () => { popup.style.opacity = '0'; setTimeout(() => popup.remove(), 250); };
                             document.body.appendChild(popup);
 
-                            console.log(`[Upload] ${msg.replace(/\n/g, ' | ')} | ${debugInfo.replace(/\n/g, '')}`);
-
-                            // ★ 업로드 완료 후에만 데이터 클리어 (레이스 컨디션 방지)
-                            if (gdm && typeof gdm.clearGazeData === 'function') {
-                                gdm.clearGazeData();
-                            }
+                            if (gdm && typeof gdm.clearGazeData === 'function') gdm.clearGazeData();
                         });
                     } else {
                         console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });

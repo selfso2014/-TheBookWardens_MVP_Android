@@ -680,17 +680,19 @@ export class GazeDataManager {
                 await db.ref('sessions/' + sessionId + '/replayData').set(this.replayData);
             }
 
-            // 5. Upload Replay Segments (실제 리플레이에서 계산된 세그먼트 정보)
-            console.log(`[Firebase] replaySegments check: exists=${!!this.replaySegments}, length=${this.replaySegments ? this.replaySegments.length : 'N/A'}`);
+            // 5. Upload Replay Segments
             if (this.replaySegments && this.replaySegments.length > 0) {
                 try {
-                    await db.ref('sessions/' + sessionId + '/replaySegments').set(this.replaySegments);
-                    console.log(`[Firebase] ✅ replaySegments uploaded: ${this.replaySegments.length} segments → sessions/${sessionId}/replaySegments`);
+                    // NaN/Infinity/undefined → null 치환 (Firebase 거부 방지)
+                    const sanitizedSegs = JSON.parse(JSON.stringify(
+                        this.replaySegments,
+                        (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
+                    ));
+                    await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitizedSegs);
+                    console.log(`[Firebase] ✅ replaySegments: ${sanitizedSegs.length} segments uploaded`);
                 } catch (segErr) {
-                    console.error(`[Firebase] ❌ replaySegments upload FAILED:`, segErr);
+                    console.error(`[Firebase] ❌ replaySegments FAILED: ${segErr.message || segErr}`);
                 }
-            } else {
-                console.warn(`[Firebase] ⚠️ replaySegments EMPTY or MISSING — not uploaded!`);
             }
 
         } catch (e) {
