@@ -452,10 +452,23 @@ export class GazeDataManager {
 
     // [NEW] Upload a snapshot of gaze data (independent of this.data state)
     async _uploadSnapshot(sessionId, dataSnapshot, metaInfo) {
-        if (!window.firebase || !window.FIREBASE_CONFIG) return;
+        // ── Firebase SDK 동적 로드 (게임 중에는 로드되지 않음) ──────────
+        if (typeof firebase === 'undefined') {
+            console.log('[GazeDataManager] Firebase SDK not loaded — loading now...');
+            try {
+                await this._loadFirebaseSDK();
+            } catch (e) {
+                console.error('[GazeDataManager] Firebase SDK load failed:', e);
+                return;
+            }
+        }
+        if (!window.FIREBASE_CONFIG) {
+            console.error('[GazeDataManager] FIREBASE_CONFIG missing');
+            return;
+        }
+
         try {
             if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
-            this.preprocessData(); // process any remaining
             const db = firebase.database();
             db.goOnline();
 
@@ -482,6 +495,28 @@ export class GazeDataManager {
         } catch (e) {
             console.error('[GazeDataManager] _uploadSnapshot error:', e);
         }
+    }
+
+    // Firebase SDK 동적 로드 (game.js의 loadFirebaseSDK와 동일)
+    _loadFirebaseSDK() {
+        if (typeof firebase !== 'undefined') return Promise.resolve();
+        if (this._fbLoading) return this._fbLoading;
+
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error('Failed: ' + src));
+            document.head.appendChild(s);
+        });
+
+        this._fbLoading = loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js')
+            .then(() => loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'))
+            .then(() => loadScript('./js/firebase-config.js'))
+            .then(() => console.log('[GazeDataManager] Firebase SDK loaded successfully'))
+            .catch(e => { this._fbLoading = null; throw e; });
+
+        return this._fbLoading;
     }
 
 
