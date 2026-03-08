@@ -418,17 +418,70 @@ export class GazeDataManager {
     //   that compounds with SeeSo WASM (100-190MB) to push past iOS OOM threshold.
     clearGazeData() {
         const prev = this.data ? this.data.length : 0;
+
+        // [NEW] 데이터가 있으면 clear 전에 자동 업로드 — game.js 호출에 의존하지 않음
+        if (prev > 0) {
+            const G = window.Game;
+            const sid = G?.firebaseSessionId || G?.sessionId;
+            if (sid) {
+                console.log(`[GazeDataManager] Auto-upload before clear: ${prev} samples → session [${sid}]`);
+                // 데이터 스냅샷 저장 (clear 후에도 upload 가능하도록)
+                const snapshot = this.data.slice();
+                const snapshotMeta = {
+                    lineMetadata: this.lineMetadata,
+                    firstContentTime: this.firstContentTime,
+                    wpmData: this.wpmData ? [...this.wpmData] : [],
+                    pangLog: this.pangLog ? [...this.pangLog] : []
+                };
+                // fire-and-forget 업로드 (snapshot 사용)
+                this._uploadSnapshot(sid, snapshot, snapshotMeta).catch(e =>
+                    console.warn('[GazeDataManager] Auto-upload failed:', e)
+                );
+            } else {
+                console.warn('[GazeDataManager] clearGazeData: no sessionId, skip auto-upload');
+            }
+        }
+
         this.data = [];
         this.buffer = [];
-        // NOTE: firstTimestamp intentionally NOT reset — see comment above.
         this.lastPreprocessIndex = 0;
         this.lastUploadedIndex = 0;
-        // [FIX-iOS] Release replayData reference. Firebase upload has already consumed it
-        // (uploadToCloud runs at replay START, clearGazeData runs at replay END).
-        // Without this, the old gaze array (9000 entries ~0.5MB) lives in replayData
-        // indefinitely, preventing GC across all paragraphs.
         this.replayData = null;
-        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries + replayData. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
+        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
+    }
+
+    // [NEW] Upload a snapshot of gaze data (independent of this.data state)
+    async _uploadSnapshot(sessionId, dataSnapshot, metaInfo) {
+        if (!window.firebase || !window.FIREBASE_CONFIG) return;
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            this.preprocessData(); // process any remaining
+            const db = firebase.database();
+            db.goOnline();
+
+            const metaData = {
+                timestamp: Date.now(),
+                userAgent: navigator.userAgent,
+                lineMetadata: metaInfo.lineMetadata || {},
+                totalSamples: dataSnapshot.length,
+                firstContentTime: metaInfo.firstContentTime,
+                wpmData: metaInfo.wpmData,
+                pangLog: metaInfo.pangLog
+            };
+
+            await db.ref('sessions/' + sessionId + '/meta').set(metaData);
+            await db.ref('session_list/' + sessionId).set(metaData);
+
+            if (dataSnapshot.length > 0) {
+                const payload = JSON.parse(JSON.stringify(dataSnapshot, (k, v) =>
+                    typeof v === 'number' && isNaN(v) ? null : v
+                ));
+                await db.ref('sessions/' + sessionId + '/chunks').push(payload);
+                console.log(`[GazeDataManager] _uploadSnapshot OK: ${dataSnapshot.length} samples → [${sessionId}]`);
+            }
+        } catch (e) {
+            console.error('[GazeDataManager] _uploadSnapshot error:', e);
+        }
     }
 
 
