@@ -895,15 +895,18 @@
             // ── Build annotations ─────────────────────────────────────────────────
             const annotations = {};
 
-            // Box per line: alternating subtle background tint
+            // Box per line: alternating subtle background tint + start/end vertical lines
             const PALETTE = [
                 'rgba(100,100,255,0.07)',
                 'rgba(255,100,100,0.06)',
                 'rgba(100,200,100,0.06)',
                 'rgba(200,200,100,0.06)',
             ];
-            Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b)).forEach((N, idx) => {
+            const lineKeys = Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b));
+            lineKeys.forEach((N, idx) => {
                 const rng = lineRanges[N];
+                const dur = Math.round(rng.end - rng.start);
+                // Background box
                 annotations[`box_L${N}`] = {
                     type: 'box',
                     xMin: rng.start,
@@ -912,13 +915,31 @@
                     borderColor: 'transparent',
                     borderWidth: 0,
                     label: {
-                        content: `L${N}`,
+                        content: `L${N}  (${Math.round(rng.start)}~${Math.round(rng.end)}ms, ${dur}ms)`,
                         enabled: true,
-                        position: 'start',
-                        color: 'rgba(180,180,180,0.6)',
-                        backgroundColor: 'transparent',
-                        font: { size: 9 }
+                        display: true,
+                        position: { x: 'center', y: 'start' },
+                        color: 'rgba(220,220,220,0.85)',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        font: { size: 10, weight: 'bold' },
+                        padding: { x: 4, y: 2 }
                     }
+                };
+                // Start vertical line (green)
+                annotations[`lineStart_L${N}`] = {
+                    type: 'line',
+                    xMin: rng.start, xMax: rng.start,
+                    borderColor: 'rgba(63,185,80,0.6)',
+                    borderWidth: 1,
+                    borderDash: [3, 3]
+                };
+                // End vertical line (orange)
+                annotations[`lineEnd_L${N}`] = {
+                    type: 'line',
+                    xMin: rng.end, xMax: rng.end,
+                    borderColor: 'rgba(210,153,34,0.6)',
+                    borderWidth: 1,
+                    borderDash: [3, 3]
                 };
             });
 
