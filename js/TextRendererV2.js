@@ -1263,8 +1263,8 @@ export class TextRenderer {
             const pathStartTime = path[0].t;
             const pathEndTime = path[path.length - 1].t;
 
-            // [SPEED UP] Make replay very fast (3.0s fixed)
-            const duration = 3000;
+            // 줄당 500ms 리플레이
+            const duration = Math.max(1500, replaySegments.length * 500);
 
             let startTime = null;
 
