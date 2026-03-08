@@ -1297,13 +1297,17 @@
             ];
 
             let segments;
+            // 실제 데이터 범위 (X축 제한용)
+            const dataMinT = data.length > 0 ? data[0].t : 0;
+            const dataMaxT = data.length > 0 ? data[data.length - 1].t : 0;
+
             if (useFirebase) {
                 // ★ Firebase 세그먼트: 실제 리플레이에서 계산된 값
                 // segStart/segEnd는 원본 Date.now() 기준 → contentStart 오프셋 적용
                 segments = replaySegments.map(seg => ({
                     idx: seg.idx,
                     targetLine: seg.targetLine,
-                    segStart: seg.segStart - contentStart,
+                    segStart: Math.max(seg.segStart - contentStart, dataMinT),
                     segEnd: seg.segEnd - contentStart,
                     srcMin: seg.sourceMinX,
                     srcMax: seg.sourceMaxX,
@@ -1441,6 +1445,8 @@
                     scales: {
                         x: {
                             type: 'linear',
+                            min: dataMinT - 200,
+                            max: dataMaxT + 200,
                             ticks: { maxTicksLimit: 20, color: '#8b949e', font: { size: 10 } },
                             grid: { color: 'rgba(48,54,61,0.8)' },
                             title: { display: true, text: 'Time (ms)', color: '#8b949e' }
