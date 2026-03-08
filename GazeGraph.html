@@ -336,6 +336,16 @@
             </div>
         </div>
 
+        <!-- ── REPLAY SEGMENT CHART ── -->
+        <div class="card">
+            <h2>🔄 Replay Segment Map — 팡 기반 리플레이 구간 시각화</h2>
+            <p style="color:var(--muted); font-size:0.8rem; margin-bottom:8px;">
+                각 팡 이벤트가 참조하는 세그먼트(시간 구간), sourceMinX/sourceMaxX (읽기 범위),<br>
+                실제 시선 위치(gx)와 lineIndex를 한 눈에 확인
+            </p>
+            <canvas id="chartReplay"></canvas>
+        </div>
+
     </div>
 
     <script>
@@ -711,6 +721,7 @@
             renderChart7(filtered, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax);
             renderPangTable(pangEvents, xMin, xMax, lineRanges);
             renderLineTable(lineRanges, xMin, xMax, pangEvents);
+            renderReplayChart(filtered, pangEvents, xMin, xMax, lineRanges);
 
             document.getElementById('dashboard').style.display = 'block';
         }
@@ -1213,8 +1224,212 @@
         }
 
         // ─────────────────────────────────────────────
-        //  LINE TABLE
+        //  REPLAY SEGMENT CHART
         // ─────────────────────────────────────────────
+        let chartReplay = null;
+
+        function renderReplayChart(data, pangEvents, xMin, xMax, lineRanges) {
+            if (chartReplay) chartReplay.destroy();
+
+            if (!pangEvents || pangEvents.length === 0) {
+                document.getElementById('chartReplay').parentElement.style.display = 'none';
+                return;
+            }
+
+            const labels = data.map(d => d.t);
+
+            // ── Dataset 1: gx 곡선 (노란색) ──────────────────────
+            const ds_gx = {
+                label: 'gx (스무딩)',
+                data: data.map(d => d.gx !== undefined ? d.gx : d.x),
+                borderColor: 'rgba(255,200,50,0.8)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 5
+            };
+
+            // ── Dataset 2: lineIndex 계단식 ──────────────────────
+            const ds_lineIdx = {
+                label: 'lineIndex',
+                data: data.map(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0 ? d.lineIndex : null),
+                borderColor: 'rgba(100,200,255,0.7)',
+                borderWidth: 2,
+                stepped: 'before',
+                pointRadius: 0,
+                yAxisID: 'yLine',
+                order: 6
+            };
+
+            // ── 팡 세그먼트별 sourceMinX/sourceMaxX 계산 ──────────
+            const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
+            const segMinData = [];  // scatter: { x: midTime, y: sourceMinX }
+            const segMaxData = [];
+            const annotations = {};
+
+            // 세그먼트 색상 (교대)
+            const SEG_COLORS = [
+                'rgba(100,150,255,0.10)',
+                'rgba(255,150,100,0.10)',
+                'rgba(100,255,150,0.10)',
+                'rgba(255,255,100,0.10)',
+                'rgba(200,100,255,0.10)',
+            ];
+
+            let lastEndTime = 0;
+            sortedPangs.forEach((pe, idx) => {
+                const segStart = lastEndTime;
+                const segEnd = pe.t_pang;
+                const targetLine = pe.targetLine;
+
+                // 세그먼트 내 해당 줄의 데이터로 sourceMinX/sourceMaxX 계산
+                let srcMin = Infinity, srcMax = -Infinity;
+                data.forEach(d => {
+                    if (d.t < segStart || d.t > segEnd) return;
+                    if (d.lineIndex !== targetLine) return;
+                    const gx = d.gx !== undefined ? d.gx : d.x;
+                    if (gx < srcMin) srcMin = gx;
+                    if (gx > srcMax) srcMax = gx;
+                });
+
+                if (srcMin === Infinity) { lastEndTime = segEnd; return; }
+
+                // 세그먼트 배경 박스
+                annotations[`segBox_${idx}`] = {
+                    type: 'box',
+                    xMin: segStart, xMax: segEnd,
+                    backgroundColor: SEG_COLORS[idx % SEG_COLORS.length],
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    z: -1,
+                    label: {
+                        content: `Seg${idx} → L${targetLine}`,
+                        display: true,
+                        position: { x: 'center', y: 'start' },
+                        color: '#e6edf3',
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 9, weight: 'bold' },
+                        padding: { x: 3, y: 1 }
+                    }
+                };
+
+                // sourceMinX 수평선 (초록)
+                annotations[`srcMin_${idx}`] = {
+                    type: 'line',
+                    yMin: srcMin, yMax: srcMin,
+                    xMin: segStart, xMax: segEnd,
+                    yScaleID: 'yPos',
+                    borderColor: '#3fb950',
+                    borderWidth: 2,
+                    borderDash: [],
+                    label: {
+                        content: `min=${Math.round(srcMin)}`,
+                        display: true,
+                        position: 'start',
+                        color: '#3fb950',
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 8 },
+                        padding: { x: 2, y: 1 }
+                    }
+                };
+
+                // sourceMaxX 수평선 (빨강)
+                annotations[`srcMax_${idx}`] = {
+                    type: 'line',
+                    yMin: srcMax, yMax: srcMax,
+                    xMin: segStart, xMax: segEnd,
+                    yScaleID: 'yPos',
+                    borderColor: '#f85149',
+                    borderWidth: 2,
+                    borderDash: [8, 4],
+                    label: {
+                        content: `max=${Math.round(srcMax)}`,
+                        display: true,
+                        position: 'end',
+                        color: '#f85149',
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 8 },
+                        padding: { x: 2, y: 1 }
+                    }
+                };
+
+                // 팡 수직선 (빨강 실선)
+                annotations[`pangLine_${idx}`] = {
+                    type: 'line',
+                    xMin: segEnd, xMax: segEnd,
+                    borderColor: 'rgba(248,81,73,0.8)',
+                    borderWidth: 2,
+                    label: {
+                        content: `PANG L${targetLine}`,
+                        display: true,
+                        position: 'end',
+                        color: '#f85149',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        font: { size: 9, weight: 'bold' },
+                        padding: { x: 3, y: 1 }
+                    }
+                };
+
+                lastEndTime = segEnd;
+            });
+
+            // ── 차트 생성 ──────────────────────────────────────────
+            chartReplay = new Chart(document.getElementById('chartReplay'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [ds_gx, ds_lineIdx]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            ticks: { maxTicksLimit: 20, color: '#8b949e', font: { size: 10 } },
+                            grid: { color: 'rgba(48,54,61,0.8)' },
+                            title: { display: true, text: 'Time (ms)', color: '#8b949e' }
+                        },
+                        yPos: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'gx Position (px)', color: '#ffc832' },
+                            ticks: { color: '#ffc832' },
+                            grid: { color: 'rgba(48,54,61,0.5)' }
+                        },
+                        yLine: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Line Index', color: '#64c8ff' },
+                            ticks: { color: '#64c8ff', stepSize: 1 },
+                            grid: { drawOnChartArea: false },
+                            reverse: true,
+                            min: -0.5
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#8b949e', boxWidth: 20, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(22,27,34,0.95)',
+                            titleColor: '#e6edf3',
+                            bodyColor: '#8b949e'
+                        },
+                        annotation: { annotations }
+                    }
+                }
+            });
+
+            // canvas 높이 조정
+            document.getElementById('chartReplay').parentElement.style.height = '400px';
+        }
+
+
         function renderLineTable(lineRanges, xMin, xMax, pangEvents) {
             const el = document.getElementById('line-table-section');
             const lines = Object.keys(lineRanges).map(Number).sort((a, b) => a - b);
