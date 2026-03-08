@@ -1278,7 +1278,7 @@ Game.typewriter = {
                 // Play Gaze Replay before Villain appears
                 await this.triggerGazeReplay();
                 this.triggerMidBossBattle();
-            }, 1000); // 1s initial delay
+            }, 3000); // 3s initial delay
         }
     },
 
