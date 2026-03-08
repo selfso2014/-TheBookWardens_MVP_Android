@@ -958,6 +958,56 @@ export class GazeDataManager {
                     return true;
                 }
             }
+
+            // ─── 마지막 줄 감시 로직 ───
+            // watchLastLine=true이면: n번째 줄에서 valley 후 gx 30px 이상 증가 시 팡 발동
+            if (this.watchLastLine) {
+                const watchN = this.watchLastLineN;
+                const gx0 = d0.gx || d0.x;
+                const gx1 = d1.gx || d1.x;
+
+                if (now - this.watchStartTime > 3000) {
+                    this.watchLastLine = false;
+                    console.log('[Pang] 마지막 줄 감시 타임아웃');
+                } else if (d0.line === watchN) {
+                    if (this.lastLineValley === null) {
+                        // valley 후보 갱신
+                        if (gx0 < this.lastLineValleyCandidateGx) {
+                            this.lastLineValleyCandidateGx = gx0;
+                            this.lastLineValleyCandidateT = now;
+                        }
+                        // gx가 다시 증가하기 시작하면 valley 확정
+                        if (gx0 > gx1 && this.lastLineValleyCandidateGx < Infinity) {
+                            this.lastLineValley = { gx: this.lastLineValleyCandidateGx, t: this.lastLineValleyCandidateT };
+                            console.log(`[Pang] L${watchN} 극소값 확정: gx=${Math.round(this.lastLineValley.gx)}`);
+                        }
+                    } else {
+                        // 극소값 이후 rawX 증대 체크
+                        const elapsed = now - this.lastLineValley.t;
+                        const growth = gx0 - this.lastLineValley.gx;
+                        if (growth >= 30 && elapsed <= 1500) {
+                            this.watchLastLine = false;
+                            if (this.pangLog) {
+                                this.pangLog.push({ t: now, line: watchN, type: 'LastLine', vx: v0 });
+                            }
+                            this.maxLineIndexReached = watchN + 1; // 재발동 방지
+                            this.lastTriggerTime = now;
+                            this.pangCountInPara++;
+                            if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
+                                typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
+                                const rs = document.getElementById('screen-read');
+                                if (rs && rs.classList.contains('active')) {
+                                    window.Game.typewriter.renderer.triggerReturnEffect(watchN);
+                                }
+                            }
+                            console.log(`[Pang] ★ 마지막 줄 L${watchN} 팡! growth=${Math.round(growth)}px elapsed=${elapsed}ms`);
+                            setTimeout(() => { this._calcWPMForLine(watchN, now); }, 100);
+                            return true;
+                        }
+                    }
+                }
+            }
+
             return false;
         } catch (e) {
             console.error(e);
@@ -1018,6 +1068,19 @@ export class GazeDataManager {
         this.lastRSLine = targetLine;
         this.pangCountInPara++;
         setTimeout(() => { this._calcWPMForLine(targetLine, d0.t); }, 100);
+
+        // ─── 마지막 줄 감시 시작 (n-1 팡 발생 시) ───
+        const _renderer = window.Game && window.Game.typewriter && window.Game.typewriter.renderer;
+        const _totalLines = _renderer && _renderer.lines ? _renderer.lines.length : 0;
+        if (_totalLines > 1 && targetLine === _totalLines - 2) {
+            this.watchLastLine = true;
+            this.watchStartTime = d0.t;
+            this.watchLastLineN = _totalLines - 1;
+            this.lastLineValley = null;
+            this.lastLineValleyCandidateGx = Infinity;
+            this.lastLineValleyCandidateT = 0;
+            console.log(`[Pang] 마지막 줄 L${_totalLines - 1} 감시 시작`);
+        }
     }
 
 
