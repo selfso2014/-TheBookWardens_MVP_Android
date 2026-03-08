@@ -1173,15 +1173,10 @@ export class TextRenderer {
                         // ─────────────────────────────────────────
                         // PHASE 3: Energy beams → Progress Bar
                         // ─────────────────────────────────────────
-                        this._runEnergyTransfer(litLines, visualLines, progressContainer, (finalPct) => {
-                            // ─────────────────────────────────────
-                            // PHASE 4: Rift judgment + Popup
-                            // ─────────────────────────────────────
-                            this._showRiftPopup(finalPct, visualLines, () => {
-                                if (progressContainer.parentNode) progressContainer.remove();
-                                // PHASE 5: onComplete → Mid-Boss
-                                if (onComplete) onComplete();
-                            });
+                        this._runEnergyTransfer(litLines, visualLines, progressContainer, () => {
+                            if (progressContainer.parentNode) progressContainer.remove();
+                            // PHASE 5: onComplete → Mid-Boss
+                            if (onComplete) onComplete();
                         });
                     }, 500);
                     return;
@@ -1244,14 +1239,30 @@ export class TextRenderer {
         if (!this.lines || !this.lines[lineIndex]) return;
         const line = this.lines[lineIndex];
         if (!line.wordIndices) return;
+        // Step A: 즉시 강한 보라 glow 플래시
         line.wordIndices.forEach(wIdx => {
             const word = this.words[wIdx];
             if (word && word.element) {
-                word.element.style.transition = 'color 0.2s ease, text-shadow 0.2s ease';
+                word.element.style.transition = 'none';
                 word.element.style.color = '#ffffff';
-                word.element.style.textShadow = '0 0 8px rgba(255,255,255,0.5)';
+                word.element.style.textShadow =
+                    '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
+                word.element.style.filter = 'brightness(2.0)';
             }
         });
+        // Step B: 100ms 후 glow 안정화
+        setTimeout(() => {
+            line.wordIndices.forEach(wIdx => {
+                const word = this.words[wIdx];
+                if (word && word.element) {
+                    word.element.style.transition =
+                        'text-shadow 0.4s ease-out, filter 0.4s ease-out';
+                    word.element.style.textShadow =
+                        '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                    word.element.style.filter = 'brightness(1.0)';
+                }
+            });
+        }, 100);
     }
 
     // ─── Phase 3: Create progress bar DOM ────────────────────────────────────
@@ -1288,26 +1299,45 @@ export class TextRenderer {
         label.textContent = '0%';
 
         const titleEl = document.createElement('div');
+        titleEl.id = 'replay-rift-title';
         titleEl.style.cssText = [
-            'position:absolute', 'top:-22px', 'left:0',
-            'color:rgba(155,89,182,0.75)', 'font-size:11px',
+            'position:absolute', 'top:-24px', 'left:0',
+            'color:rgba(155,89,182,0.75)', 'font-size:12px',
             'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
+            'transition:opacity 0.4s ease',
         ].join(';');
         titleEl.textContent = 'Rift Sealing';
+
+        // result message label (hidden initially)
+        const resultEl = document.createElement('div');
+        resultEl.id = 'replay-rift-result';
+        resultEl.style.cssText = [
+            'position:absolute', 'top:-44px', 'left:50%',
+            'transform:translateX(-50%)',
+            'font-size:13px', 'font-family:monospace',
+            'letter-spacing:3px', 'text-transform:uppercase',
+            'font-weight:700', 'white-space:nowrap',
+            'opacity:0', 'transition:opacity 0.4s ease',
+        ].join(';');
 
         container.appendChild(fill);
         container.appendChild(label);
         container.appendChild(titleEl);
+        container.appendChild(resultEl);
         document.body.appendChild(container);
         return container;
     }
 
-    // ─── Phase 3: Energy beam animation → progress bar ───────────────────────
+    // ─── Phase 3: Multi-strand Zigzag Lightning → progress bar ──────────────
     _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
         const totalLines = visualLines.length;
         const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
+        const isSealed = finalPct >= 60;
 
-        if (litLines.size === 0) { setTimeout(() => onDone(0), 300); return; }
+        if (litLines.size === 0) {
+            this._showInlineResult(isSealed, progressContainer, onDone);
+            return;
+        }
 
         const fill = document.getElementById('replay-progress-fill');
         const label = document.getElementById('replay-progress-label');
@@ -1316,14 +1346,43 @@ export class TextRenderer {
         const barCY = barRect.top + barRect.height / 2;
 
         const lineArray = Array.from(litLines).sort((a, b) => a - b);
-        const BEAM_DUR = 480;
-        const STAGGER = 170;
+        const BEAM_DUR = 500;
+        const STAGGER = 160;
+        const STRANDS = 4; // 가닥 수
 
+        // 각 줄마다 여러 가닥(strand) 생성
         const beams = lineArray.map((lineIdx, i) => {
             const line = visualLines[lineIdx];
-            const startX = line.rect ? (line.rect.left + line.rect.width * 0.82) : window.innerWidth * 0.82;
-            return { startX, startY: line.visualY, progress: 0, delay: i * STAGGER, arrived: false };
+            const baseX = line.rect ? (line.rect.left + line.rect.width * 0.78) : window.innerWidth * 0.78;
+            const baseY = line.visualY;
+            const strands = [];
+            for (let s = 0; s < STRANDS; s++) {
+                // 가닥마다 시작점 Y 오프셋 ±8px, 투명도 랜덤
+                strands.push({
+                    dx: (Math.random() - 0.5) * 16,
+                    dy: (Math.random() - 0.5) * 12,
+                    alpha: 0.55 + Math.random() * 0.45,
+                    midPts: [],   // 꺾임점 (매 프레임 재생성)
+                });
+            }
+            return { lineIdx, baseX, baseY, progress: 0, delay: i * STAGGER, arrived: false, strands };
         });
+
+        // ── 번개 꺾임점 생성 헬퍼 ──
+        const makeZigzag = (x0, y0, x1, y1, t, nKinks) => {
+            const pts = [{ x: x0, y: y0 }];
+            for (let k = 1; k <= nKinks; k++) {
+                const frac = (k / (nKinks + 1)) * t;
+                const mx = x0 + (x1 - x0) * frac + (Math.random() - 0.5) * 28;
+                const my = y0 + (y1 - y0) * frac + (Math.random() - 0.5) * 22;
+                pts.push({ x: mx, y: my });
+            }
+            // 현재 헤드 위치 계산 (선형 보간)
+            const hx = x0 + (x1 - x0) * t;
+            const hy = y0 + (y1 - y0) * t;
+            pts.push({ x: hx, y: hy });
+            return pts;
+        };
 
         // beam canvas
         const bc = document.createElement('canvas');
@@ -1338,55 +1397,55 @@ export class TextRenderer {
 
         const animateBeams = (ts) => {
             if (!beamTs) beamTs = ts;
-            const el = ts - beamTs;
+            const elapsed = ts - beamTs;
             bCtx.clearRect(0, 0, bc.width, bc.height);
 
             let allArrived = true;
+
             beams.forEach((beam) => {
-                const be = el - beam.delay;
+                const be = elapsed - beam.delay;
                 if (be < 0) { allArrived = false; return; }
 
                 beam.progress = Math.min(1, be / BEAM_DUR);
                 if (beam.progress < 1) allArrived = false;
 
-                // ease-out cubic
-                const t = 1 - Math.pow(1 - beam.progress, 3);
-                // Bezier control point (arc shape)
-                const cpX = (beam.startX + barCX) / 2;
-                const cpY = Math.min(beam.startY, barCY) - 60;
-                const inv = 1 - t;
-                const hx = inv * inv * beam.startX + 2 * inv * t * cpX + t * t * barCX;
-                const hy = inv * inv * beam.startY + 2 * inv * t * cpY + t * t * barCY;
+                // 도착 직전 90% 이후 페이드아웃
+                const globalAlpha = beam.progress > 0.88
+                    ? 1 - (beam.progress - 0.88) / 0.12
+                    : 1;
 
-                // draw curved trail (12 steps)
-                bCtx.beginPath();
-                for (let s = 0; s <= 12; s++) {
-                    const st = (s / 12) * t, sit = 1 - st;
-                    const px = sit * sit * beam.startX + 2 * sit * st * cpX + st * st * barCX;
-                    const py = sit * sit * beam.startY + 2 * sit * st * cpY + st * st * barCY;
-                    s === 0 ? bCtx.moveTo(px, py) : bCtx.lineTo(px, py);
-                }
-                const g = bCtx.createLinearGradient(beam.startX, beam.startY, hx, hy);
-                g.addColorStop(0, 'rgba(155,89,182,0)');
-                g.addColorStop(0.45, 'rgba(142,68,173,0.35)');
-                g.addColorStop(1, 'rgba(215,189,226,0.95)');
-                bCtx.strokeStyle = g;
-                bCtx.lineWidth = 2.5;
-                bCtx.shadowColor = '#9b59b6';
-                bCtx.shadowBlur = 10;
-                bCtx.stroke();
-                bCtx.shadowBlur = 0;
+                // 각 가닥 그리기
+                beam.strands.forEach((strand) => {
+                    const sx = beam.baseX + strand.dx;
+                    const sy = beam.baseY + strand.dy;
+                    // 매 프레임 꺾임점 재생성 → 전기 떨림
+                    const pts = makeZigzag(sx, sy, barCX, barCY, beam.progress, 3);
 
-                // head orb
-                bCtx.beginPath();
-                bCtx.arc(hx, hy, 5, 0, Math.PI * 2);
-                bCtx.fillStyle = '#d7bde2';
-                bCtx.shadowColor = '#9b59b6';
-                bCtx.shadowBlur = 16;
-                bCtx.fill();
-                bCtx.shadowBlur = 0;
+                    bCtx.save();
+                    bCtx.globalAlpha = strand.alpha * globalAlpha;
 
-                // on arrival: update bar
+                    // 보라 glow 레이어 (두꺼운)
+                    bCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
+                    bCtx.strokeStyle = 'rgba(155,89,182,0.6)';
+                    bCtx.lineWidth = 5;
+                    bCtx.shadowColor = '#9b59b6';
+                    bCtx.shadowBlur = 18;
+                    bCtx.stroke();
+
+                    // 흰색 코어 레이어 (얇은)
+                    bCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
+                    bCtx.strokeStyle = '#ffffff';
+                    bCtx.lineWidth = 1.5;
+                    bCtx.shadowColor = '#ffffff';
+                    bCtx.shadowBlur = 8;
+                    bCtx.stroke();
+
+                    bCtx.restore();
+                });
+
+                // 도착 처리
                 if (beam.progress >= 1 && !beam.arrived) {
                     beam.arrived = true;
                     arrivedCount++;
@@ -1399,14 +1458,42 @@ export class TextRenderer {
             if (!allArrived) {
                 requestAnimationFrame(animateBeams);
             } else {
-                setTimeout(() => {
-                    bCtx.clearRect(0, 0, bc.width, bc.height);
-                    setTimeout(() => { bc.remove(); onDone(finalPct); }, 200);
-                }, 400);
+                bCtx.clearRect(0, 0, bc.width, bc.height);
+                bc.remove();
+                // 60% 이상이면 텍스트 웨이브 복원
+                if (isSealed) this._waveTextWhite(visualLines);
+                // 인라인 결과 메시지 표시 → 자동 소멸 → onDone
+                this._showInlineResult(isSealed, progressContainer, onDone);
             }
         };
 
         requestAnimationFrame(animateBeams);
+    }
+
+    // ─── Phase 4: 프로그레스바 위 인라인 결과 메시지 ──────────────────────────
+    _showInlineResult(isSealed, progressContainer, onDone) {
+        const resultEl = document.getElementById('replay-rift-result');
+        const titleEl = document.getElementById('replay-rift-title');
+        if (!resultEl) { onDone(); return; }
+
+        // title 라벨 숨기기
+        if (titleEl) titleEl.style.opacity = '0';
+
+        // 결과 메시지 스타일
+        resultEl.textContent = isSealed ? '✦ RIFT SEALED' : '✦ RIFT NOT YET SEALED';
+        resultEl.style.color = isSealed ? '#d7bde2' : 'rgba(160,160,190,0.8)';
+        resultEl.style.textShadow = isSealed
+            ? '0 0 16px rgba(155,89,182,0.9), 0 0 4px #fff'
+            : 'none';
+
+        // fade-in
+        requestAnimationFrame(() => { resultEl.style.opacity = '1'; });
+
+        // 2초 표시 후 fade-out → onDone
+        setTimeout(() => {
+            resultEl.style.opacity = '0';
+            setTimeout(() => { onDone(); }, 500);
+        }, 2000);
     }
 
     // ─── Phase 4-A: Wave text white top→bottom ────────────────────────────────
@@ -1428,107 +1515,8 @@ export class TextRenderer {
         });
     }
 
-    // ─── Phase 4: Rift popup ──────────────────────────────────────────────────
-    _showRiftPopup(finalPct, visualLines, onContinue) {
-        const isSealed = finalPct >= 60;
-        if (isSealed) this._waveTextWhite(visualLines);
-
-        const PURPLE = '#9b59b6';
-        const PURPLE_DIM = 'rgba(155,89,182,0.6)';
-        let countdown = 10;
-
-        const overlay = document.createElement('div');
-        overlay.id = 'rift-popup-overlay';
-        overlay.style.cssText = [
-            'position:fixed', 'inset:0', 'z-index:9999999',
-            'display:flex', 'align-items:center', 'justify-content:center',
-            'background:rgba(8,0,18,0.75)',
-            'backdrop-filter:blur(5px)',
-            'opacity:0', 'transition:opacity 0.4s ease',
-        ].join(';');
-
-        const card = document.createElement('div');
-        card.style.cssText = [
-            'background:linear-gradient(145deg,rgba(28,8,48,0.97),rgba(12,3,25,0.97))',
-            'border:1px solid ' + (isSealed ? 'rgba(155,89,182,0.7)' : 'rgba(90,90,120,0.45)'),
-            'border-radius:18px', 'padding:38px 42px',
-            'max-width:360px', 'width:88%', 'text-align:center',
-            'box-shadow:0 0 48px ' + (isSealed ? 'rgba(155,89,182,0.45)' : 'rgba(40,40,70,0.4)'),
-            "font-family:'Outfit',sans-serif",
-        ].join(';');
-
-        const icon = document.createElement('div');
-        icon.style.cssText = 'font-size:3rem;margin-bottom:16px;';
-        icon.textContent = isSealed ? '🔮' : '⚠️';
-
-        const titleEl = document.createElement('div');
-        titleEl.style.cssText = [
-            'font-size:1.15rem', 'font-weight:700',
-            'letter-spacing:3px', 'text-transform:uppercase',
-            'margin-bottom:14px',
-            'color:' + (isSealed ? '#d7bde2' : '#8080a8'),
-            'text-shadow:' + (isSealed ? '0 0 14px rgba(155,89,182,0.85)' : 'none'),
-        ].join(';');
-        titleEl.textContent = isSealed ? 'RIFT SEALED' : 'RIFT NOT YET SEALED';
-
-        const msg = document.createElement('div');
-        msg.style.cssText = [
-            'font-size:0.9rem', 'line-height:1.65',
-            'color:' + (isSealed ? '#e8daef' : '#7878a0'),
-            'margin-bottom:22px',
-        ].join(';');
-        msg.textContent = isSealed
-            ? "This page has been sealed by the power of the Warden's gaze."
-            : 'The rift on this page has not yet been sealed. Keep reading.';
-
-        const pctEl = document.createElement('div');
-        pctEl.style.cssText = [
-            'font-size:2.2rem', 'font-weight:700', 'font-family:monospace',
-            'margin-bottom:22px',
-            'color:' + (isSealed ? '#c39bd3' : '#5555a0'),
-        ].join(';');
-        pctEl.textContent = Math.round(finalPct) + '%';
-
-        const btn = document.createElement('button');
-        btn.style.cssText = [
-            'background:linear-gradient(135deg,' + (isSealed ? '#6c3483,#9b59b6' : '#222244,#3a3a66') + ')',
-            'border:1px solid ' + (isSealed ? 'rgba(155,89,182,0.8)' : 'rgba(70,70,110,0.6)'),
-            'border-radius:9px', 'color:#fff',
-            'font-size:0.88rem', "font-family:'Outfit',sans-serif",
-            'letter-spacing:2px', 'text-transform:uppercase',
-            'padding:12px 30px', 'cursor:pointer',
-            'box-shadow:0 0 18px ' + (isSealed ? 'rgba(155,89,182,0.4)' : 'rgba(50,50,90,0.3)'),
-            'margin-bottom:14px', 'display:block', 'width:100%',
-        ].join(';');
-        btn.textContent = 'CONTINUE';
-
-        const cdEl = document.createElement('div');
-        cdEl.style.cssText = [
-            'font-size:0.75rem', 'font-family:monospace',
-            'color:' + PURPLE_DIM,
-        ].join(';');
-        cdEl.textContent = `Auto-continue in ${countdown}s`;
-
-        [icon, titleEl, msg, pctEl, btn, cdEl].forEach(el => card.appendChild(el));
-        overlay.appendChild(card);
-        document.body.appendChild(overlay);
-
-        requestAnimationFrame(() => { overlay.style.opacity = '1'; });
-
-        const cleanup = () => {
-            clearInterval(timer);
-            overlay.style.opacity = '0';
-            setTimeout(() => { if (overlay.parentNode) overlay.remove(); onContinue(); }, 420);
-        };
-
-        const timer = setInterval(() => {
-            countdown--;
-            cdEl.textContent = `Auto-continue in ${countdown}s`;
-            if (countdown <= 0) cleanup();
-        }, 1000);
-
-        btn.onclick = cleanup;
-    }
+    // ─── Phase 4: Rift popup (폐기 — _showInlineResult로 대체) ───────────────
+    _showRiftPopup() { }
 
     // ─── Legacy stubs (kept for external compatibility, no longer called) ─────
     _checkReplayCombo() { }
