@@ -1157,406 +1157,444 @@ export class TextRenderer {
             const path = processedPath;
             const duration = Math.max(1500, replaySegments.length * 500);
             let startTime = null;
-            const litLines = new Set();
+const litLines = new Set();        // 점등된 줄 Set
+const chargedNodes = [];            // 전기 대기 노드 (순서 보존)
+let auraRafId = null;           // 스파크 RAF handle
+const auraCanvas = document.createElement('canvas');
+auraCanvas.width = window.innerWidth;
+auraCanvas.height = window.innerHeight;
+auraCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999996;';
+document.body.appendChild(auraCanvas);
+const aC = auraCanvas.getContext('2d');
 
-            const animate = (timestamp) => {
-                if (!startTime) startTime = timestamp;
-                const elapsed = timestamp - startTime;
-                const progress = elapsed / duration;
+// ── Aura 스파크 RAF 루프 (Phase 2 동안 계속) ──
+const drawAuras = () => {
+    aC.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
+    chargedNodes.forEach(node => {
+        const cx = node.x, cy = node.y, r = node.radius;
+        const nSpokes = 9 + Math.floor(Math.random() * 5);
+        for (let s = 0; s < nSpokes; s++) {
+            const angle = (Math.PI * 2 / nSpokes) * s + (Math.random() - 0.5) * 0.4;
+            const len = r + 4 + Math.random() * 10;
+            const sx2 = cx + Math.cos(angle) * r;
+            const sy2 = cy + Math.sin(angle) * r;
+            const ex = cx + Math.cos(angle) * len;
+            const ey = cy + Math.sin(angle) * len;
+            aC.save();
+            aC.globalAlpha = 0.6 + Math.random() * 0.4;
+            aC.beginPath(); aC.moveTo(sx2, sy2); aC.lineTo(ex, ey);
+            aC.strokeStyle = 'rgba(155,89,182,0.8)'; aC.lineWidth = 3;
+            aC.shadowColor = '#9b59b6'; aC.shadowBlur = 12; aC.stroke();
+            aC.beginPath(); aC.moveTo(sx2, sy2); aC.lineTo(ex, ey);
+            aC.strokeStyle = '#ffffff'; aC.lineWidth = 1;
+            aC.shadowColor = '#fff'; aC.shadowBlur = 6; aC.stroke();
+            aC.restore();
+        }
+    });
+    auraRafId = requestAnimationFrame(drawAuras);
+};
+auraRafId = requestAnimationFrame(drawAuras);
 
-                if (progress >= 1) {
-                    canvas.style.transition = 'opacity 0.5s';
-                    canvas.style.opacity = '0';
-                    this._replayRAFId = null;
-                    setTimeout(() => {
-                        canvas.remove();
-                        // ─────────────────────────────────────────
-                        // PHASE 3: Energy beams → Progress Bar
-                        // ─────────────────────────────────────────
-                        this._runEnergyTransfer(litLines, visualLines, progressContainer, () => {
-                            if (progressContainer.parentNode) progressContainer.remove();
-                            // PHASE 5: onComplete → Mid-Boss
-                            if (onComplete) onComplete();
-                        });
-                    }, 500);
-                    return;
-                }
+const PANG_X = window.innerWidth - 24;
 
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+const animate = (timestamp) => {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const progress = elapsed / duration;
 
-                const maxIdx = Math.floor(path.length * progress);
-                if (maxIdx >= 0 && maxIdx < path.length) {
-                    const head = path[maxIdx];
-                    if (head && !head.isJump) {
-                        // Light up line as dot passes through
-                        const lineIdx = this._findLineForY(head.y, visualLines);
-                        if (lineIdx !== null && !litLines.has(lineIdx)) {
-                            litLines.add(lineIdx);
-                            this._lightUpLine(lineIdx);
-                        }
-                        // Draw green gaze dot
-                        ctx.beginPath();
-                        ctx.fillStyle = '#00ff00';
-                        ctx.shadowColor = '#00ff00';
-                        ctx.shadowBlur = 12;
-                        ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
-                    }
-                }
+    if (progress >= 1) {
+        canvas.style.transition = 'opacity 0.5s';
+        canvas.style.opacity = '0';
+        this._replayRAFId = null;
+        if (auraRafId) { cancelAnimationFrame(auraRafId); auraRafId = null; }
+        setTimeout(() => {
+            canvas.remove();
+            // ─────────────────────────────────────────
+            // PHASE 3: Chain Lightning → Progress Bar
+            // ─────────────────────────────────────────
+            this._runChainLightning(chargedNodes, litLines, visualLines, auraCanvas, progressContainer, () => {
+                if (progressContainer.parentNode) progressContainer.remove();
+                if (onComplete) onComplete();
+            });
+        }, 500);
+        return;
+    }
 
-                this._replayRAFId = requestAnimationFrame(animate);
-            };
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            this._replayRAFId = requestAnimationFrame(animate);
+    const maxIdx = Math.floor(path.length * progress);
+    if (maxIdx >= 0 && maxIdx < path.length) {
+        const head = path[maxIdx];
+        if (head && !head.isJump) {
+            const lineIdx = this._findLineForY(head.y, visualLines);
+            if (lineIdx !== null && !litLines.has(lineIdx)) {
+                litLines.add(lineIdx);
+                this._lightUpLine(lineIdx);
+                const vl = visualLines[lineIdx];
+                chargedNodes.push({
+                    lineIdx,
+                    x: PANG_X,
+                    y: vl ? vl.visualY : head.y,
+                    radius: 12,
+                });
+            }
+            ctx.beginPath();
+            ctx.fillStyle = '#00ff00';
+            ctx.shadowColor = '#00ff00';
+            ctx.shadowBlur = 12;
+            ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    this._replayRAFId = requestAnimationFrame(animate);
+};
+
+this._replayRAFId = requestAnimationFrame(animate);
 
         }, 500);
     }
 
-    // ─── Phase 1: Gray all text ───────────────────────────────────────────────
-    _grayOutAllText() {
-        if (!this.words) return;
-        this.words.forEach(w => {
-            if (!w.element) return;
-            w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
-            w.element.style.color = 'rgba(255,255,255,0.18)';
-            w.element.style.textShadow = 'none';
-        });
-    }
+// ─── Phase 1: Gray all text ───────────────────────────────────────────────
+_grayOutAllText() {
+    if (!this.words) return;
+    this.words.forEach(w => {
+        if (!w.element) return;
+        w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+        w.element.style.color = 'rgba(255,255,255,0.18)';
+        w.element.style.textShadow = 'none';
+    });
+}
 
-    // ─── Phase 2: Find closest line index by Y ────────────────────────────────
-    _findLineForY(y, visualLines) {
-        let closest = null, minDist = Infinity;
-        visualLines.forEach((line, idx) => {
-            const d = Math.abs(line.visualY - y);
-            if (d < minDist) { minDist = d; closest = idx; }
-        });
-        return (minDist < 60) ? closest : null;
-    }
+// ─── Phase 2: Find closest line index by Y ────────────────────────────────
+_findLineForY(y, visualLines) {
+    let closest = null, minDist = Infinity;
+    visualLines.forEach((line, idx) => {
+        const d = Math.abs(line.visualY - y);
+        if (d < minDist) { minDist = d; closest = idx; }
+    });
+    return (minDist < 60) ? closest : null;
+}
 
-    // ─── Phase 2: Light up a line's words ────────────────────────────────────
-    _lightUpLine(lineIndex) {
-        if (!this.lines || !this.lines[lineIndex]) return;
-        const line = this.lines[lineIndex];
-        if (!line.wordIndices) return;
-        // Step A: 즉시 강한 보라 glow 플래시
+// ─── Phase 2: Light up line (flash → settle) ─────────────────────────────
+_lightUpLine(lineIndex) {
+    if (!this.lines || !this.lines[lineIndex]) return;
+    const line = this.lines[lineIndex];
+    if (!line.wordIndices) return;
+    line.wordIndices.forEach(wIdx => {
+        const word = this.words[wIdx];
+        if (word && word.element) {
+            word.element.style.transition = 'none';
+            word.element.style.color = '#ffffff';
+            word.element.style.textShadow =
+                '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
+            word.element.style.filter = 'brightness(2.0)';
+        }
+    });
+    setTimeout(() => {
         line.wordIndices.forEach(wIdx => {
             const word = this.words[wIdx];
             if (word && word.element) {
-                word.element.style.transition = 'none';
-                word.element.style.color = '#ffffff';
-                word.element.style.textShadow =
-                    '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
-                word.element.style.filter = 'brightness(2.0)';
+                word.element.style.transition = 'text-shadow 0.4s ease-out, filter 0.4s ease-out';
+                word.element.style.textShadow = '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                word.element.style.filter = 'brightness(1.0)';
             }
         });
-        // Step B: 100ms 후 glow 안정화
+    }, 100);
+}
+
+// ─── Phase 3: Create progress bar DOM ────────────────────────────────────
+_createProgressBar() {
+    const container = document.createElement('div');
+    container.id = 'replay-progress-container';
+    container.style.cssText = [
+        'position:fixed', 'bottom:28px', 'left:50%', 'transform:translateX(-50%)',
+        'width:78%', 'height:14px',
+        'background:rgba(20,5,35,0.75)',
+        'border-radius:7px',
+        'border:1px solid rgba(155,89,182,0.55)',
+        'box-shadow:0 0 14px rgba(155,89,182,0.3)',
+        'z-index:999998', 'overflow:visible',
+    ].join(';');
+    const fill = document.createElement('div');
+    fill.id = 'replay-progress-fill';
+    fill.style.cssText = [
+        'width:0%', 'height:100%',
+        'background:linear-gradient(90deg,#4a1a6b,#8e44ad,#c39bd3)',
+        'border-radius:7px',
+        'box-shadow:0 0 18px rgba(155,89,182,0.85)',
+        'transition:width 0.35s ease-out',
+    ].join(';');
+    const label = document.createElement('div');
+    label.id = 'replay-progress-label';
+    label.style.cssText = [
+        'position:absolute', 'top:-22px', 'right:0',
+        'color:#d7bde2', 'font-size:11px',
+        'font-family:monospace', 'letter-spacing:1px',
+    ].join(';');
+    label.textContent = '0%';
+    const titleEl = document.createElement('div');
+    titleEl.id = 'replay-rift-title';
+    titleEl.style.cssText = [
+        'position:absolute', 'top:-22px', 'left:0',
+        'color:rgba(155,89,182,0.75)', 'font-size:11px',
+        'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
+        'transition:opacity 0.4s ease',
+    ].join(';');
+    titleEl.textContent = 'Rift Sealing';
+    container.appendChild(fill);
+    container.appendChild(label);
+    container.appendChild(titleEl);
+    document.body.appendChild(container);
+    return container;
+}
+
+// ─── Phase 3: Chain Lightning (마커→마커→바) ──────────────────────────────
+_runChainLightning(chargedNodes, litLines, visualLines, auraCanvas, progressContainer, onDone) {
+    const totalLines = visualLines.length;
+    const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
+    const isSealed = finalPct >= 60;
+
+    let completed = false;
+    const hardTimeout = setTimeout(() => {
+        if (!completed) {
+            completed = true;
+            try { auraCanvas.remove(); } catch (e) { }
+            if (isSealed) this._sealRiftVFX(visualLines, () => this._showInlineResult(isSealed, onDone));
+            else this._showInlineResult(isSealed, onDone);
+        }
+    }, 8000);
+
+    const finish = () => {
+        if (completed) return;
+        completed = true;
+        clearTimeout(hardTimeout);
+        try { auraCanvas.remove(); } catch (e) { }
+        if (isSealed) this._sealRiftVFX(visualLines, () => this._showInlineResult(isSealed, onDone));
+        else this._showInlineResult(isSealed, onDone);
+    };
+
+    if (chargedNodes.length === 0) { finish(); return; }
+
+    const fill = document.getElementById('replay-progress-fill');
+    const label = document.getElementById('replay-progress-label');
+    const barRect = progressContainer.getBoundingClientRect();
+    const barLeft = barRect.width ? barRect.left : window.innerWidth * 0.11;
+    const barWidth = barRect.width ? barRect.width : window.innerWidth * 0.78;
+    const barCX = barLeft + barWidth / 2;
+    const barCY = barRect.height ? barRect.top + barRect.height / 2 : window.innerHeight * 0.95;
+
+    const nodes = [...chargedNodes].sort((a, b) => a.y - b.y);
+    document.body.appendChild(auraCanvas); // 재삽입 (removed될 수 있으므로)
+    const bCtx = auraCanvas.getContext('2d');
+
+    const makeZigzag = (x0, y0, x1, y1, t, nK) => {
+        const pts = [{ x: x0, y: y0 }];
+        for (let k = 1; k <= nK; k++) {
+            const f = (k / (nK + 1)) * t;
+            pts.push({
+                x: x0 + (x1 - x0) * f + (Math.random() - 0.5) * 26,
+                y: y0 + (y1 - y0) * f + (Math.random() - 0.5) * 20,
+            });
+        }
+        pts.push({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t });
+        return pts;
+    };
+
+    const drawBolt = (x0, y0, x1, y1, t) => {
+        const pts = makeZigzag(x0, y0, x1, y1, t, 3);
+        bCtx.beginPath();
+        pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
+        bCtx.strokeStyle = 'rgba(155,89,182,0.75)'; bCtx.lineWidth = 5;
+        bCtx.shadowColor = '#9b59b6'; bCtx.shadowBlur = 22; bCtx.stroke();
+        bCtx.beginPath();
+        pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
+        bCtx.strokeStyle = '#ffffff'; bCtx.lineWidth = 1.5;
+        bCtx.shadowColor = '#ffffff'; bCtx.shadowBlur = 8; bCtx.stroke();
+    };
+
+    const receivePulse = (node) => {
+        let pTs = null;
+        const pDur = 250;
+        const doPulse = (ts) => {
+            if (!pTs) pTs = ts;
+            const t = Math.min(1, (ts - pTs) / pDur);
+            const r = node.radius + (1 - Math.abs(t * 2 - 1)) * 18;
+            bCtx.save();
+            bCtx.globalAlpha = 0.8 * (1 - t);
+            bCtx.beginPath();
+            bCtx.arc(node.x, node.y, r, 0, Math.PI * 2);
+            bCtx.strokeStyle = '#ffffff'; bCtx.lineWidth = 2;
+            bCtx.shadowColor = '#9b59b6'; bCtx.shadowBlur = 18; bCtx.stroke();
+            bCtx.restore();
+            if (t < 1) requestAnimationFrame(doPulse);
+        };
+        requestAnimationFrame(doPulse);
+    };
+
+    const BOLT_DUR = 280;
+    const CHAIN_GAP = 200;
+    const segments = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+        segments.push({ from: nodes[i], to: nodes[i + 1], isBar: false });
+    }
+    segments.push({ from: nodes[nodes.length - 1], to: { x: barCX, y: barCY }, isBar: true });
+
+    let segIdx = 0;
+    const realPct = Math.round((litLines.size / totalLines) * 100);
+
+    const runSegment = (seg) => {
+        if (completed) return;
+        let boltTs = null;
+        const { from, to, isBar } = seg;
+        const animBolt = (ts) => {
+            if (completed) return;
+            if (!boltTs) boltTs = ts;
+            const t = Math.min(1, (ts - boltTs) / BOLT_DUR);
+            bCtx.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
+            drawBolt(from.x, from.y, to.x, to.y, t);
+            if (t < 1) {
+                requestAnimationFrame(animBolt);
+            } else {
+                bCtx.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
+                if (!isBar) receivePulse(to);
+                const stepPct = Math.round(((segIdx + 1) / segments.length) * realPct);
+                if (fill) fill.style.width = Math.min(100, stepPct) + '%';
+                if (label) label.textContent = Math.min(100, stepPct) + '%';
+                segIdx++;
+                if (segIdx < segments.length) {
+                    setTimeout(() => runSegment(segments[segIdx]), CHAIN_GAP);
+                } else {
+                    if (fill) fill.style.width = realPct + '%';
+                    if (label) label.textContent = realPct + '%';
+                    setTimeout(finish, 400);
+                }
+            }
+        };
+        requestAnimationFrame(animBolt);
+    };
+
+    setTimeout(() => { if (!completed) runSegment(segments[0]); }, 300);
+}
+
+// === Phase 4: inline result message =====================================
+_showInlineResult(isSealed, onDone) {
+    try {
+        const titleEl = document.getElementById('replay-rift-title');
+        if (titleEl) titleEl.style.opacity = '0';
+        const msgEl = document.createElement('div');
+        msgEl.id = 'replay-rift-result';
+        msgEl.style.cssText = [
+            'position:fixed', 'bottom:68px', 'left:50%',
+            'transform:translateX(-50%)',
+            'font-size:17px', 'font-weight:700', 'font-family:monospace',
+            'letter-spacing:4px', 'text-transform:uppercase',
+            'white-space:nowrap', 'pointer-events:none', 'z-index:9999990',
+            'opacity:0', 'transition:opacity 0.4s ease',
+            isSealed
+                ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff'
+                : 'color:rgba(180,180,210,0.85)',
+        ].join(';');
+        msgEl.textContent = isSealed ? '\u2726 RIFT SEALED \u2726' : '\u22c6 RIFT NOT YET SEALED';
+        document.body.appendChild(msgEl);
+        requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
         setTimeout(() => {
+            msgEl.style.opacity = '0';
+            setTimeout(() => {
+                try { if (msgEl.parentNode) msgEl.remove(); } catch (e) { }
+                if (typeof onDone === 'function') onDone();
+            }, 500);
+        }, 2500);
+    } catch (err) {
+        console.error('[showInlineResult]', err);
+        if (typeof onDone === 'function') onDone();
+    }
+}
+
+// === Phase 4-B: Rift Sealed VFX =========================================
+_sealRiftVFX(visualLines, onDone) {
+    const fill = document.getElementById('replay-progress-fill');
+    if (fill) {
+        fill.style.transition = 'width 0.3s ease-out, box-shadow 0.3s ease-out';
+        fill.style.width = '108%';
+        fill.style.boxShadow = '0 0 50px rgba(155,89,182,1), 0 0 20px #fff';
+    }
+    setTimeout(() => {
+        const flash = document.createElement('div');
+        flash.style.cssText = [
+            'position:fixed', 'inset:0', 'z-index:9999995', 'pointer-events:none',
+            'background:radial-gradient(ellipse at center,rgba(215,189,226,0.55) 0%,rgba(155,89,182,0.25) 50%,transparent 80%)',
+            'opacity:1', 'transition:opacity 0.6s ease-out',
+        ].join(';');
+        document.body.appendChild(flash);
+        const cont = this.container;
+        if (cont) {
+            cont.style.transition = 'box-shadow 0.15s ease-out, border-color 0.15s ease-out';
+            cont.style.boxShadow = '0 0 60px rgba(155,89,182,0.9), inset 0 0 30px rgba(155,89,182,0.35)';
+            cont.style.borderColor = 'rgba(215,189,226,0.95)';
+        }
+        requestAnimationFrame(() => { flash.style.opacity = '0'; });
+        setTimeout(() => { try { flash.remove(); } catch (e) { } }, 700);
+        if (visualLines && this.words) {
+            visualLines.forEach((line, i) => {
+                setTimeout(() => {
+                    if (!line.wordIndices) return;
+                    line.wordIndices.forEach(wIdx => {
+                        const word = this.words[wIdx];
+                        if (word && word.element) {
+                            word.element.style.transition = 'color 0.35s ease, text-shadow 0.35s ease, filter 0.35s ease';
+                            word.element.style.color = '#ffffff';
+                            word.element.style.textShadow = '0 0 10px rgba(155,89,182,0.6), 0 0 2px rgba(255,255,255,0.5)';
+                            word.element.style.filter = 'brightness(1.0)';
+                        }
+                    });
+                }, i * 55);
+            });
+        }
+        const waveDur = (visualLines ? visualLines.length * 55 : 0) + 400;
+        setTimeout(() => {
+            if (cont) {
+                cont.style.transition = 'box-shadow 0.8s ease, border-color 0.8s ease';
+                cont.style.boxShadow = '';
+                cont.style.borderColor = '';
+            }
+            if (fill) {
+                fill.style.transition = 'width 0.4s ease-out';
+                fill.style.width = '100%';
+                fill.style.boxShadow = '0 0 18px rgba(155,89,182,0.85)';
+            }
+            if (typeof onDone === 'function') onDone();
+        }, waveDur);
+    }, 300);
+}
+
+// === Phase 4-A: Wave text (fallback) =====================================
+_waveTextWhite(visualLines) {
+    if (!visualLines || !this.words) return;
+    visualLines.forEach((line, i) => {
+        setTimeout(() => {
+            if (!line.wordIndices) return;
             line.wordIndices.forEach(wIdx => {
                 const word = this.words[wIdx];
                 if (word && word.element) {
-                    word.element.style.transition =
-                        'text-shadow 0.4s ease-out, filter 0.4s ease-out';
-                    word.element.style.textShadow =
-                        '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
-                    word.element.style.filter = 'brightness(1.0)';
+                    word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
+                    word.element.style.color = '#ffffff';
+                    word.element.style.textShadow = '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
                 }
             });
-        }, 100);
-    }
+        }, i * 70);
+    });
+}
 
-    // ─── Phase 3: Create progress bar DOM ────────────────────────────────────
-    _createProgressBar() {
-        const container = document.createElement('div');
-        container.id = 'replay-progress-container';
-        container.style.cssText = [
-            'position:fixed', 'bottom:28px', 'left:50%', 'transform:translateX(-50%)',
-            'width:78%', 'height:14px',
-            'background:rgba(20,5,35,0.75)',
-            'border-radius:7px',
-            'border:1px solid rgba(155,89,182,0.55)',
-            'box-shadow:0 0 14px rgba(155,89,182,0.3)',
-            'z-index:999998',
-            'overflow:visible',   // resultEl 제거했으면 hidden 불필요, visible로 다른 자식도 보여줌
-        ].join(';');
-
-        const fill = document.createElement('div');
-        fill.id = 'replay-progress-fill';
-        fill.style.cssText = [
-            'width:0%', 'height:100%',
-            'background:linear-gradient(90deg,#4a1a6b,#8e44ad,#c39bd3)',
-            'border-radius:7px',
-            'box-shadow:0 0 18px rgba(155,89,182,0.85)',
-            'transition:width 0.35s ease-out',
-        ].join(';');
-
-        const label = document.createElement('div');
-        label.id = 'replay-progress-label';
-        label.style.cssText = [
-            'position:absolute', 'top:-22px', 'right:0',
-            'color:#d7bde2', 'font-size:11px',
-            'font-family:monospace', 'letter-spacing:1px',
-        ].join(';');
-        label.textContent = '0%';
-
-        const titleEl = document.createElement('div');
-        titleEl.id = 'replay-rift-title';
-        titleEl.style.cssText = [
-            'position:absolute', 'top:-22px', 'left:0',
-            'color:rgba(155,89,182,0.75)', 'font-size:11px',
-            'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
-            'transition:opacity 0.4s ease',
-        ].join(';');
-        titleEl.textContent = 'Rift Sealing';
-
-        container.appendChild(fill);
-        container.appendChild(label);
-        container.appendChild(titleEl);
-        document.body.appendChild(container);
-        return container;
-    }
-
-    // === Phase 3: Multi-strand Zigzag Lightning =================================
-    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
-        const totalLines = visualLines.length;
-        const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
-        const isSealed = finalPct >= 60;
-        let completed = false;
-        const hardTimeout = setTimeout(() => {
-            if (!completed) { completed = true;
-                try { if (isSealed) this._waveTextWhite(visualLines); } catch(e){}
-                this._showInlineResult(isSealed, onDone);
-            }
-        }, 8000);
-
-        if (litLines.size === 0) {
-            clearTimeout(hardTimeout); completed = true;
-            this._showInlineResult(isSealed, onDone); return;
-        }
-
-        const fill  = document.getElementById('replay-progress-fill');
-        const label = document.getElementById('replay-progress-label');
-        const barRect = progressContainer.getBoundingClientRect();
-        const barLeft  = barRect.width  ? barRect.left  : window.innerWidth  * 0.11;
-        const barRight = barRect.width  ? barRect.right : window.innerWidth  * 0.89;
-        const barCY    = barRect.height ? barRect.top + barRect.height / 2 : window.innerHeight * 0.95;
-
-        const lineArray = Array.from(litLines).sort((a, b) => a - b);
-        const BEAM_DUR = 520, STAGGER = 150;
-
-        const beams = lineArray.map((lineIdx, i) => {
-            const line = visualLines[lineIdx];
-            const lx = (line.rect && line.rect.left  != null) ? line.rect.left  : 0;
-            const rw = (line.rect && line.rect.width != null) ? line.rect.width : window.innerWidth;
-            const by = line.visualY || 0;
-            // 줄마다 3~6개 완전 랜덤 방출점
-            const n = 3 + Math.floor(Math.random() * 4);
-            const emitPoints = [];
-            for (let e = 0; e < n; e++) {
-                emitPoints.push({
-                    sx: lx + Math.random() * rw,
-                    sy: by + (Math.random() - 0.5) * 10,
-                    tx: barLeft + Math.random() * (barRight - barLeft),
-                    ty: barCY,
-                    alpha: 0.5 + Math.random() * 0.5
-                });
-            }
-            return { lineIdx, progress:0, delay:i*STAGGER, arrived:false, emitPoints };
-        });
-
-        const makeZigzag = (x0,y0,x1,y1,t,nK) => {
-            const pts=[{x:x0,y:y0}];
-            for(let k=1;k<=nK;k++){
-                const f=(k/(nK+1))*t;
-                pts.push({x:x0+(x1-x0)*f+(Math.random()-0.5)*30, y:y0+(y1-y0)*f+(Math.random()-0.5)*24});
-            }
-            pts.push({x:x0+(x1-x0)*t, y:y0+(y1-y0)*t});
-            return pts;
-        };
-
-        const bc = document.createElement('canvas');
-        bc.width=window.innerWidth; bc.height=window.innerHeight;
-        bc.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:999997;';
-        document.body.appendChild(bc);
-        const bCtx=bc.getContext('2d');
-        let arrivedCount=0, beamTs=null;
-
-        const animateBeams=(ts)=>{
-            if(completed) return;
-            try{
-                if(!beamTs) beamTs=ts;
-                const elapsed=ts-beamTs;
-                bCtx.clearRect(0,0,bc.width,bc.height);
-                let allArrived=true;
-                beams.forEach(beam=>{
-                    const be=elapsed-beam.delay;
-                    if(be<0){allArrived=false;return;}
-                    beam.progress=Math.min(1,be/BEAM_DUR);
-                    if(beam.progress<1) allArrived=false;
-                    const ga=beam.progress>0.88? 1-(beam.progress-0.88)/0.12 :1;
-                    beam.emitPoints.forEach(ep=>{
-                        const pts=makeZigzag(ep.sx,ep.sy,ep.tx,ep.ty,beam.progress,3);
-                        bCtx.save(); bCtx.globalAlpha=ep.alpha*ga;
-                        bCtx.beginPath();
-                        pts.forEach((p,pi)=>pi===0?bCtx.moveTo(p.x,p.y):bCtx.lineTo(p.x,p.y));
-                        bCtx.strokeStyle='rgba(155,89,182,0.65)';bCtx.lineWidth=5;
-                        bCtx.shadowColor='#9b59b6';bCtx.shadowBlur=20;bCtx.stroke();
-                        bCtx.beginPath();
-                        pts.forEach((p,pi)=>pi===0?bCtx.moveTo(p.x,p.y):bCtx.lineTo(p.x,p.y));
-                        bCtx.strokeStyle='#ffffff';bCtx.lineWidth=1.5;
-                        bCtx.shadowColor='#ffffff';bCtx.shadowBlur=8;bCtx.stroke();
-                        bCtx.restore();
-                    });
-                    if(beam.progress>=1&&!beam.arrived){
-                        beam.arrived=true; arrivedCount++;
-                        const pct=Math.min(100,Math.round((arrivedCount/totalLines)*100));
-                        if(fill) fill.style.width=pct+'%';
-                        if(label) label.textContent=pct+'%';
-                    }
-                });
-                if(!allArrived){ requestAnimationFrame(animateBeams); }
-                if(!allArrived){ requestAnimationFrame(animateBeams); }
-                else{
-                    bCtx.clearRect(0,0,bc.width,bc.height); bc.remove();
-                    clearTimeout(hardTimeout);
-                    if(!completed){ completed=true;
-                        if(isSealed) this._sealRiftVFX(visualLines, ()=>this._showInlineResult(isSealed,onDone));
-                        else this._showInlineResult(isSealed,onDone);
-                    }
-                }
-            }catch(err){
-                console.error('[EnergyTransfer] error:',err);
-                try{bc.remove();}catch(e){}
-                clearTimeout(hardTimeout);
-                if(!completed){completed=true;
-                    if(isSealed) this._sealRiftVFX(visualLines, ()=>this._showInlineResult(isSealed,onDone));
-                    else this._showInlineResult(isSealed,onDone);
-                }
-            }
-        };
-        requestAnimationFrame(animateBeams);
-    }
-
-    // === Phase 4: inline result message =======================================
-    _showInlineResult(isSealed, onDone) {
-        try{
-            const titleEl=document.getElementById('replay-rift-title');
-            if(titleEl) titleEl.style.opacity='0';
-            const msgEl=document.createElement('div');
-            msgEl.id='replay-rift-result';
-            const sealed=isSealed;
-            msgEl.style.cssText=[
-                'position:fixed','bottom:68px','left:50%',
-                'transform:translateX(-50%)',
-                'font-size:17px','font-weight:700','font-family:monospace',
-                'letter-spacing:4px','text-transform:uppercase',
-                'white-space:nowrap','pointer-events:none','z-index:9999990',
-                'opacity:0','transition:opacity 0.4s ease',
-                sealed
-                    ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff'
-                    : 'color:rgba(180,180,210,0.85)'
-            ].join(';');
-            msgEl.textContent=sealed?'\u2726 RIFT SEALED \u2726':'\u22c6 RIFT NOT YET SEALED';
-            document.body.appendChild(msgEl);
-            requestAnimationFrame(()=>{ msgEl.style.opacity='1'; });
-            setTimeout(()=>{
-                msgEl.style.opacity='0';
-                setTimeout(()=>{ try{if(msgEl.parentNode)msgEl.remove();}catch(e){} if(typeof onDone==='function') onDone(); },500);
-            },2500);
-        }catch(err){
-            console.error('[showInlineResult]',err);
-            if(typeof onDone==='function') onDone();
-        }
-    }
-
-    // === Phase 4-A: Wave text ================================================
-    _waveTextWhite(visualLines) {
-        if(!visualLines||!this.words) return;
-        visualLines.forEach((line,i)=>{
-            setTimeout(()=>{
-                if(!line.wordIndices) return;
-                line.wordIndices.forEach(wIdx=>{
-                    const word=this.words[wIdx];
-                    if(word&&word.element){
-                        word.element.style.transition='color 0.45s ease, text-shadow 0.45s ease';
-                        word.element.style.color='#ffffff';
-                        word.element.style.textShadow='0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
-                    }
-                });
-            },i*70);
-        });
-    }
-
-    // === Phase 4-B: Rift Sealed VFX (overflow → flash → wave) ================
-    _sealRiftVFX(visualLines, onDone) {
-        const fill = document.getElementById('replay-progress-fill');
-        // Step 1: 프로그레스바 범람 (0ms)
-        if(fill){
-            fill.style.transition='width 0.3s ease-out, box-shadow 0.3s ease-out';
-            fill.style.width='108%';
-            fill.style.boxShadow='0 0 50px rgba(155,89,182,1), 0 0 20px #fff';
-        }
-        // Step 2: 전체 Flash overlay + 컨테이너 강조 (300ms 후)
-        setTimeout(()=>{
-            // Flash overlay
-            const flash = document.createElement('div');
-            flash.style.cssText=[
-                'position:fixed','inset:0','z-index:9999995','pointer-events:none',
-                'background:radial-gradient(ellipse at center,rgba(215,189,226,0.55) 0%,rgba(155,89,182,0.25) 50%,transparent 80%)',
-                'opacity:1','transition:opacity 0.6s ease-out'
-            ].join(';');
-            document.body.appendChild(flash);
-            // 텍스트 컨테이너 border & shadow 강조
-            const cont = this.container;
-            if(cont){
-                cont.style.transition='box-shadow 0.15s ease-out, border-color 0.15s ease-out';
-                cont.style.boxShadow='0 0 60px rgba(155,89,182,0.9), inset 0 0 30px rgba(155,89,182,0.35)';
-                cont.style.borderColor='rgba(215,189,226,0.95)';
-            }
-            // Step 3: overlay 소멸 + 파도 점등 (병렬, 같은 타이밍)
-            requestAnimationFrame(()=>{ flash.style.opacity='0'; });
-            setTimeout(()=>{ try{flash.remove();}catch(e){} },700);
-            // 줄별 순차 점등 (55ms 간격, 빠르게)
-            if(visualLines && this.words){
-                visualLines.forEach((line,i)=>{
-                    setTimeout(()=>{
-                        if(!line.wordIndices) return;
-                        line.wordIndices.forEach(wIdx=>{
-                            const word=this.words[wIdx];
-                            if(word&&word.element){
-                                word.element.style.transition='color 0.35s ease, text-shadow 0.35s ease, filter 0.35s ease';
-                                word.element.style.color='#ffffff';
-                                word.element.style.textShadow='0 0 10px rgba(155,89,182,0.6), 0 0 2px rgba(255,255,255,0.5)';
-                                word.element.style.filter='brightness(1.0)';
-                            }
-                        });
-                    },i*55);
-                });
-            }
-            // 점등 완료 후 컨테이너 복귀
-            const waveDur = (visualLines ? visualLines.length * 55 : 0) + 400;
-            setTimeout(()=>{
-                if(cont){
-                    cont.style.transition='box-shadow 0.8s ease, border-color 0.8s ease';
-                    cont.style.boxShadow='';
-                    cont.style.borderColor='';
-                }
-                if(fill){
-                    fill.style.transition='width 0.4s ease-out';
-                    fill.style.width='100%';
-                    fill.style.boxShadow='0 0 18px rgba(155,89,182,0.85)';
-                }
-                // 점등 완료 후 onDone 호출
-                if(typeof onDone==='function') onDone();
-            }, waveDur);
-        }, 300);
-    }
-    // === Legacy stubs =========================================================
-    _showRiftPopup(){}
-    _checkReplayCombo(){}
-    _showMiniScore(){}
-    _animateScoreToHud(){}
-    _spawnReplayPulse(){}
+// === Legacy stubs ========================================================
+_runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
+    if (typeof onDone === 'function') onDone();
+}
+_showRiftPopup() { }
+_checkReplayCombo() { }
+_showMiniScore() { }
+_animateScoreToHud() { }
+_spawnReplayPulse() { }
 }
 window.TextRenderer = TextRenderer;
-
