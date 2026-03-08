@@ -1067,23 +1067,8 @@ export class TextRenderer {
             // Sort Logs by Time (just in case)
             rawPangLogs.sort((a, b) => a.t - b.t);
 
-            // ─── 0단계: 마지막 줄 보너스 팡 주입 ───
-            // 조건: 마지막 팡의 줄 === gazeData 마지막 유효 줄 - 1
-            if (rawPangLogs.length > 0 && gazeData.length > 0) {
-                const lastPangLine = rawPangLogs[rawPangLogs.length - 1].line;
-                let lastDataLine = -1;
-                for (let i = gazeData.length - 1; i >= 0; i--) {
-                    if (typeof gazeData[i].line === 'number' && gazeData[i].line >= 0) {
-                        lastDataLine = gazeData[i].line;
-                        break;
-                    }
-                }
-                if (lastDataLine >= 0 && lastPangLine === lastDataLine - 1) {
-                    const bonusTime = gazeData[gazeData.length - 1].t;
-                    rawPangLogs.push({ t: bonusTime, line: lastDataLine, type: 'Bonus', vx: 0 });
-                    console.log(`[TextRenderer] ★ Bonus Pang injected: L${lastDataLine} @${bonusTime}`);
-                }
-            }
+            // [REMOVED] 0단계 보너스 팡 주입 제거
+            // 팡 없는 줄은 리플레이에 포함하지 않음 (SDK 오분류 방지)
 
             // [FIX-iOS] O(N+M) sorted-pointer approach instead of O(N×M) filter-per-pang.
             // Old code: 8 pangs × gazeData.filter(9000) = 72,000 comparisons.
@@ -1126,18 +1111,22 @@ export class TextRenderer {
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                // ── 후보 데이터 수집: lastPangTime ~ pangTime (시간 구간만 사용) ──
-                // [FIX] d.line 필터 제거 — 줄 좌표는 visualLines로 고정되므로 d.line 검증 불필요.
-                // 시간 구간만으로 수집하면 모든 팡에 대해 세그먼트 생성 가능.
+                // ── 후보 데이터 수집: lastPangTime ~ pangTime, lineIndex === targetLine OR targetLine+1 ──
+                // [FIX] pang 발생 시점에 gaze의 d.line은 이미 targetLine+1(다음 줄)로 이동해 있음.
+                // pangLog.line = d0.line - 1 = targetLine 으로 기록되어, 필터가 항상 불일치했음.
+                // 따라서 targetLine 또는 targetLine+1 모두 후보로 수집.
                 const candidateData = [];
                 for (let i = 0; i < sortedGaze.length; i++) {
                     const d = sortedGaze[i];
                     if (d.t <= lastPangTime) continue;
                     if (d.t > pangTime) break;
-                    candidateData.push(d);
+                    if (typeof d.line === 'number' &&
+                        (d.line === targetLineIndex || d.line === targetLineIndex + 1)) {
+                        candidateData.push(d);
+                    }
                 }
 
-                if (candidateData.length < 2) { lastPangTime = pangTime; return; }
+                if (candidateData.length < 5) { lastPangTime = pangTime; return; }
 
                 // ── segEnd 결정: 팡 직전 gx 극대값 (읽기 끝점) ──
                 // 후보 데이터를 뒤에서부터 탐색하여 로컬 극대값 찾기
@@ -1238,94 +1227,9 @@ export class TextRenderer {
                 lastPangTime = pangTime;
             });
 
-            // ─── 3단계: 마지막 팡 이후 잔여 데이터 처리 ───
-            if (lastPangTime > 0 && sortedGaze.length > 0) {
-                // 잔여 데이터 수집 (lastPangTime 이후)
-                const remainingData = [];
-                for (let i = sortedGaze.length - 1; i >= 0; i--) {
-                    if (sortedGaze[i].t <= lastPangTime) break;
-                    remainingData.unshift(sortedGaze[i]);
-                }
-
-                if (remainingData.length >= 3) {
-                    // 고유 lineIndex 추출 (정렬)
-                    const lineSet = new Set();
-                    remainingData.forEach(d => {
-                        if (typeof d.line === 'number' && d.line >= 0) lineSet.add(d.line);
-                    });
-                    const uniqueLines = [...lineSet].sort((a, b) => a - b);
-
-                    // 이미 팡 세그먼트에 포함된 줄 제외
-                    const coveredLines = new Set(replaySegments.map(s => s.targetLine));
-
-                    uniqueLines.forEach(lineIdx => {
-                        if (coveredLines.has(lineIdx)) return;
-                        if (!visualLines[lineIdx]) return;
-
-                        const candidates = remainingData.filter(d => d.line === lineIdx);
-                        if (candidates.length < 3) return;
-
-                        const targetLineObj = visualLines[lineIdx];
-                        const fixedY = targetLineObj.visualY;
-
-                        // 극대값 (뒤쪽 50%)
-                        let peakIdx = candidates.length - 1;
-                        let peakGx = getGx(candidates[peakIdx]);
-                        const ss = Math.max(0, Math.floor(candidates.length * 0.5));
-                        for (let i = candidates.length - 1; i >= ss; i--) {
-                            const gx = getGx(candidates[i]);
-                            if (gx > peakGx) { peakGx = gx; peakIdx = i; }
-                        }
-
-                        // 극소값
-                        let valleyIdx = 0, valleyGx = Infinity;
-                        for (let i = 0; i <= peakIdx; i++) {
-                            const gx = getGx(candidates[i]);
-                            if (gx < valleyGx) { valleyGx = gx; valleyIdx = i; }
-                        }
-
-                        const segData = candidates.slice(valleyIdx, peakIdx + 1);
-                        if (segData.length < 2) return;
-
-                        if (processedPath.length > 0) {
-                            processedPath.push({ isJump: true });
-                        }
-
-                        const srcMin = valleyGx, srcMax = peakGx;
-                        replaySegments.push({
-                            idx: replaySegments.length,
-                            targetLine: lineIdx,
-                            segStart: candidates[valleyIdx].t,
-                            segEnd: candidates[peakIdx].t,
-                            pangTime: null,  // 팡 없는 잔여 세그먼트
-                            sourceMinX: Math.round(srcMin),
-                            sourceMaxX: Math.round(srcMax),
-                            targetLeft: Math.round(targetLineObj.rect.left),
-                            targetWidth: Math.round(targetLineObj.rect.width),
-                            samples: segData.length
-                        });
-
-                        const srcWidth = srcMax - srcMin;
-                        const tgtLeft = targetLineObj.rect.left;
-                        const tgtWidth = targetLineObj.rect.width;
-
-                        segData.forEach(d => {
-                            const gx = getGx(d);
-                            let scaledX = gx;
-                            if (srcWidth > 10 && tgtWidth > 0) {
-                                let ratio = (gx - srcMin) / srcWidth;
-                                ratio = Math.max(0, Math.min(1, ratio));
-                                scaledX = tgtLeft + ratio * tgtWidth;
-                            } else {
-                                scaledX = tgtLeft + (gx - srcMin);
-                            }
-                            processedPath.push({ x: scaledX, y: fixedY, t: d.t, isJump: false });
-                        });
-
-                        console.log(`[TextRenderer] ★ Residual segment: L${lineIdx} (${segData.length}pts)`);
-                    });
-                }
-            }
+            // [REMOVED] 3단계 잔여 세그먼트 처리 제거
+            // 마지막 팡 이후 데이터는 리플레이에 포함하지 않음
+            // (팡 없는 줄 = 리플레이 없음 원칙)
 
             // [DEBUG] Expose Replay Path for Dashboard
             try {
