@@ -1399,11 +1399,16 @@ Game.typewriter = {
                             if (gdm.replaySegments && gdm.replaySegments.length > 0) {
                                 try {
                                     const db = firebase.database();
-                                    await db.ref('sessions/' + uploadId + '/replaySegments').set(gdm.replaySegments);
-                                    console.log(`[Upload] ✅ replaySegments OK: ${gdm.replaySegments.length} segments`);
+                                    // NaN/Infinity/undefined → null 치환 (Firebase 거부 방지)
+                                    const sanitized = JSON.parse(JSON.stringify(
+                                        gdm.replaySegments,
+                                        (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
+                                    ));
+                                    await db.ref('sessions/' + uploadId + '/replaySegments').set(sanitized);
+                                    console.log(`[Upload] ✅ replaySegments OK: ${sanitized.length} segments`);
                                     return 'replaySegments_ok';
                                 } catch (e) {
-                                    console.error('[Upload] ❌ replaySegments FAILED:', e);
+                                    console.error('[Upload] ❌ replaySegments FAILED:', e.message || e);
                                     return 'replaySegments_failed';
                                 }
                             } else {
