@@ -1401,31 +1401,8 @@ Game.typewriter = {
                             })
                         );
 
-                        // ★ 완료 팝업 (탭하면 닫기)
+                        // 업로드 완료 후 데이터 클리어
                         Promise.all(uploadPromises).then(results => {
-                            const failed = results.filter(r => typeof r === 'string' && r.includes('failed'));
-                            const segCount = gdm.replaySegments ? gdm.replaySegments.length : 0;
-                            const msg = failed.length === 0
-                                ? `✅ 업로드 완료!\n세션: ${uploadId}\n지문: ${paraIdx}\n세그먼트: ${segCount}개`
-                                : `⚠️ 일부 실패: ${failed.join(', ')}\n세션: ${uploadId}\n세그먼트: ${segCount}개`;
-
-                            const popup = document.createElement('div');
-                            popup.textContent = msg + '\n\n[ 탭하면 닫기 ]';
-                            Object.assign(popup.style, {
-                                position: 'fixed', top: '15%', left: '50%',
-                                transform: 'translateX(-50%)', zIndex: '1000000',
-                                padding: '20px 28px', borderRadius: '14px',
-                                background: failed.length === 0
-                                    ? 'linear-gradient(135deg,#1e7e34,#28a745)'
-                                    : 'linear-gradient(135deg,#bd2130,#dc3545)',
-                                color: '#fff', fontSize: '14px', fontWeight: 'bold',
-                                boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
-                                whiteSpace: 'pre-line', textAlign: 'center',
-                                width: '80%', maxWidth: '400px', cursor: 'pointer'
-                            });
-                            popup.onclick = () => { popup.style.opacity = '0'; setTimeout(() => popup.remove(), 250); };
-                            document.body.appendChild(popup);
-
                             if (gdm && typeof gdm.clearGazeData === 'function') gdm.clearGazeData();
                         });
                     } else {
