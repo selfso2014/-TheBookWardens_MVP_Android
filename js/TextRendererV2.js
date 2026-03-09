@@ -99,6 +99,10 @@ export class TextRenderer {
         this.container.style.lineHeight = this.options.lineHeight;
         this.container.style.padding = this.options.padding;
         this.container.style.textAlign = "left";
+        // Snapshot the original border value for later restoration.
+        // getComputedStyle gives the live computed border; reading .style gives
+        // the inline attribute which is what we actually need to restore.
+        this._origBorderInline = this.container.getAttribute('style') || '';
     }
 
     prepareDynamic(chapterData, wpm = 150) {
@@ -1906,18 +1910,38 @@ export class TextRenderer {
     _replayContainerReset() {
         const c = this.container;
         if (!c) return;
-        // Cancel any in-progress transition immediately
+
+        // 1. Stop any running CSS transition immediately
         c.style.transition = 'none';
         c.style.boxShadow = '';
-        c.style.borderColor = 'transparent'; // explicit transparent beats empty string
         c.style.filter = '';
-        // One RAF later: also clear the transition override so CSS can resume normally
+
+        // 2. Restore border: We CANNOT use c.style.borderColor = '' because
+        //    JS borderColor is a longhand that breaks the 'border' shorthand.
+        //    Instead rebuild the inline style from the original snapshot,
+        //    then reapply the renderer-managed properties on top.
+        if (this._origBorderInline !== undefined) {
+            // Re-apply original inline style string (contains the HTML border attr)
+            c.setAttribute('style', this._origBorderInline);
+            // Then re-apply renderer-overridden properties that must persist
+            c.style.position = 'relative';
+            c.style.fontFamily = this.options.fontFamily;
+            c.style.fontSize = this.options.fontSize;
+            c.style.lineHeight = this.options.lineHeight;
+            c.style.padding = this.options.padding;
+            c.style.textAlign = 'left';
+        } else {
+            // Fallback: just clear the glow-related properties
+            c.style.borderColor = ''; // may still break shorthand but better than stuck glow
+        }
+
+        // 3. One RAF later: clear the transition override so CSS rules resume normally
         requestAnimationFrame(() => {
             if (!c) return;
             c.style.transition = '';
-            c.style.borderColor = ''; // let rift.css take over from here
         });
     }
+
 
     // === Legacy stubs ========================================================
     _sealRiftVFX(visualLines, onDone) { if (typeof onDone === 'function') onDone(); }
