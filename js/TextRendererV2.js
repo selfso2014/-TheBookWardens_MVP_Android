@@ -1162,7 +1162,7 @@ export class TextRenderer {
                     position      : 'fixed',
                     display       : 'flex',
                     alignItems    : 'center',
-                    padding       : '6px 20px 6px 10px',
+                    padding       : '4px 14px 4px 8px',
                     background    : 'rgba(18,6,38,0.96)',
                     border        : '1.5px solid rgba(180,120,255,0.60)',
                     borderRadius  : '50px',
@@ -1204,7 +1204,7 @@ export class TextRenderer {
                 txt.textContent = 'Gaze Replay';
                 Object.assign(txt.style, {
                     fontFamily   : "'Cinzel', 'Georgia', serif",
-                    fontSize     : 'clamp(17.5px, 4.5vw, 24px)',
+                    fontSize     : 'clamp(14px, 3.6vw, 19px)',
                     fontWeight   : '700',
                     letterSpacing: '4px',
                     color        : '#ffffff',
@@ -1224,9 +1224,8 @@ export class TextRenderer {
                     const lh    = label.getBoundingClientRect().height;
                     if (badge) {
                         const br = badge.getBoundingClientRect();
-                        const hudBottom = hud ? hud.getBoundingClientRect().bottom : 56;
-                        const gapCenter = hudBottom + (br.top - hudBottom) / 2;
-                        label.style.top       = Math.max(hudBottom + 4, gapCenter - lh / 2) + 'px';
+                        // Place just below chapter badge so HUD and text box border are both visible
+                        label.style.top       = (br.bottom + 4) + 'px';
                         label.style.left      = (br.left + br.width / 2) + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
@@ -2024,7 +2023,7 @@ export class TextRenderer {
                 ? '0 0 30px rgba(210,120,255,1), 0 0 12px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
                 : '0 0 10px rgba(130,110,180,0.7), 0 2px 4px rgba(0,0,0,0.8)';
 
-            const resultText = sealed ? '\u2605  RIFT SEALED  \u2605' : '\u22c6  RIFT INCOMPLETE';
+            const resultText = sealed ? '\u2605  RIFT SEALED  \u2605' : '\u25c6  NOT YET';
             const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
 
             // ── Popup card ──
@@ -2133,9 +2132,10 @@ export class TextRenderer {
                 s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
                 return s;
             };
-            statsRow.appendChild(mkStat('\uD83D\uDD8B', inkVal, 'INK', false));
-            statsRow.appendChild(mkStat('\u26A1', wpmVal, 'WPM', false));
-            statsRow.appendChild(mkStat('\uD83D\uDD2E', `${sealPct}%`, 'SEALED', true));
+            // Accuracy = litLines read / totalLines
+            const accuracyVal = sealPct;  // already computed as litCount/totalL * 100
+            statsRow.appendChild(mkStat('⚡', wpmVal, 'WPM', false));
+            statsRow.appendChild(mkStat('', accuracyVal + '%', 'ACCURACY', true));
 
             // Logo
             const logo = document.createElement('div');
