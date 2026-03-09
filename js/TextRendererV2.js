@@ -1149,55 +1149,80 @@ export class TextRenderer {
                 const old = document.getElementById('replay-watermark-label');
                 if (old) try { old.remove(); } catch (e) { }
 
-                // Inject CSS once
+                // ── Inject CSS keyframes once ──────────────────────────────
                 if (!document.getElementById('replay-blink-style')) {
                     const st = document.createElement('style');
                     st.id = 'replay-blink-style';
-                    st.textContent = '@keyframes replayTextBlink{0%,40%,100%{opacity:1}50%,90%{opacity:0.08}}';
+                    st.textContent = [
+                        // Gaze ripple: outer ring pulses like a living eye
+                        '@keyframes gazeRipple{',
+                        '0%,100%{box-shadow:',
+                        '  0 0 0 2.5px rgba(0,255,136,0.55),',
+                        '  0 0 0 5.5px rgba(0,255,136,0.18),',
+                        '  0 0 10px  rgba(0,255,136,0.85),',
+                        '  0 0 22px  rgba(0,255,136,0.55),',
+                        '  0 0 40px  rgba(0,200,100,0.30)}',
+                        '50%{box-shadow:',
+                        '  0 0 0 4.5px rgba(0,255,136,0.70),',
+                        '  0 0 0 10px  rgba(0,255,136,0.22),',
+                        '  0 0 14px  rgba(0,255,136,1),',
+                        '  0 0 30px  rgba(0,255,136,0.65),',
+                        '  0 0 55px  rgba(0,200,100,0.40)}}',
+                        // Text blink: text fades in/out
+                        '@keyframes replayTextBlink{',
+                        '0%,40%,100%{opacity:1}',
+                        '50%,90%{opacity:0.08}}',
+                    ].join('');
                     document.head.appendChild(st);
                 }
 
-                // Container (always opaque, no blink)
+                // ── Container (always fully opaque – no blink) ─────────────
                 const label = document.createElement('div');
                 label.id = 'replay-watermark-label';
                 Object.assign(label.style, {
                     position      : 'fixed',
                     display       : 'flex',
                     alignItems    : 'center',
-                    justifyContent: 'center',
-                    padding       : '9px 22px 9px 16px',
+                    gap           : '0',
+                    padding       : '9px 24px 9px 14px',
                     background    : 'rgba(20,8,42,0.95)',
                     border        : '1.5px solid rgba(180,120,255,0.65)',
-                    borderRadius  : '24px',
-                    boxShadow     : '0 0 18px rgba(140,80,255,0.4)',
+                    borderRadius  : '50px',
+                    boxShadow     : '0 0 20px rgba(140,80,255,0.45)',
                     backdropFilter: 'blur(8px)',
                     pointerEvents : 'none',
                     zIndex        : '9999999',
                     opacity       : '1',
                 });
 
-                // Inner wrapper (blinks)
-                const inner = document.createElement('div');
-                Object.assign(inner.style, {
-                    display  : 'flex',
-                    alignItems: 'center',
-                    animation: 'replayTextBlink 1.8s ease-in-out infinite',
-                });
-
-                // Green dot: pure CSS circle
+                // ── Gaze point: plasma sphere replica (always visible, pulses) ──
                 const dot = document.createElement('span');
                 Object.assign(dot.style, {
                     display     : 'inline-block',
-                    width       : '14px',
-                    height      : '14px',
-                    borderRadius: '50%',
-                    background  : '#00ff88',
-                    boxShadow   : '0 0 8px rgba(0,255,136,0.9), 0 0 20px rgba(0,255,136,0.55)',
                     flexShrink  : '0',
-                    marginRight : '10px',
+                    width       : '22px',
+                    height      : '22px',
+                    borderRadius: '50%',
+                    // Radial gradient: bright white highlight → green core → dark edge
+                    background  : 'radial-gradient(circle at 35% 32%, #d0ffe8 0%, #00ff88 30%, #00bb66 62%, rgba(0,180,90,0) 100%)',
+                    boxShadow   : [
+                        '0 0 0 2.5px rgba(0,255,136,0.55)',
+                        '0 0 0 5.5px rgba(0,255,136,0.18)',
+                        '0 0 10px  rgba(0,255,136,0.85)',
+                        '0 0 22px  rgba(0,255,136,0.55)',
+                        '0 0 40px  rgba(0,200,100,0.30)',
+                    ].join(','),
+                    marginRight : '12px',
+                    animation   : 'gazeRipple 1.0s ease-in-out infinite',
                 });
 
-                // Text: 2x original size
+                // ── Text wrapper (blinks independently) ────────────────────
+                const textWrap = document.createElement('span');
+                Object.assign(textWrap.style, {
+                    display  : 'inline-block',
+                    animation: 'replayTextBlink 1.8s ease-in-out infinite',
+                });
+
                 const txt = document.createElement('span');
                 txt.textContent = 'Gaze Replay';
                 Object.assign(txt.style, {
@@ -1208,28 +1233,32 @@ export class TextRenderer {
                     color        : '#ffffff',
                     textShadow   : '0 0 14px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
                     whiteSpace   : 'nowrap',
+                    verticalAlign: 'middle',
                 });
 
-                inner.appendChild(dot);
-                inner.appendChild(txt);
-                label.appendChild(inner);
+                textWrap.appendChild(txt);
+                label.appendChild(dot);
+                label.appendChild(textWrap);
 
-                // Position: overlay chapter-title-badge
+                // ── Position: float ABOVE chapter-title-badge ─────────────
+                // Append first so we can measure label height
                 document.body.appendChild(label);
                 try {
                     const badge = document.getElementById('chapter-title-badge');
                     if (badge) {
                         const br = badge.getBoundingClientRect();
-                        label.style.top       = br.top + 'px';
+                        const lh = label.getBoundingClientRect().height;
+                        // Sit just above the badge (6px gap) -> text box border is visible
+                        label.style.top       = Math.max(4, br.top - lh - 6) + 'px';
                         label.style.left      = (br.left + br.width / 2) + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
-                        label.style.top       = '18%';
+                        label.style.top       = '12%';
                         label.style.left      = '50%';
                         label.style.transform = 'translateX(-50%)';
                     }
                 } catch (e) {
-                    label.style.top       = '18%';
+                    label.style.top       = '12%';
                     label.style.left      = '50%';
                     label.style.transform = 'translateX(-50%)';
                 }
