@@ -1142,10 +1142,18 @@ export class TextRenderer {
             }
 
             // ─────────────────────────────────────────────
-            // OPENING CARD (2.2s) → PHASE 1: Gray out all text
+            // OPENING CARD (5s) → Phase 1 gray → Phase 2 animation
+            // NOTE: Phase 2 RAF must NOT start until the intro card is fully
+            //       gone, otherwise the key action plays while card is visible.
             // ─────────────────────────────────────────────
             this._showReplayIntroCard(() => {
+                // Phase 1: gray out text
                 this._grayOutAllText();
+                // Phase 2: kick off the plasma sphere animation (after 1 frame
+                // to let the gray transition paint first)
+                requestAnimationFrame(() => {
+                    this._replayRAFId = requestAnimationFrame(animate);
+                });
             });
 
             // ─────────────────────────────────────────────
@@ -1339,8 +1347,8 @@ export class TextRenderer {
 
                 this._replayRAFId = requestAnimationFrame(animate);
             };
-
-            this._replayRAFId = requestAnimationFrame(animate);
+            // Phase 2 RAF is now started exclusively from the _showReplayIntroCard
+            // callback above. Do NOT add a direct kick-off here.
 
         }, 500);
     }
@@ -1795,7 +1803,7 @@ export class TextRenderer {
                     try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
                 }, 480);
-            }, 2200);
+            }, 5000);
 
         } catch (err) {
             console.error('[_showReplayIntroCard]', err);
@@ -1952,7 +1960,7 @@ export class TextRenderer {
                     try { if (wrap.parentNode) wrap.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
                 }, 420);
-            }, 3200);
+            }, 5000);
 
         } catch (err) {
             console.error('[_showReplayEndCard]', err);
