@@ -1414,11 +1414,8 @@ export class TextRenderer {
             loopRunning = false;
             clearTimeout(hardTimeout);
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-            if (this.container) {
-                this.container.style.transition = 'box-shadow 0.6s ease-out, border-color 0.6s ease-out';
-                this.container.style.boxShadow = '';
-                this.container.style.borderColor = '';
-            }
+            // Immediately reset container styles (no lag into next screen)
+            this._replayContainerReset();
             try { dischargeCanvas.remove(); } catch (e) { }
             this._restoreTextWave(litLines, visualLines, isSealed, onDone);
         };
@@ -1667,83 +1664,94 @@ export class TextRenderer {
     // === Phase 4: inline result message =====================================
     _showInlineResult(isSealed, onDone) {
         try {
+            // Remove any existing result banner
             const old = document.getElementById('replay-rift-result');
             if (old) { try { old.remove(); } catch (e) { } }
 
-            const wrap = document.createElement('div');
-            wrap.id = 'replay-rift-result';
-
             const sealed = isSealed;
-            const bgColor = sealed ? 'rgba(60,0,90,0.88)' : 'rgba(18,12,30,0.82)';
-            const borderClr = sealed ? 'rgba(200,140,255,0.9)' : 'rgba(120,100,160,0.6)';
-            const textColor = sealed ? '#f0d8ff' : 'rgba(180,170,210,0.9)';
+            const bgColor = sealed ? 'rgba(52,0,80,0.92)' : 'rgba(14,10,26,0.88)';
+            const borderClr = sealed ? 'rgba(190,120,255,0.85)' : 'rgba(100,88,140,0.55)';
+            const textColor = sealed ? '#f0d8ff' : 'rgba(175,165,205,0.9)';
             const glowText = sealed
-                ? '0 0 30px rgba(200,100,255,1), 0 0 10px rgba(255,255,255,0.8), 0 0 60px rgba(155,89,182,0.7)'
-                : '0 0 8px rgba(130,110,170,0.5)';
+                ? '0 0 24px rgba(200,100,255,0.95), 0 0 8px rgba(255,255,255,0.7), 0 0 48px rgba(155,89,182,0.65)'
+                : '0 0 6px rgba(120,105,160,0.5)';
             const label = sealed ? '\u2605 RIFT SEALED \u2605' : '\u22c6 RIFT NOT YET SEALED';
             const subLabel = sealed ? 'All seals restored' : 'Reading incomplete';
 
-            wrap.style.cssText = [
-                'position:fixed',
-                'bottom:60px',
-                'left:50%',
-                'transform:translateX(-50%) scale(0.85)',
-                `background:${bgColor}`,
-                `border:1.5px solid ${borderClr}`,
-                'border-radius:12px',
-                'padding:18px 42px 16px',
-                'text-align:center',
-                'pointer-events:none',
-                'z-index:9999990',
-                'opacity:0',
-                'transition:opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-                `box-shadow:0 0 40px rgba(155,89,182,0.4), inset 0 0 20px rgba(155,89,182,0.08)`,
-            ].join(';');
+            const wrap = document.createElement('div');
+            wrap.id = 'replay-rift-result';
+            Object.assign(wrap.style, {
+                position: 'fixed',
+                bottom: '60px',
+                left: '50%',
+                transform: 'translateX(-50%) scale(0.82)',
+                background: bgColor,
+                border: `1.5px solid ${borderClr}`,
+                borderRadius: '12px',
+                padding: '14px 28px 12px',
+                boxSizing: 'border-box',
+                // Width: shrink-to-fit but never exceed 90vw
+                maxWidth: 'min(420px, 90vw)',
+                width: 'max-content',
+                textAlign: 'center',
+                pointerEvents: 'none',
+                zIndex: '9999990',
+                opacity: '0',
+                transition: 'opacity 0.32s ease, transform 0.32s cubic-bezier(0.34,1.56,0.64,1)',
+                boxShadow: `0 0 36px rgba(155,89,182,0.38), inset 0 0 18px rgba(155,89,182,0.07)`,
+                backdropFilter: 'blur(6px)',
+            });
 
-            // Main text
+            // Main label
             const main = document.createElement('div');
-            main.style.cssText = [
-                `color:${textColor}`,
-                'font-size:26px',
-                'font-weight:800',
-                'font-family:monospace',
-                'letter-spacing:5px',
-                'text-transform:uppercase',
-                'white-space:nowrap',
-                `text-shadow:${glowText}`,
-            ].join(';');
+            Object.assign(main.style, {
+                color: textColor,
+                // Fluid font: scales with viewport, capped at 22px
+                fontSize: 'clamp(16px, 4vw, 22px)',
+                fontWeight: '800',
+                fontFamily: 'monospace',
+                letterSpacing: '4px',
+                textTransform: 'uppercase',
+                // Allow natural line break on narrow screens
+                whiteSpace: 'normal',
+                wordBreak: 'keep-all',
+                lineHeight: '1.3',
+                textShadow: glowText,
+            });
             main.textContent = label;
 
-            // Sub text
+            // Sub label
             const sub = document.createElement('div');
-            sub.style.cssText = [
-                `color:${sealed ? 'rgba(210,170,255,0.75)' : 'rgba(150,140,180,0.6)'}`,
-                'font-size:12px',
-                'font-family:monospace',
-                'letter-spacing:3px',
-                'margin-top:6px',
-                'text-transform:uppercase',
-            ].join(';');
+            Object.assign(sub.style, {
+                color: sealed ? 'rgba(205,165,255,0.72)' : 'rgba(145,135,175,0.6)',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                letterSpacing: '2.5px',
+                marginTop: '6px',
+                textTransform: 'uppercase',
+            });
             sub.textContent = subLabel;
 
             wrap.appendChild(main);
             wrap.appendChild(sub);
             document.body.appendChild(wrap);
 
-            // Animate in
+            // Pop-in animation (wait one tick for layout)
             requestAnimationFrame(() => {
                 wrap.style.opacity = '1';
                 wrap.style.transform = 'translateX(-50%) scale(1)';
             });
 
+            // Linger then fade out and call onDone
             setTimeout(() => {
                 wrap.style.opacity = '0';
-                wrap.style.transform = 'translateX(-50%) scale(0.9)';
+                wrap.style.transform = 'translateX(-50%) scale(0.92)';
                 setTimeout(() => {
                     try { if (wrap.parentNode) wrap.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
-                }, 450);
+                }, 420);
             }, 2800);
+
         } catch (err) {
             console.error('[showInlineResult]', err);
             if (typeof onDone === 'function') onDone();
@@ -1891,6 +1899,24 @@ export class TextRenderer {
         } catch (e) {
             console.warn('[_fireInkDrop]', e);
         }
+    }
+
+    // === Replay cleanup: fully restore container styles ======================
+    // Called by _runWireDischarge.finish() so no style leaks into the next screen.
+    _replayContainerReset() {
+        const c = this.container;
+        if (!c) return;
+        // Cancel any in-progress transition immediately
+        c.style.transition = 'none';
+        c.style.boxShadow = '';
+        c.style.borderColor = 'transparent'; // explicit transparent beats empty string
+        c.style.filter = '';
+        // One RAF later: also clear the transition override so CSS can resume normally
+        requestAnimationFrame(() => {
+            if (!c) return;
+            c.style.transition = '';
+            c.style.borderColor = ''; // let rift.css take over from here
+        });
     }
 
     // === Legacy stubs ========================================================
