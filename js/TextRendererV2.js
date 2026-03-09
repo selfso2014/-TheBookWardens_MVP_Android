@@ -1467,6 +1467,11 @@ export class TextRenderer {
         const DISCHARGE_DUR = 600;  // simultaneous discharge flash
         const DISCHARGE_BURST = 200;  // peak burst window
         const TOTAL_DUR = DISCHARGE_START + DISCHARGE_DUR + 300;
+        // ── Scan-bar timing (starts when burst peaks, sweeps to bottom) ───────
+        const SCAN_START_T = DISCHARGE_START + DISCHARGE_BURST; // ms into Phase3
+        const SCAN_DUR = 550;  // top→bottom travel time (fast scan feel)
+        const SCAN_TOTAL = SCAN_START_T + SCAN_DUR + 300;     // Phase3 must last at least this long
+        const PHASE3_DUR = Math.max(TOTAL_DUR, SCAN_TOTAL);   // whichever is longer
 
         // ── helper: zigzag path ──────────────────────────────────────────────
         const makeZigzag = (x0, y0, x1, y1, jitter = 18, steps = 5) => {
@@ -1667,7 +1672,45 @@ export class TextRenderer {
                 dischargeNodes.forEach(node => { node.glowAlpha = Math.max(0, disAlpha); });
             }
 
-            if (elapsed >= TOTAL_DUR) { finish(); return; }
+            // ── Scan bar: white glow bar sweeps top → bottom of container ───
+            if (elapsed >= SCAN_START_T && this.container) {
+                const scanProg = Math.min(1, (elapsed - SCAN_START_T) / SCAN_DUR);
+                // easeInOut so it starts with a pop, then settles
+                const eased = scanProg < 0.5
+                    ? 2 * scanProg * scanProg
+                    : 1 - Math.pow(-2 * scanProg + 2, 2) / 2;
+
+                const r = this.container.getBoundingClientRect();
+                const scanY = r.top + eased * r.height;
+                const barAlpha = scanProg < 0.97 ? 0.92 : (1 - (scanProg - 0.97) / 0.03); // fade at end
+
+                // Layer 1: trailing gradient above bar
+                const grad = dCtx.createLinearGradient(0, scanY - 40, 0, scanY);
+                grad.addColorStop(0, 'rgba(255,255,255,0)');
+                grad.addColorStop(1, `rgba(255,255,255,${(barAlpha * 0.18).toFixed(3)})`);
+                dCtx.save();
+                dCtx.fillStyle = grad;
+                dCtx.fillRect(r.left, scanY - 40, r.width, 40);
+                dCtx.restore();
+
+                // Layer 2: core bright bar
+                dCtx.save();
+                dCtx.globalAlpha = barAlpha;
+                dCtx.shadowColor = '#ffffff';
+                dCtx.shadowBlur = 24;
+                dCtx.fillStyle = '#ffffff';
+                dCtx.fillRect(r.left, scanY - 1.5, r.width, 3);
+                dCtx.restore();
+
+                // Layer 3: soft halo below bar
+                dCtx.save();
+                dCtx.globalAlpha = barAlpha * 0.18;
+                dCtx.fillStyle = 'rgba(220,190,255,1)';
+                dCtx.fillRect(r.left, scanY + 1, r.width, 14);
+                dCtx.restore();
+            }
+
+            if (elapsed >= PHASE3_DUR) { finish(); return; }
             rafId = requestAnimationFrame(phase3Loop);
         };
 
