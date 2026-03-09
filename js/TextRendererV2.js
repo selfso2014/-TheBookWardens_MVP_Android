@@ -1844,11 +1844,11 @@ export class TextRenderer {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -52%) scale(0.92)',
-                width: 'min(380px, 90vw)',
+                width: 'min(304px, 72vw)',
                 background: 'rgba(28,4,52,0.96)',
                 border: '1.5px solid rgba(180,110,255,0.65)',
                 borderRadius: '18px',
-                padding: '28px 24px 22px',
+                padding: '22px 19px 18px',
                 boxSizing: 'border-box',
                 boxShadow: '0 0 48px rgba(140,60,255,0.5), 0 8px 32px rgba(0,0,0,0.7)',
                 backdropFilter: 'blur(12px)',
@@ -2024,7 +2024,7 @@ export class TextRenderer {
                 ? '0 0 30px rgba(210,120,255,1), 0 0 12px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
                 : '0 0 10px rgba(130,110,180,0.7), 0 2px 4px rgba(0,0,0,0.8)';
 
-            const resultText = sealed ? '\u2605  RIFT SEALED  \u2605' : '\u25c6  NOT YET';
+            const resultText = sealed ? 'RIFT SEALED' : 'NOT YET';
             const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
 
             // ── Popup card ──
@@ -2035,11 +2035,11 @@ export class TextRenderer {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -52%) scale(0.88)',
-                width: 'min(380px, 90vw)',
+                width: 'min(304px, 72vw)',
                 background: sealed ? 'rgba(36,0,62,0.96)' : 'rgba(12,8,28,0.96)',
                 border: `1.5px solid ${bdrClr}`,
                 borderRadius: '18px',
-                padding: '28px 24px 22px',
+                padding: '22px 19px 18px',
                 boxSizing: 'border-box',
                 boxShadow: `0 0 52px rgba(140,60,255,0.45), 0 8px 32px rgba(0,0,0,0.7)`,
                 backdropFilter: 'blur(14px)',
@@ -2130,12 +2130,12 @@ export class TextRenderer {
                     fontFamily: 'monospace',
                     textTransform: 'uppercase',
                 });
-                s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
+                if (icon) s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
                 return s;
             };
             // Accuracy = litLines read / totalLines
             const accuracyVal = sealPct;  // already computed as litCount/totalL * 100
-            statsRow.appendChild(mkStat('⚡', wpmVal, 'WPM', false));
+            statsRow.appendChild(mkStat('', wpmVal, 'WPM', false));
             statsRow.appendChild(mkStat('', accuracyVal + '%', 'ACCURACY', true));
 
             // Logo
