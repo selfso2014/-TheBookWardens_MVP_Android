@@ -1149,26 +1149,24 @@ export class TextRenderer {
                 const old = document.getElementById('replay-watermark-label');
                 if (old) try { old.remove(); } catch (e) { }
 
-                // ── Inject CSS keyframes once ──────────────────────────────
+                // Inject CSS keyframes once
                 if (!document.getElementById('replay-blink-style')) {
                     const st = document.createElement('style');
                     st.id = 'replay-blink-style';
                     st.textContent = [
-                        // Gaze ripple: outer ring pulses like a living eye
                         '@keyframes gazeRipple{',
                         '0%,100%{box-shadow:',
-                        '  0 0 0 2.5px rgba(0,255,136,0.55),',
-                        '  0 0 0 5.5px rgba(0,255,136,0.18),',
-                        '  0 0 10px  rgba(0,255,136,0.85),',
-                        '  0 0 22px  rgba(0,255,136,0.55),',
-                        '  0 0 40px  rgba(0,200,100,0.30)}',
+                        ' 0 0 0 0px rgba(0,255,136,0),',
+                        ' 0 0 0 2.5px rgba(0,255,136,0.65),',
+                        ' 0 0 10px rgba(0,255,136,0.9),',
+                        ' 0 0 22px rgba(0,255,136,0.5),',
+                        ' 0 0 40px rgba(0,200,100,0.25)}',
                         '50%{box-shadow:',
-                        '  0 0 0 4.5px rgba(0,255,136,0.70),',
-                        '  0 0 0 10px  rgba(0,255,136,0.22),',
-                        '  0 0 14px  rgba(0,255,136,1),',
-                        '  0 0 30px  rgba(0,255,136,0.65),',
-                        '  0 0 55px  rgba(0,200,100,0.40)}}',
-                        // Text blink: text fades in/out
+                        ' 0 0 0 3.5px rgba(0,255,136,0.8),',
+                        ' 0 0 0 7px rgba(0,255,136,0.2),',
+                        ' 0 0 14px rgba(0,255,136,1),',
+                        ' 0 0 30px rgba(0,255,136,0.6),',
+                        ' 0 0 50px rgba(0,200,100,0.35)}}',
                         '@keyframes replayTextBlink{',
                         '0%,40%,100%{opacity:1}',
                         '50%,90%{opacity:0.08}}',
@@ -1176,7 +1174,7 @@ export class TextRenderer {
                     document.head.appendChild(st);
                 }
 
-                // ── Container (always fully opaque – no blink) ─────────────
+                // Container: always opaque, no blink
                 const label = document.createElement('div');
                 label.id = 'replay-watermark-label';
                 Object.assign(label.style, {
@@ -1184,88 +1182,93 @@ export class TextRenderer {
                     display       : 'flex',
                     alignItems    : 'center',
                     gap           : '0',
-                    padding       : '9px 24px 9px 14px',
-                    background    : 'rgba(20,8,42,0.95)',
-                    border        : '1.5px solid rgba(180,120,255,0.65)',
+                    padding       : '7px 20px 7px 12px',
+                    background    : 'rgba(18,6,38,0.96)',
+                    border        : '1.5px solid rgba(180,120,255,0.60)',
                     borderRadius  : '50px',
-                    boxShadow     : '0 0 20px rgba(140,80,255,0.45)',
+                    boxShadow     : '0 0 16px rgba(120,60,220,0.40)',
                     backdropFilter: 'blur(8px)',
                     pointerEvents : 'none',
                     zIndex        : '9999999',
                     opacity       : '1',
                 });
 
-                // ── Gaze point: plasma sphere replica (always visible, pulses) ──
+                // Gaze sphere: dark core + fluorescent ring + ripple pulse (always visible)
                 const dot = document.createElement('span');
                 Object.assign(dot.style, {
-                    display     : 'inline-block',
-                    flexShrink  : '0',
-                    width       : '22px',
-                    height      : '22px',
-                    borderRadius: '50%',
-                    // Radial gradient: bright white highlight → green core → dark edge
-                    background  : 'radial-gradient(circle at 35% 32%, #d0ffe8 0%, #00ff88 30%, #00bb66 62%, rgba(0,180,90,0) 100%)',
-                    boxShadow   : [
-                        '0 0 0 2.5px rgba(0,255,136,0.55)',
-                        '0 0 0 5.5px rgba(0,255,136,0.18)',
-                        '0 0 10px  rgba(0,255,136,0.85)',
-                        '0 0 22px  rgba(0,255,136,0.55)',
-                        '0 0 40px  rgba(0,200,100,0.30)',
+                    display      : 'inline-block',
+                    flexShrink   : '0',
+                    width        : '22px',
+                    height       : '22px',
+                    borderRadius : '50%',
+                    background   : [
+                        'radial-gradient(circle at 38% 34%,',
+                        ' rgba(210,255,235,0.9) 0%,',
+                        ' rgba(0,180,80,0.75)   22%,',
+                        ' rgba(0,40,18,0.95)    55%,',
+                        ' rgba(0,15,8,1)        100%)',
+                    ].join(''),
+                    border       : '2px solid rgba(0,255,136,0.95)',
+                    boxShadow    : [
+                        '0 0 0 2.5px rgba(0,255,136,0.65)',
+                        '0 0 10px rgba(0,255,136,0.9)',
+                        '0 0 22px rgba(0,255,136,0.5)',
+                        '0 0 40px rgba(0,200,100,0.25)',
                     ].join(','),
-                    marginRight : '12px',
-                    animation   : 'gazeRipple 1.0s ease-in-out infinite',
+                    marginRight  : '11px',
+                    animation    : 'gazeRipple 1.0s ease-in-out infinite',
+                    boxSizing    : 'border-box',
                 });
 
-                // ── Text wrapper (blinks independently) ────────────────────
+                // Text: 20% smaller than previous (clamp(22->30) * 0.8 = clamp(17.5->24))
                 const textWrap = document.createElement('span');
                 Object.assign(textWrap.style, {
                     display  : 'inline-block',
                     animation: 'replayTextBlink 1.8s ease-in-out infinite',
                 });
-
                 const txt = document.createElement('span');
                 txt.textContent = 'Gaze Replay';
                 Object.assign(txt.style, {
                     fontFamily   : "'Cinzel', 'Georgia', serif",
-                    fontSize     : 'clamp(22px, 5.6vw, 30px)',
+                    fontSize     : 'clamp(17.5px, 4.5vw, 24px)',
                     fontWeight   : '700',
                     letterSpacing: '4px',
                     color        : '#ffffff',
-                    textShadow   : '0 0 14px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
+                    textShadow   : '0 0 12px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
                     whiteSpace   : 'nowrap',
-                    verticalAlign: 'middle',
                 });
-
                 textWrap.appendChild(txt);
                 label.appendChild(dot);
                 label.appendChild(textWrap);
 
-                // ── Position: float ABOVE chapter-title-badge ─────────────
-                // Append first so we can measure label height
+                // Position: between HUD bottom and chapter badge top
                 document.body.appendChild(label);
                 try {
+                    const hud  = document.getElementById('hud') ||
+                                 document.querySelector('.hud-container, .hud, #resource-hud');
                     const badge = document.getElementById('chapter-title-badge');
+                    const lh   = label.getBoundingClientRect().height;
                     if (badge) {
                         const br = badge.getBoundingClientRect();
-                        const lh = label.getBoundingClientRect().height;
-                        // Sit just above the badge (6px gap) -> text box border is visible
-                        label.style.top       = Math.max(4, br.top - lh - 6) + 'px';
+                        const hudBottom = hud ? hud.getBoundingClientRect().bottom : 56;
+                        // center in the gap between HUD and chapter badge
+                        const gapCenter = hudBottom + (br.top - hudBottom) / 2;
+                        label.style.top       = Math.max(hudBottom + 4, gapCenter - lh / 2) + 'px';
                         label.style.left      = (br.left + br.width / 2) + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
-                        label.style.top       = '12%';
+                        label.style.top       = '14%';
                         label.style.left      = '50%';
                         label.style.transform = 'translateX(-50%)';
                     }
                 } catch (e) {
-                    label.style.top       = '12%';
+                    label.style.top       = '14%';
                     label.style.left      = '50%';
                     label.style.transform = 'translateX(-50%)';
                 }
 
                 this._replayIntroLabel = label;
             })();
-            // Phase 1: immediately gray out text
             this._grayOutAllText();
             // Phase 2: kick off plasma animation (1 extra RAF so gray paint settles)
             requestAnimationFrame(() => {
