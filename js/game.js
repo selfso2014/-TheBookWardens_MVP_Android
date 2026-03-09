@@ -1,4 +1,4 @@
-﻿import { storyParagraphs } from './data/StoryContent.js?v=20260224-FQ';
+import { storyParagraphs } from './data/StoryContent.js?v=20260224-FQ';
 import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=20260224-FQ';
 import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=20260224-FQ';
 import { ScoreManager } from './managers/ScoreManager.js?v=20260224-FQ';
@@ -14,12 +14,12 @@ import { DOMManager } from './core/DOMManager.js?v=20260224-FQ';
 import { FinalQuizManager } from './managers/FinalQuizManager.js?v=20260224-FQ';
 import { BookSelectManager } from './managers/BookSelectManager.js?v=20260226-BS3';
 
-// ?? Firebase SDK Deferred Loader ??????????????????????????????????????????????
+// ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
-// It is loaded here on demand ??only when the user clicks "Claim Reward".
+// It is loaded here on demand — only when the user clicks "Claim Reward".
 // Reason: Firebase SDK creates WebSocket connections immediately on load.
 // On iPhone 15 Pro Chrome (iOS 18), failed connections create a retry loop
-// adding ~5 EventListeners/sec ??LSN explosion ??pushes WebContent over jetsam limit.
+// adding ~5 EventListeners/sec → LSN explosion → pushes WebContent over jetsam limit.
 let _firebaseLoading = null;
 function loadFirebaseSDK() {
     if (typeof firebase !== 'undefined') return Promise.resolve();
@@ -42,7 +42,7 @@ function loadFirebaseSDK() {
 
     return _firebaseLoading;
 }
-// ?????????????????????????????????????????????????????????????????????????????
+// ─────────────────────────────────────────────────────────────────────────────
 const Game = {
     // Initialized in init()
     scoreManager: null,
@@ -82,9 +82,9 @@ const Game = {
         // [FIX #9] Remove transient body-level DOM nodes that may be orphaned
         // when RAF/timeout is cancelled mid-flight during screen transitions.
         // These classes are appended to document.body by:
-        //   - spawnFloatingText() ??.floating-text
-        //   - _animateScoreToHud() ??.flying-ink (also handled by TextRenderer._activeFlyingInkNodes)
-        //   - battle animations ??.replay-mini-score
+        //   - spawnFloatingText() → .floating-text
+        //   - _animateScoreToHud() → .flying-ink (also handled by TextRenderer._activeFlyingInkNodes)
+        //   - battle animations → .replay-mini-score
         const TRANSIENT_SELECTORS = ['.floating-text', '.flying-ink', '.replay-mini-score'];
         TRANSIENT_SELECTORS.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
@@ -130,12 +130,12 @@ const Game = {
             totalRifts: 0,
             fixedRifts: 0
         },
-        // [BookSelect] ?좏깮??梨??뺣낫 & 二쇱엯??寃뚯엫 ?곗씠??
+        // [BookSelect] 선택된 책 정보 & 주입된 게임 데이터
         selectedBook: null,
-        storyParagraphs: null,   // BookSelectManager.selectBook()?먯꽌 二쇱엯
-        storyChapter: null,   // BookSelectManager.selectBook()?먯꽌 二쇱엯 (Typewriter ?좏겙 ?곗씠??
-        midBossQuizzes: null,    // BookSelectManager.selectBook()?먯꽌 二쇱엯
-        finalBossQuiz: null      // BookSelectManager.selectBook()?먯꽌 二쇱엯
+        storyParagraphs: null,   // BookSelectManager.selectBook()에서 주입
+        storyChapter: null,   // BookSelectManager.selectBook()에서 주입 (Typewriter 토큰 데이터)
+        midBossQuizzes: null,    // BookSelectManager.selectBook()에서 주입
+        finalBossQuiz: null      // BookSelectManager.selectBook()에서 주입
     },
 
     // Bridge Methods (Proxies to ScoreManager)
@@ -255,17 +255,17 @@ const Game = {
 
     // --- Browser Detection Moved to IntroManager ---
 
-    // ?????????????????????????????????????????????????????????????????????
+    // ─────────────────────────────────────────────────────────────────────
     // SCREEN LIFECYCLE CONTRACT
     // Each screen declares exactly what it owns and how to unmount.
-    // switchScreen() enforces this: UNMOUNT previous ??transition ??MOUNT next.
+    // switchScreen() enforces this: UNMOUNT previous → transition → MOUNT next.
     //
     // Rule: if a screen allocates a resource, it MUST declare it here.
-    // No heuristics, no timeouts, no error thresholds ??just deterministic cleanup.
-    // ?????????????????????????????????????????????????????????????????????
+    // No heuristics, no timeouts, no error thresholds — just deterministic cleanup.
+    // ─────────────────────────────────────────────────────────────────────
     SCREEN_CLEANUP: {
 
-        // ?? Reading Screen ???????????????????????????????????????????????
+        // ── Reading Screen ───────────────────────────────────────────────
         'screen-read': () => {
             // 1. Stop all TextRenderer animations (timeouts + RAFs)
             const renderer = window.Game?.typewriter?.renderer;
@@ -286,15 +286,15 @@ const Game = {
             console.log('[Lifecycle] screen-read: DOM overlays cleared');
         },
 
-        // ?? Calibration Screen ???????????????????????????????????????????
+        // ── Calibration Screen ───────────────────────────────────────────
         'screen-calibration': () => {
             // Cal RAF loop is managed by app.js overlay.calRunning / stopCalibrationLoop.
             // This is already called by CalibrationManager.finishSequence().
-            // Nothing extra needed here ??cal cleanup is handled at the app.js level.
+            // Nothing extra needed here — cal cleanup is handled at the app.js level.
             console.log('[Lifecycle] screen-calibration: (managed by app.js)');
         },
 
-        // ?? Final Quiz Screen (New Final Villain) ????????????????????????
+        // ── Final Quiz Screen (New Final Villain) ────────────────────────
         'screen-final-quiz': () => {
             if (window.FinalQuizRef && typeof window.FinalQuizRef.destroy === 'function') {
                 window.FinalQuizRef.destroy();
@@ -302,7 +302,7 @@ const Game = {
             }
         },
 
-        // ?? Alice Battle Screen ??????????????????????????????????????????
+        // ── Alice Battle Screen ──────────────────────────────────────────
         'screen-alice-battle': () => {
             if (window.AliceBattleRef && typeof window.AliceBattleRef.destroy === 'function') {
                 window.AliceBattleRef.destroy();
@@ -310,33 +310,33 @@ const Game = {
             }
         },
 
-        // ?? Mid-Boss / Quiz Screens ??????????????????????????????????????
+        // ── Mid-Boss / Quiz Screens ──────────────────────────────────────
         'screen-battle': () => {
             // Remove any battle-specific animated elements
             document.querySelectorAll('.battle-fx, .battle-lightning').forEach(el => el.remove());
         },
 
-        // ?? Mid-Boss Screen ??????????????????????????????????????????????
+        // ── Mid-Boss Screen ──────────────────────────────────────────────
         'screen-boss': () => {
             // [FIX #4] Reset pointerEvents lock from checkBossAnswer() answer-disable flow
             const vs = document.getElementById('screen-boss');
             if (vs) vs.style.pointerEvents = 'auto';
         },
 
-        // ?? Rift / Intro Screens ?????????????????????????????????????????
+        // ── Rift / Intro Screens ─────────────────────────────────────────
         'screen-rift-intro': () => {
             // The SceneManager.resetRiftIntro() handles DOM, nothing extra.
         },
 
-        // ?? Book Select Screen ???????????????????????????????????????????
+        // ── Book Select Screen ───────────────────────────────────────────
         'screen-book-select': () => {
-            // ?숈쟻 ?앹꽦??移대뱶 DOM 珥덇린??(?ъ쭊???鍮?
+            // 동적 생성된 카드 DOM 초기화 (재진입 대비)
             const container = document.getElementById('book-card-list');
             if (container) container.innerHTML = '';
         },
 
 
-        // ?? Score / Share Screens ?????????????????????????????????????????
+        // ── Score / Share Screens ─────────────────────────────────────────
         'screen-new-score': () => {
             // Cancel any in-flight score-counter animations when leaving this screen
             if (window.Game?.uiManager?.cancelAnims) {
@@ -344,11 +344,11 @@ const Game = {
             }
         },
 
-        // ?? Default: no specific cleanup needed ??????????????????????????
+        // ── Default: no specific cleanup needed ──────────────────────────
         _default: () => { },
     },
 
-    // Central cleanup dispatcher ??call before mounting new screen
+    // Central cleanup dispatcher — call before mounting new screen
     _unmountScreen(screenId) {
         const cleanup = this.SCREEN_CLEANUP[screenId] || this.SCREEN_CLEANUP._default;
         try {
@@ -360,15 +360,15 @@ const Game = {
 
     switchScreen(screenId) {
         const prevScreen = document.querySelector('.screen.active')?.id || 'unknown';
-        console.log(`[Scene] ${prevScreen} ??${screenId}`);
+        console.log(`[Scene] ${prevScreen} → ${screenId}`);
 
-        // ?? STEP 1: UNMOUNT previous screen (deterministic resource cleanup) ??
+        // ── STEP 1: UNMOUNT previous screen (deterministic resource cleanup) ──
         // Always runs: Game-global resources (RAFs, Intervals)
         this.clearAllResources();
         // Screen-specific owned resources
         this._unmountScreen(prevScreen);
 
-        // ?? STEP 2: DOM Transition ????????????????????????????????????????
+        // ── STEP 2: DOM Transition ────────────────────────────────────────
         document.querySelectorAll('.screen').forEach(el => {
             el.classList.remove('active');
             el.style.display = 'none';
@@ -385,7 +385,7 @@ const Game = {
             window.amplitude.track('Screen_Viewed', { screen: screenId });
         }
 
-        // ?? STEP 3: HUD Visibility ????????????????????????????????????????
+        // ── STEP 3: HUD Visibility ────────────────────────────────────────
         const topHud = document.querySelector('.hud-container');
         if (topHud) {
             const hideHud = ['screen-new-score', 'screen-home', 'screen-new-share'].includes(screenId);
@@ -393,13 +393,13 @@ const Game = {
             topHud.style.pointerEvents = hideHud ? 'none' : 'auto';
         }
 
-        // ?? STEP 4: Release camera + SDK on terminal screens ??????????????
-        // Game is over ??shut down eye tracking immediately,
+        // ── STEP 4: Release camera + SDK on terminal screens ──────────────
+        // Game is over — shut down eye tracking immediately,
         // rather than waiting for beforeunload.
-        // ?? STEP 4: Release camera + SDK on terminal screens ??????????????
+        // ── STEP 4: Release camera + SDK on terminal screens ──────────────
         // Fire shutdownEyeTracking() ONLY after Firebase upload is complete.
-        // screen-new-score: claim button ??uploadToCloud() is still running ??DO NOT shutdown yet.
-        // screen-new-share / screen-new-signup: upload is done at this point ??safe to shutdown.
+        // screen-new-score: claim button → uploadToCloud() is still running → DO NOT shutdown yet.
+        // screen-new-share / screen-new-signup: upload is done at this point → safe to shutdown.
         // beforeunload (app.js) also covers tab close / refresh as a safety net.
         const SHUTDOWN_SCREENS = ['screen-new-share', 'screen-new-signup'];
         if (SHUTDOWN_SCREENS.includes(screenId)) {
@@ -457,7 +457,7 @@ const Game = {
         // Create Element
         const p = document.createElement('div');
         p.className = 'flying-resource';
-        // amount=0?대㈃ ?レ옄 ?띿뒪???④? (?먯닔???대? 諛섏쁺, ?쒓컖 ?④낵留?
+        // amount=0이면 숫자 텍스트 숨김 (점수는 이미 반영, 시각 효과만)
         p.innerText = amount > 0 ? `+${amount}` : '';
         p.style.position = 'fixed';
         p.style.left = startX + 'px';
@@ -470,16 +470,9 @@ const Game = {
         p.style.textShadow = `0 0 10px ${p.style.color}`;
         p.style.transition = 'opacity 0.2s';
 
-        // Icon: use ink.png image for ink type, gem emoji for others
+        // Icon
         const icon = document.createElement('span');
-        if (type === 'ink') {
-            const iconImg = document.createElement('img');
-            iconImg.src = './ink.png';
-            iconImg.style.cssText = 'width:22px;height:22px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(0,220,180,0.8));';
-            icon.appendChild(iconImg);
-        } else {
-            icon.innerText = ' 💎';
-        }
+        icon.innerText = type === 'ink' ? ' ✒️' : ' 💎';
         p.appendChild(icon);
 
         document.body.appendChild(p);
@@ -572,7 +565,7 @@ const Game = {
             if (typeof this.typewriter.updateGazeStats === "function") {
                 this.typewriter.updateGazeStats(x, y);
             }
-            // [FIX-iOS] Removed checkGazeDistance() ??it just called updateGazeStats() again,
+            // [FIX-iOS] Removed checkGazeDistance() — it just called updateGazeStats() again,
             // causing hitTest to run TWICE per gaze frame (2x DOM rect access).
 
             // [RGT] Check Responsive Words
@@ -649,7 +642,7 @@ const Game = {
         const finalGem = (scoreData && scoreData.gem !== undefined) ? scoreData.gem : this.state.gems;
         let finalWPM = (scoreData && scoreData.wpm !== undefined) ? scoreData.wpm : (this.state.wpmDisplay || 180);
 
-        // ?뺤닔?? scoreManager.wpmDisplay??EMA ?ㅻТ?⑹쑝濡??뚯닔?먯씠 諛쒖깮?????덉쓬
+        // 정수화: scoreManager.wpmDisplay는 EMA 스무딩으로 소수점이 발생할 수 있음
         finalWPM = Math.round(finalWPM);
 
         // Sanity Check for WPM
@@ -663,12 +656,12 @@ const Game = {
 
         this.switchScreen("screen-new-score");
 
-        // [FIX-v29] Firebase WebSocket Warm-up (Cold-start 諛⑹?)
-        // ?댁쟾: paragraph replay ??uploadToCloud() ?먮룞 ?ㅽ뻾 ??WebSocket 誘몃━ ?곌껐??
-        // ?꾩옱: ?먮룞 ?낅줈??鍮꾪솢?깊솕 ??Claim 踰꾪듉 ?대┃ ??cold-start 21珥???꾩븘??諛쒖깮
-        // ?닿껐: score ?붾㈃ 吏꾩엯 ???곗씠???꾩넚 ?놁씠 WebSocket留?誘몃━ ?곌껐 (goOnline)
-        //       ?ъ슜?먭? ?대찓???낅젰?섎뒗 10~20珥??숈븞 ?곌껐 ?섎┰ ?꾨즺
-        //       Claim 踰꾪듉 ?대┃ ???대? ?곌껐??WebSocket ?ъ궗????利됱떆 ?깃났
+        // [FIX-v29] Firebase WebSocket Warm-up (Cold-start 방지)
+        // 이전: paragraph replay 시 uploadToCloud() 자동 실행 → WebSocket 미리 연결됨
+        // 현재: 자동 업로드 비활성화 → Claim 버튼 클릭 시 cold-start 21초 타임아웃 발생
+        // 해결: score 화면 진입 시 데이터 전송 없이 WebSocket만 미리 연결 (goOnline)
+        //       사용자가 이메일 입력하는 10~20초 동안 연결 수립 완료
+        //       Claim 버튼 클릭 시 이미 연결된 WebSocket 재사용 → 즉시 성공
         setTimeout(() => {
             try {
                 if (window.firebase && window.FIREBASE_CONFIG) {
@@ -679,7 +672,7 @@ const Game = {
             } catch (e) {
                 console.warn('[Firebase] Warm-up failed (non-critical):', e.message);
             }
-        }, 500); // ?붾㈃ ?꾪솚 ?좊땲硫붿씠???꾨즺 ???ㅽ뻾
+        }, 500); // 화면 전환 애니메이션 완료 후 실행
 
         // 2. Reset Animation States (Invisible initially)
         const rowStats = document.getElementById("report-stats-row");
@@ -768,7 +761,7 @@ const Game = {
 
                 // 1. Load Firebase SDK on demand (deferred from page load)
                 if (typeof firebase === "undefined") {
-                    newBtn.innerText = "??CONNECTING...";
+                    newBtn.innerText = "⏳ CONNECTING...";
                     try {
                         await loadFirebaseSDK();
                     } catch (e) {
@@ -815,10 +808,10 @@ const Game = {
                 // 3. Save to Realtime Database
                 const originalText = "CLAIM REWARD";
                 newBtn.disabled = true;
-                newBtn.innerText = "??SAVING...";
+                newBtn.innerText = "⏳ SAVING...";
                 newBtn.style.opacity = "0.7";
 
-                // [FIX-v29] db瑜??몃? ?ㅼ퐫?꾨줈 ?대룞 ??.then/.catch?먯꽌 goOffline() ?묎렐 媛??
+                // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
                 const db = firebase.database();
 
                 // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
@@ -844,23 +837,23 @@ const Game = {
 
                 // 2. Save Full Gaze Data (Detail) - if available
                 if (window.gazeDataManager) {
-                    newBtn.innerText = "??DATA SYNC...";
+                    newBtn.innerText = "⏳ DATA SYNC...";
                     console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
                     promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
                 }
 
                 Promise.all(promises)
                     .then(() => {
-                        // uploadToCloud() ?대? finally?먯꽌 goOffline() 泥섎━ ???ш린??以묐났 ?몄텧 ?쒓굅
+                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
                         this.showSuccessModal(() => {
                             this.goToNewShare();
                         });
-                        newBtn.innerText = "??CLAIMED";
+                        newBtn.innerText = "✅ CLAIMED";
                         newBtn.style.background = "#4CAF50";
                         if (emailInput) emailInput.disabled = true;
                     })
                     .catch((error) => {
-                        // uploadToCloud() ?대? finally?먯꽌 goOffline() 泥섎━ ???ш린??以묐났 ?몄텧 ?쒓굅
+                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
                         console.error("Firebase Save Error:", error);
                         console.error("Transmission Failed: " + error.message);
                         newBtn.disabled = false;
@@ -917,17 +910,17 @@ const Game = {
         this.switchScreen("screen-new-share");
     },
 
-    // ?? Home 踰꾪듉: 釉뚮씪?곗? ?덈줈怨좎묠???듯빐 紐⑤뱺 ?곗씠?곕? ?꾨꼍??鍮꾩슦怨?梨??좏깮 ?붾㈃?쇰줈 吏곹뻾 ??
+    // ── Home 버튼: 브라우저 새로고침을 통해 모든 데이터를 완벽히 비우고 책 선택 화면으로 직행 ──
     goBackToBookSelect() {
         console.log('[Home] goBackToBookSelect(): Initiating Hard Reload to clear all SDK/DOM states.');
 
-        // FinalQuizManager ?깆뿉???ъ슜?섎뜕 ?붿뿬 由ъ냼???댁젣 ?쒕룄
+        // FinalQuizManager 등에서 사용하던 잔여 리소스 해제 시도
         if (window.FinalQuizRef && typeof window.FinalQuizRef.destroy === 'function') {
             window.FinalQuizRef.destroy();
         }
 
-        // 媛???덉쟾??諛⑹떇: 釉뚮씪?곗? ?꾩쟾???ㅼ떆 遺덈윭? 硫붾え由??꾩닔 諛⑹?
-        // IntroManager?먯꽌 skip_intro param??媛먯??섍퀬 諛붾줈 Book Select ?욌떒(Home)?쇰줈 媛?
+        // 가장 안전한 방식: 브라우저 완전히 다시 불러와 메모리 누수 방지
+        // IntroManager에서 skip_intro param을 감지하고 바로 Book Select 앞단(Home)으로 감.
         window.location.href = window.location.pathname + "?skip_intro=1";
     },
 
@@ -941,7 +934,7 @@ const Game = {
 Game.typewriter = {
     renderer: null,
 
-    // Data (Content) ??dynamically injected from Game.state in start()
+    // Data (Content) — dynamically injected from Game.state in start()
     // Fallback: storyChapter1 (Alice) is used only if no book has been selected.
     paragraphs: null,
     quizzes: null,
@@ -1002,14 +995,14 @@ Game.typewriter = {
         this.finalQuiz = (Game.state.finalBossQuiz) || finalBossQuiz;
         console.log(`[Typewriter] Loaded book chapter: ${chapter.story_id}, ${this.paragraphs.length} paragraphs.`);
 
-        // ?? 梨뺥꽣 ??댄? 諛곗? ?낅뜲?댄듃 (梨낅쭏???ㅻⅨ ??댄? ?쒖떆) ??????????????
+        // ── 챕터 타이틀 배지 업데이트 (책마다 다른 타이틀 표시) ──────────────
         const titleBadge = document.getElementById('chapter-title-badge');
         if (titleBadge) {
             const selectedBook = Game.state.selectedBook;
             let chapterTitle = 'Chapter 1: Down the Rabbit-Hole'; // Alice default
             if (selectedBook) {
                 if (selectedBook.id === 'aesop') {
-                    chapterTitle = 'Tales of Wisdom ??Aesop\'s Fables';
+                    chapterTitle = 'Tales of Wisdom — Aesop\'s Fables';
                 } else if (selectedBook.id === 'sherlock') {
                     chapterTitle = 'Chapter 1: A Scandal in Bohemia';
                 } else if (selectedBook.id === 'alice') {
@@ -1040,7 +1033,7 @@ Game.typewriter = {
     },
 
     playNextParagraph() {
-        // [iOS Gate] Open gaze processing gate ??start accepting gaze data for this paragraph.
+        // [iOS Gate] Open gaze processing gate — start accepting gaze data for this paragraph.
         // NOTE: SeeSo SDK itself stays running continuously (iOS cannot restart mid-session).
         // This simply sets window._gazeActive = true so the gaze callback resumes processing.
         if (typeof window.setSeesoTracking === 'function') {
@@ -1206,9 +1199,9 @@ Game.typewriter = {
                 if (this.renderer && this.renderer.chunks && this.renderer.lines) {
                     const currentChunkIndices = this.renderer.chunks[this.chunkIndex];
                     if (currentChunkIndices) {
-                        // [FIX-iOS] Use Set for O(1) lookup instead of O(N횞M) nested some().
+                        // [FIX-iOS] Use Set for O(1) lookup instead of O(N×M) nested some().
                         // Old code: chunks.some(w => lines.some(l => l.startIndex === w))
-                        // = chunkSize 횞 lineCount comparisons per tick.
+                        // = chunkSize × lineCount comparisons per tick.
                         if (!this._lineStartSet) {
                             this._lineStartSet = new Set(this.renderer.lines.map(l => l.startIndex));
                         }
@@ -1294,7 +1287,7 @@ Game.typewriter = {
         return new Promise((resolve) => {
             console.log("[triggerGazeReplay] Preparing Gaze Replay...");
 
-            // [iOS Gate] Close gaze processing gate ??stop processing gaze data during replay.
+            // [iOS Gate] Close gaze processing gate — stop processing gaze data during replay.
             // NOTE: SeeSo SDK itself stays running (iOS cannot restart after stopTracking).
             // This simply sets window._gazeActive = false so onGaze/processGaze are skipped.
             // Gaze callbacks still fire from SDK but are ignored until next paragraph.
@@ -1309,9 +1302,9 @@ Game.typewriter = {
             console.log('[FIX] _sdkFrameSkip=true: WASM halted during replay+boss');
 
             // [DISABLED-iOS] Background Firebase upload during gaze replay REMOVED.
-            // Firebase WebSocket 珥덇린??addEventListener 횞 4+)媛 iPhone Air?먯꽌
-            // LSN ??컻(29??9)???좊컻 ??iOS WebContent OOM Kill ???щ옒??
-            // ?낅줈?쒕뒗 score ?붾㈃??CLAIM REWARD 踰꾪듉 ?대┃ ?쒖뿉留??섑뻾.
+            // Firebase WebSocket 초기화(addEventListener × 4+)가 iPhone Air에서
+            // LSN 폭발(29→79)을 유발 → iOS WebContent OOM Kill → 크래시.
+            // 업로드는 score 화면의 CLAIM REWARD 버튼 클릭 시에만 수행.
             // if (window.gazeDataManager && Game.sessionId) {
             //     window.gazeDataManager.uploadToCloud(Game.sessionId);
             // }
@@ -1364,7 +1357,7 @@ Game.typewriter = {
                 // We want to remove the 'active-rune' class so the user sees a raw replay.
                 // Or maybe keep them? Feedback says: "Just Yellow Bold is enough" for active.
                 // But during replay, if they are ALREADY yellow/bold, it might be distracting?
-                // The feedback: "3. 吏臾????쎄퀬 由ы뵆?덉씠?좊븣, 諛섏쓳???⑥뼱媛 ?몃??됱뿉 諛묒쨪源뚯? ?덈뒗?? 蹂닿린媛 ??醫뗭쓬."
+                // The feedback: "3. 지문 다 읽고 리플레이할때, 반응형 단어가 노란색에 밑줄까지 있는데, 보기가 안 좋음."
                 // Since we removed underline from CSS, we just need to ensure they look clean.
                 // Let's RESET them to normal so the replay shows the gaze "re-triggering" them?
                 // No, TextRenderer.playGazeReplay just draws lines/dots. It doesn't re-simulate triggers.
@@ -1382,16 +1375,16 @@ Game.typewriter = {
                     const gdm = window.gazeDataManager;
 
                     // [NEW] Upload gaze data + pangLog BEFORE clearing memory.
-                    // Timing: replay just ended = villain is about to appear (?뚰삎鍮뚮윴 吏꾩엯).
-                    // MUST be called before clearGazeData() ??after that, this.data is empty.
-                    // [FIX] Use firebaseSessionId (20-char) ??same key visible in session_list
+                    // Timing: replay just ended = villain is about to appear (소형빌런 진입).
+                    // MUST be called before clearGazeData() — after that, this.data is empty.
+                    // [FIX] Use firebaseSessionId (20-char) — same key visible in session_list
                     const uploadId = Game.firebaseSessionId || Game.sessionId;
                     if (gdm && uploadId) {
                         const paraIdx = this.currentParaIndex;
-                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} ??session [${uploadId}]`);
+                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} → session [${uploadId}]`);
 
                         const uploadPromises = [];
-                        // ??pangLog
+                        // ① pangLog
                         if (typeof gdm.uploadPangLog === 'function') {
                             uploadPromises.push(
                                 gdm.uploadPangLog(uploadId, paraIdx).catch(e => {
@@ -1400,7 +1393,7 @@ Game.typewriter = {
                                 })
                             );
                         }
-                        // ??gaze + meta + replaySegments (uploadToCloud ?대??먯꽌 紐⑤몢 泥섎━)
+                        // ② gaze + meta + replaySegments (uploadToCloud 내부에서 모두 처리)
                         uploadPromises.push(
                             gdm.uploadToCloud(uploadId).catch(e => {
                                 console.warn('[Upload] uploadToCloud failed:', e);
@@ -1408,13 +1401,13 @@ Game.typewriter = {
                             })
                         );
 
-                        // ?낅줈???꾨즺 ???곗씠???대━??
+                        // 업로드 완료 후 데이터 클리어
                         Promise.all(uploadPromises).then(results => {
                             if (gdm && typeof gdm.clearGazeData === 'function') gdm.clearGazeData();
                         });
                     } else {
-                        console.warn('[Upload] Skipped ??no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
-                        // ?낅줈???놁뼱???곗씠???대━???꾩슂
+                        console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
+                        // 업로드 없어도 데이터 클리어 필요
                         if (gdm && typeof gdm.clearGazeData === 'function') {
                             gdm.clearGazeData();
                         }
@@ -1636,11 +1629,11 @@ Game.typewriter = {
                 return;
             }
 
-            // ?? selector: #boss-options (?ㅼ젣 DOM); 怨쇨굅 #boss-quiz-options???녿뒗 ID?????
+            // ── selector: #boss-options (실제 DOM); 과거 #boss-quiz-options는 없는 ID였음 ──
             const allBtns = document.querySelectorAll("#boss-options button");
 
             if (optionIndex === quiz.a) {
-                // ?? CORRECT ??????????????????????????????????????????????????????
+                // ── CORRECT ──────────────────────────────────────────────────────
                 // Step 1: Lock ALL buttons
                 allBtns.forEach(b => { b.disabled = true; b.style.cursor = 'default'; });
 
@@ -1648,15 +1641,15 @@ Game.typewriter = {
                 const correctBtn = allBtns[optionIndex];
                 if (correctBtn) correctBtn.classList.add("correct");
 
-                // Step 3: ?먯닔 利됱떆 諛섏쁺 (?숆린 ?몄텧 ???붾㈃ ?꾪솚 ?꾩뿉 諛섎뱶???ㅽ뻾)
-                // ?좑툘 spawnFlyingResource ?대???addGems 肄쒕갚? RAF ?꾨즺 ???ㅽ뻾?섎?濡?
-                //    ?붾㈃ ?꾪솚?쇰줈 RAF媛 痍⑥냼?섎㈃ ?먯닔媛 ?꾨씫?쒕떎. ?ш린??癒쇱? ?몄텧?쒕떎.
+                // Step 3: 점수 즉시 반영 (동기 호출 — 화면 전환 전에 반드시 실행)
+                // ⚠️ spawnFlyingResource 내부의 addGems 콜백은 RAF 완료 시 실행되므로
+                //    화면 전환으로 RAF가 취소되면 점수가 누락된다. 여기서 먼저 호출한다.
                 Game.addGems(100);
                 console.log('[BossQuiz] CORRECT +100 gems applied immediately.');
 
-                // Step 3b: ?쒓컖 ?④낵 ??踰꾪듉?먯꽌 HUD gem-count 濡??뚰떚??(?쒖닔 ?μ떇)
-                // spawnFlyingResource ?대??먮룄 addGems ?몄텧???덉쑝?? ?대? ?꾩뿉??泥섎━?덉쑝誘濡?
-                // 以묐났 李④컧??諛쒖깮?섏? ?딅룄濡?amount=0 ?쇰줈 ?꾨떖?쒕떎.
+                // Step 3b: 시각 효과 — 버튼에서 HUD gem-count 로 파티클 (순수 장식)
+                // spawnFlyingResource 내부에도 addGems 호출이 있으나, 이미 위에서 처리했으므로
+                // 중복 차감이 발생하지 않도록 amount=0 으로 전달한다.
                 if (correctBtn && typeof Game.spawnFlyingResource === 'function') {
                     const rect = correctBtn.getBoundingClientRect();
                     Game.spawnFlyingResource(rect.left + rect.width / 2, rect.top + rect.height / 2, 0, 'gem');
@@ -1683,7 +1676,7 @@ Game.typewriter = {
                     this.chunkIndex = 0;
                     this.lineStats.clear();
 
-                    // [FIX-iPhone15Pro] Stay on dark boss screen for 2500ms ??iOS GC memory reclaim
+                    // [FIX-iPhone15Pro] Stay on dark boss screen for 2500ms → iOS GC memory reclaim
                     setTimeout(() => {
                         Game.switchScreen("screen-read");
                         setTimeout(() => {
@@ -1694,7 +1687,7 @@ Game.typewriter = {
                 }
 
             } else {
-                // ?? WRONG ????????????????????????????????????????????????????????
+                // ── WRONG ────────────────────────────────────────────────────────
                 const wrongBtn = allBtns[optionIndex];
 
                 // Step 1: Lock only the tapped button
@@ -1710,11 +1703,11 @@ Game.typewriter = {
                 // Step 3: Deduct gems
                 Game.addGems(-50);
 
-                // Step 4: Fixed-position floating "-10 ?뭿" rising from the button
+                // Step 4: Fixed-position floating "-10 💎" rising from the button
                 if (wrongBtn) {
                     const rect = wrongBtn.getBoundingClientRect();
                     const floatEl = document.createElement('div');
-                    floatEl.textContent = '-50 ?뭿';
+                    floatEl.textContent = '-50 💎';
                     Object.assign(floatEl.style, {
                         position: 'fixed',
                         left: (rect.left + rect.width / 2) + 'px',
@@ -1738,7 +1731,7 @@ Game.typewriter = {
                     setTimeout(() => { if (floatEl.parentNode) floatEl.remove(); }, 950);
                 }
 
-                // Step 5: Other buttons remain clickable ??retry allowed
+                // Step 5: Other buttons remain clickable — retry allowed
                 console.log(`[Game] WRONG idx=${optionIndex}. Retry allowed.`);
             }
 
@@ -1757,11 +1750,11 @@ Game.typewriter = {
         }, 1000);
     },
 
-    // ?? 理쒖쥌鍮뚮윴 吏꾩엯 寃쎄퀬 ?앹뾽 ????????????????????????????????????????????
-    // ?뚰삎鍮뚮윴 3踰덉㎏ ?뺣떟 ?? ?먮뒗 ?붾쾭洹?踰꾪듉?먯꽌 ?몄텧.
-    // ?뚮젅?댁뼱媛 "I AM READY" 瑜??뚮윭?쇰쭔 triggerFinalBossBattleSequence() ?ㅽ뻾.
+    // ── 최종빌런 진입 경고 팝업 ────────────────────────────────────────────
+    // 소형빌런 3번째 정답 후, 또는 디버그 버튼에서 호출.
+    // 플레이어가 "I AM READY" 를 눌러야만 triggerFinalBossBattleSequence() 실행.
     showFinalBossAlert() {
-        // 以묐났 諛⑹?
+        // 중복 방지
         if (document.getElementById('final-boss-alert')) return;
 
         const overlay = document.createElement('div');
@@ -1781,12 +1774,12 @@ Game.typewriter = {
             'border-radius:14px;padding:20px 24px;max-width:340px;margin-bottom:28px;text-align:center;">' +
             '<p style="font-family:\'Crimson Text\',serif;color:#e0ccff;font-size:1.0rem;' +
             'line-height:1.75;margin:0 0 14px 0;">' +
-            'The Final Villain has unleashed a <strong style="color:#ff66aa;">Rift</strong> ??' +
+            'The Final Villain has unleashed a <strong style="color:#ff66aa;">Rift</strong> — ' +
             'a dark force that erases the memories of Wardens.<br><br>' +
             'Your reading is the only weapon left. <em>Steel your mind.</em>' +
             '</p>' +
             '<p style="font-family:\'Outfit\',sans-serif;color:#9966cc;font-size:0.8rem;' +
-            'letter-spacing:1px;margin:0;">??Head Warden</p>' +
+            'letter-spacing:1px;margin:0;">— Head Warden</p>' +
             '</div>' +
 
             '<button id="final-boss-alert-btn" style="' +
@@ -1802,15 +1795,15 @@ Game.typewriter = {
         // fade in
         requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.opacity = '1'; }));
 
-        // 踰꾪듉 hover ?④낵
+        // 버튼 hover 효과
         const btn = document.getElementById('final-boss-alert-btn');
         btn.onmouseover = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 0 32px rgba(124,58,237,0.8)'; };
         btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 0 20px rgba(124,58,237,0.5)'; };
 
         btn.onclick = () => {
-            btn.disabled = true; // 以묐났 ?대┃ 諛⑹?
+            btn.disabled = true; // 중복 클릭 방지
 
-            // ??TextRenderer ?댁젣 ??overlay 而ㅽ듉??爾먯쭊 ?곹깭?먯꽌 ?섑뻾
+            // ① TextRenderer 해제 — overlay 커튼이 쳐진 상태에서 수행
             if (Game.typewriter && Game.typewriter.renderer) {
                 if (typeof Game.typewriter.renderer.cancelAllAnimations === 'function') {
                     Game.typewriter.renderer.cancelAllAnimations();
@@ -1819,10 +1812,10 @@ Game.typewriter = {
                 console.log('[FinalBoss] TextRenderer released under overlay cover.');
             }
 
-            // ???붾㈃ ?꾪솚 ??villain ?붾㈃???덈? ?몄텧?섏? ?딆쓬 (overlay媛 ??퀬 ?덉쓬)
+            // ② 화면 전환 — villain 화면이 절대 노출되지 않음 (overlay가 덮고 있음)
             Game.switchScreen('screen-final-quiz');
 
-            // ??FinalQuizManager 珥덇린??(150ms)
+            // ③ FinalQuizManager 초기화 (150ms)
             setTimeout(() => {
                 try {
                     if (!window.FinalQuizRef) {
@@ -1832,7 +1825,7 @@ Game.typewriter = {
 
                     const fqScreen = document.getElementById('screen-final-quiz');
                     if (fqScreen && !fqScreen.classList.contains('active')) {
-                        console.warn('[FinalBoss] screen-final-quiz not active ??forcing');
+                        console.warn('[FinalBoss] screen-final-quiz not active — forcing');
                         document.querySelectorAll('.screen').forEach(el => {
                             el.classList.remove('active');
                             el.style.display = 'none';
@@ -1840,17 +1833,17 @@ Game.typewriter = {
                         fqScreen.style.display = 'flex';
                         requestAnimationFrame(() => fqScreen.classList.add('active'));
                     }
-                    console.log('[FinalBoss] FinalQuizManager.init() called ??);
+                    console.log('[FinalBoss] FinalQuizManager.init() called ✓');
                 } catch (e) {
                     console.error('[FinalBoss] FinalQuizManager init FAILED:', e);
                 }
 
-                // ??以鍮??꾨즺 ??而ㅽ듉 嫄룰린. ?몄텧?섎뒗 ?붾㈃ = screen-final-quiz ??
+                // ④ 준비 완료 → 커튼 걷기. 노출되는 화면 = screen-final-quiz ✓
                 setTimeout(() => {
                     overlay.style.transition = 'opacity 0.5s ease';
                     overlay.style.opacity = '0';
                     setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 500);
-                }, 150); // 珥?300ms ??fade ?쒖옉
+                }, 150); // 총 300ms 후 fade 시작
             }, 150);
         };
     },
@@ -1868,21 +1861,21 @@ Game.typewriter = {
             console.log('[FinalBoss] TextRenderer released (word spans eligible for GC).');
         }
 
-        // ?? Route to screen-final-quiz ??
+        // ── Route to screen-final-quiz ──
         Game.switchScreen('screen-final-quiz');
 
         setTimeout(() => {
             try {
-                // FinalQuizManager 珥덇린??+ ?꾩슂??DOM 二쇱엯
+                // FinalQuizManager 초기화 + 필요시 DOM 주입
                 if (!window.FinalQuizRef) {
                     window.FinalQuizRef = new FinalQuizManager();
                 }
                 window.FinalQuizRef.init();
 
-                // DOM 二쇱엯 ??switchScreen???붿냼瑜?紐살갼?섏쓣 ???덉쑝誘濡??ы솢?깊솕
+                // DOM 주입 후 switchScreen이 요소를 못찾았을 수 있으므로 재활성화
                 const fqScreen = document.getElementById('screen-final-quiz');
                 if (fqScreen && !fqScreen.classList.contains('active')) {
-                    console.warn('[FinalBoss] screen-final-quiz was not active ??forcing display');
+                    console.warn('[FinalBoss] screen-final-quiz was not active — forcing display');
                     document.querySelectorAll('.screen').forEach(el => {
                         el.classList.remove('active');
                         el.style.display = 'none';
@@ -1891,7 +1884,7 @@ Game.typewriter = {
                     requestAnimationFrame(() => fqScreen.classList.add('active'));
                 }
 
-                console.log('[FinalBoss] FinalQuizManager.init() called ??);
+                console.log('[FinalBoss] FinalQuizManager.init() called ✓');
             } catch (e) {
                 console.error('[FinalBoss] FinalQuizManager init FAILED:', e);
             }
@@ -1899,7 +1892,7 @@ Game.typewriter = {
     },
 
 
-    // (Legacy) Old Final Boss via Alice Battle ??preserved, not called from main flow
+    // (Legacy) Old Final Boss via Alice Battle — preserved, not called from main flow
     triggerFinalBossBattleSequence_legacy() {
         console.log("[FinalBoss-Legacy] Routing to screen-alice-battle");
         if (Game.typewriter && Game.typewriter.renderer) {
@@ -1995,11 +1988,11 @@ if (document.readyState === "loading") {
 
 
 
-// ?? [DEV] ?붾쾭洹몄슜 Final Quiz 諛붾줈媛湲??????????????????????????????????????
-// home screen????[DEV] Final Quiz 踰꾪듉?먯꽌 ?몄텧
-// FinalQuizManager媛 ?대? ??紐⑤뱢 ?ㅼ퐫?꾩뿉 import?섏뼱 ?덉쑝誘濡??뺤떎???숈옉
+// ── [DEV] 디버그용 Final Quiz 바로가기 ─────────────────────────────────────
+// home screen의 ⚡ [DEV] Final Quiz 버튼에서 호출
+// FinalQuizManager가 이미 이 모듈 스코프에 import되어 있으므로 확실히 동작
 window._devFinalQuiz = function () {
-    console.log('[DEV] _devFinalQuiz() called ??routing via showFinalBossAlert');
+    console.log('[DEV] _devFinalQuiz() called — routing via showFinalBossAlert');
     try {
         if (Game.typewriter && typeof Game.typewriter.showFinalBossAlert === 'function') {
             Game.typewriter.showFinalBossAlert();
@@ -2012,7 +2005,7 @@ window._devFinalQuiz = function () {
     }
 };
 
-// ?? [SHARE] Social Share Global Handler ??????????????????????????????????????
+// ── [SHARE] Social Share Global Handler ──────────────────────────────────────
 window.shareGameLink = function (platform) {
     // Generate URL with referral ID parameter out of the dynamic base url
     const refId = window.Game && window.Game.firebaseSessionId ? window.Game.firebaseSessionId : '';
