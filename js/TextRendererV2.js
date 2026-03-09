@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TextRenderer.js
  * 
  * "The Stable Typesetter"
@@ -1149,40 +1149,20 @@ export class TextRenderer {
                 const old = document.getElementById('replay-watermark-label');
                 if (old) try { old.remove(); } catch (e) { }
 
-                // Inject CSS keyframes once
-                if (!document.getElementById('replay-blink-style')) {
-                    const st = document.createElement('style');
-                    st.id = 'replay-blink-style';
-                    st.textContent = [
-                        '@keyframes gazeRipple{',
-                        '0%,100%{box-shadow:',
-                        ' 0 0 0 0px rgba(0,255,136,0),',
-                        ' 0 0 0 2.5px rgba(0,255,136,0.65),',
-                        ' 0 0 10px rgba(0,255,136,0.9),',
-                        ' 0 0 22px rgba(0,255,136,0.5),',
-                        ' 0 0 40px rgba(0,200,100,0.25)}',
-                        '50%{box-shadow:',
-                        ' 0 0 0 3.5px rgba(0,255,136,0.8),',
-                        ' 0 0 0 7px rgba(0,255,136,0.2),',
-                        ' 0 0 14px rgba(0,255,136,1),',
-                        ' 0 0 30px rgba(0,255,136,0.6),',
-                        ' 0 0 50px rgba(0,200,100,0.35)}}',
-                        '@keyframes replayTextBlink{',
-                        '0%,40%,100%{opacity:1}',
-                        '50%,90%{opacity:0.08}}',
-                    ].join('');
-                    document.head.appendChild(st);
+                // Cancel any previous label animation RAF
+                if (this._replayLabelRAF) {
+                    cancelAnimationFrame(this._replayLabelRAF);
+                    this._replayLabelRAF = null;
                 }
 
-                // Container: always opaque, no blink
+                // ── Container (always opaque) ──────────────────────────────
                 const label = document.createElement('div');
                 label.id = 'replay-watermark-label';
                 Object.assign(label.style, {
                     position      : 'fixed',
                     display       : 'flex',
                     alignItems    : 'center',
-                    gap           : '0',
-                    padding       : '7px 20px 7px 12px',
+                    padding       : '6px 20px 6px 10px',
                     background    : 'rgba(18,6,38,0.96)',
                     border        : '1.5px solid rgba(180,120,255,0.60)',
                     borderRadius  : '50px',
@@ -1193,34 +1173,28 @@ export class TextRenderer {
                     opacity       : '1',
                 });
 
-                // Gaze sphere: dark core + fluorescent ring + ripple pulse (always visible)
-                const dot = document.createElement('span');
-                Object.assign(dot.style, {
-                    display      : 'inline-block',
-                    flexShrink   : '0',
-                    width        : '22px',
-                    height       : '22px',
-                    borderRadius : '50%',
-                    background   : [
-                        'radial-gradient(circle at 38% 34%,',
-                        ' rgba(210,255,235,0.9) 0%,',
-                        ' rgba(0,180,80,0.75)   22%,',
-                        ' rgba(0,40,18,0.95)    55%,',
-                        ' rgba(0,15,8,1)        100%)',
-                    ].join(''),
-                    border       : '2px solid rgba(0,255,136,0.95)',
-                    boxShadow    : [
-                        '0 0 0 2.5px rgba(0,255,136,0.65)',
-                        '0 0 10px rgba(0,255,136,0.9)',
-                        '0 0 22px rgba(0,255,136,0.5)',
-                        '0 0 40px rgba(0,200,100,0.25)',
-                    ].join(','),
-                    marginRight  : '11px',
-                    animation    : 'gazeRipple 1.0s ease-in-out infinite',
-                    boxSizing    : 'border-box',
+                // ── Mini canvas: same plasma sphere as Phase 2 ────────────
+                const cvs = document.createElement('canvas');
+                cvs.width  = 80;   // same scale as full canvas sphere (r=34 outer ring -> 80px fits)
+                cvs.height = 80;
+                Object.assign(cvs.style, {
+                    width       : '40px',
+                    height      : '40px',
+                    marginRight : '8px',
+                    flexShrink  : '0',
+                    display     : 'block',
+                    imageRendering: 'crisp-edges',
                 });
+                const mCtx = cvs.getContext('2d');
+                const cx = 40, cy = 40;   // center of the 80x80 canvas
 
-                // Text: 20% smaller than previous (clamp(22->30) * 0.8 = clamp(17.5->24))
+                // ── Text (blink independently) ──────────────────────────────
+                if (!document.getElementById('replay-blink-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'replay-blink-style';
+                    st.textContent = '@keyframes replayTextBlink{0%,40%,100%{opacity:1}50%,90%{opacity:0.08}}';
+                    document.head.appendChild(st);
+                }
                 const textWrap = document.createElement('span');
                 Object.assign(textWrap.style, {
                     display  : 'inline-block',
@@ -1238,20 +1212,19 @@ export class TextRenderer {
                     whiteSpace   : 'nowrap',
                 });
                 textWrap.appendChild(txt);
-                label.appendChild(dot);
+                label.appendChild(cvs);
                 label.appendChild(textWrap);
 
-                // Position: between HUD bottom and chapter badge top
+                // ── Position: between HUD bottom and chapter badge top ─────
                 document.body.appendChild(label);
                 try {
-                    const hud  = document.getElementById('hud') ||
-                                 document.querySelector('.hud-container, .hud, #resource-hud');
+                    const hud   = document.getElementById('hud') ||
+                                  document.querySelector('.hud-container, .hud, #resource-hud');
                     const badge = document.getElementById('chapter-title-badge');
-                    const lh   = label.getBoundingClientRect().height;
+                    const lh    = label.getBoundingClientRect().height;
                     if (badge) {
                         const br = badge.getBoundingClientRect();
                         const hudBottom = hud ? hud.getBoundingClientRect().bottom : 56;
-                        // center in the gap between HUD and chapter badge
                         const gapCenter = hudBottom + (br.top - hudBottom) / 2;
                         label.style.top       = Math.max(hudBottom + 4, gapCenter - lh / 2) + 'px';
                         label.style.left      = (br.left + br.width / 2) + 'px';
@@ -1266,6 +1239,56 @@ export class TextRenderer {
                     label.style.left      = '50%';
                     label.style.transform = 'translateX(-50%)';
                 }
+
+                // ── RAF loop: draw EXACT same plasma sphere as Phase 2 ─────
+                let rafStart = null;
+                const drawLabel = (timestamp) => {
+                    if (!cvs.isConnected) return;   // stop if removed from DOM
+                    if (!rafStart) rafStart = timestamp;
+                    const elapsed = timestamp - rafStart;
+                    const theta   = elapsed * 0.003;  // same rotation speed as Phase 2
+
+                    mCtx.clearRect(0, 0, 80, 80);
+
+                    // Plasma core (white + green glow) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.beginPath();
+                    mCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+                    mCtx.fillStyle    = '#ffffff';
+                    mCtx.shadowColor  = '#00ff88';
+                    mCtx.shadowBlur   = 20;
+                    mCtx.fill();
+                    mCtx.restore();
+
+                    // Inner ring (rotating) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.translate(cx, cy);
+                    mCtx.rotate(theta);
+                    mCtx.beginPath();
+                    mCtx.arc(0, 0, 18, 0, Math.PI * 2);
+                    mCtx.strokeStyle = 'rgba(0,255,120,0.5)';
+                    mCtx.lineWidth   = 1.5;
+                    mCtx.shadowColor = 'rgba(0,255,120,0.8)';
+                    mCtx.shadowBlur  = 12;
+                    mCtx.stroke();
+                    mCtx.restore();
+
+                    // Outer ring (counter-rotating) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.translate(cx, cy);
+                    mCtx.rotate(-theta * 0.6);
+                    mCtx.beginPath();
+                    mCtx.arc(0, 0, 34, 0, Math.PI * 2);
+                    mCtx.strokeStyle = 'rgba(0,255,120,0.2)';
+                    mCtx.lineWidth   = 1;
+                    mCtx.shadowColor = 'rgba(0,255,120,0.4)';
+                    mCtx.shadowBlur  = 6;
+                    mCtx.stroke();
+                    mCtx.restore();
+
+                    this._replayLabelRAF = requestAnimationFrame(drawLabel);
+                };
+                this._replayLabelRAF = requestAnimationFrame(drawLabel);
 
                 this._replayIntroLabel = label;
             })();
@@ -2142,8 +2165,9 @@ export class TextRenderer {
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
-                    // Remove blinking watermark label at same time
+                    // Remove watermark label + cancel its RAF
                     try {
+                        if (this._replayLabelRAF) { cancelAnimationFrame(this._replayLabelRAF); this._replayLabelRAF = null; }
                         if (this._replayIntroLabel && this._replayIntroLabel.parentNode)
                             this._replayIntroLabel.remove();
                         this._replayIntroLabel = null;
