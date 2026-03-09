@@ -1162,7 +1162,7 @@ export class TextRenderer {
                     position      : 'fixed',
                     display       : 'flex',
                     alignItems    : 'center',
-                    padding       : '4px 14px 4px 8px',
+                    padding       : '3px 11px 3px 6px',
                     background    : 'rgba(18,6,38,0.96)',
                     border        : '1.5px solid rgba(180,120,255,0.60)',
                     borderRadius  : '50px',
@@ -1178,8 +1178,8 @@ export class TextRenderer {
                 cvs.width  = 80;   // same scale as full canvas sphere (r=34 outer ring -> 80px fits)
                 cvs.height = 80;
                 Object.assign(cvs.style, {
-                    width       : '40px',
-                    height      : '40px',
+                    width       : '32px',
+                    height      : '32px',
                     marginRight : '8px',
                     flexShrink  : '0',
                     display     : 'block',
@@ -1204,7 +1204,7 @@ export class TextRenderer {
                 txt.textContent = 'Gaze Replay';
                 Object.assign(txt.style, {
                     fontFamily   : "'Cinzel', 'Georgia', serif",
-                    fontSize     : 'clamp(14px, 3.6vw, 19px)',
+                    fontSize     : 'clamp(11px, 2.9vw, 15px)',
                     fontWeight   : '700',
                     letterSpacing: '4px',
                     color        : '#ffffff',
@@ -1224,12 +1224,13 @@ export class TextRenderer {
                     const lh    = label.getBoundingClientRect().height;
                     if (badge) {
                         const br = badge.getBoundingClientRect();
-                        // Place just below chapter badge so HUD and text box border are both visible
-                        label.style.top       = (br.bottom + 4) + 'px';
-                        label.style.left      = (br.left + br.width / 2) + 'px';
+                        // Place below text box (this.container) bottom border
+                        const contRect = this.container ? this.container.getBoundingClientRect() : br;
+                        label.style.top       = (contRect.bottom + 6) + 'px';
+                        label.style.left      = (contRect.left + contRect.width / 2) + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
-                        label.style.top       = '14%';
+                        label.style.top       = '88%';
                         label.style.left      = '50%';
                         label.style.transform = 'translateX(-50%)';
                     }
