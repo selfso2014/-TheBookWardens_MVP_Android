@@ -1379,7 +1379,7 @@ export class TextRenderer {
     // ─── Progress bar: REMOVED (no-op stub kept for legacy safety) ───────────
     _createProgressBar() { return null; }
 
-    // ─── Phase 3: Wire Discharge (전선 방전) ──────────────────────────────────
+    // ─── Phase 3: Chain → 강력 방전 ───────────────────────────────────────────
     _runWireDischarge(chargedNodesMap, litLines, visualLines, onDone) {
         const totalLines = visualLines.length;
         const isSealed = totalLines > 0 && (litLines.size / totalLines) >= 0.6;
@@ -1387,6 +1387,7 @@ export class TextRenderer {
         let loopRunning = true;
         let completed = false;
         let rafId = null;
+        let containerGlowSet = false;
 
         const dischargeCanvas = document.createElement('canvas');
         dischargeCanvas.width = window.innerWidth;
@@ -1401,21 +1402,27 @@ export class TextRenderer {
             loopRunning = false;
             clearTimeout(hardTimeout);
             if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+            // Settle container glow
+            if (this.container) {
+                this.container.style.transition = 'box-shadow 0.6s ease-out, border-color 0.6s ease-out';
+                this.container.style.boxShadow = '';
+                this.container.style.borderColor = '';
+            }
             try { dischargeCanvas.remove(); } catch (e) { }
             this._restoreTextWave(litLines, visualLines, isSealed, onDone);
         };
 
-        const hardTimeout = setTimeout(finish, 8000);
+        const hardTimeout = setTimeout(finish, 10000);
 
-        // Container border geometry
+        // Container geometry
         const cRect = this.container ? this.container.getBoundingClientRect() : null;
         const cLeft = cRect ? cRect.left : 10;
         const cTop = cRect ? cRect.top : 10;
         const cW = cRect ? cRect.width : window.innerWidth - 20;
         const cH = cRect ? cRect.height : window.innerHeight - 20;
-        const perimeter = 2 * (cW + cH);
+        const containerRightX = cLeft + cW;
 
-        // Only discharge charged nodes in litLines, Y-ascending
+        // Discharge nodes (charged + in litLines), Y-ascending
         const dischargeNodes = [];
         chargedNodesMap.forEach(node => {
             if (litLines.has(node.lineIdx) && node.state === 'charged') {
@@ -1424,39 +1431,56 @@ export class TextRenderer {
         });
         dischargeNodes.sort((a, b) => a.y - b.y);
 
-        const INITIAL_WAIT = 400;
-        const BOLT_DUR = 80;
-        const ELEC_DUR = 600;
-        const FADE_DUR = 250;
-        const GAP = 120;
-        const slotDur = BOLT_DUR + ELEC_DUR + GAP;
-        const totalDur = INITIAL_WAIT +
-            Math.max(0, dischargeNodes.length - 1) * slotDur +
-            BOLT_DUR + ELEC_DUR + FADE_DUR + 350;
+        // ── timing ──────────────────────────────────────────────────────────
+        const INITIAL_WAIT = 400;  // nodes vibrate
+        const CHAIN_DUR = 220;  // bolt duration node→node
+        const CHAIN_OVERLAP = 60;   // next bolt starts before prev ends
+        const chainTotalDur = Math.max(0, dischargeNodes.length - 1) * (CHAIN_DUR - CHAIN_OVERLAP);
+        const DISCHARGE_START = INITIAL_WAIT + chainTotalDur + 80;
+        const DISCHARGE_DUR = 700;  // simultaneous discharge flash
+        const TOTAL_DUR = DISCHARGE_START + DISCHARGE_DUR + 250;
 
-        // Pre-compute nearest corner and bolt offsets per node
-        const corners = [
-            { x: cLeft, y: cTop },
-            { x: cLeft + cW, y: cTop },
-            { x: cLeft + cW, y: cTop + cH },
-            { x: cLeft, y: cTop + cH },
-        ];
-        const slotData = dischargeNodes.map(node => {
-            let nc = corners[0], minD = Infinity;
-            corners.forEach(c => {
-                const d = Math.hypot(c.x - node.x, c.y - node.y);
-                if (d < minD) { minD = d; nc = c; }
+        // ── helper: zigzag path ──────────────────────────────────────────────
+        const makeZigzag = (x0, y0, x1, y1, jitter = 18) => {
+            const pts = [{ x: x0, y: y0 }];
+            for (let k = 1; k <= 4; k++) {
+                const f = k / 5;
+                pts.push({
+                    x: x0 + (x1 - x0) * f + (Math.random() - 0.5) * jitter,
+                    y: y0 + (y1 - y0) * f + (Math.random() - 0.5) * jitter,
+                });
+            }
+            pts.push({ x: x1, y: y1 });
+            return pts;
+        };
+
+        const drawZigzag = (c, pts, outerColor, outerW, blur) => {
+            c.save();
+            c.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y));
+            c.strokeStyle = outerColor; c.lineWidth = outerW;
+            c.shadowColor = outerColor; c.shadowBlur = blur; c.stroke();
+            c.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y));
+            c.strokeStyle = '#ffffff'; c.lineWidth = 1.2;
+            c.shadowColor = '#fff'; c.shadowBlur = 5; c.stroke();
+            c.restore();
+        };
+
+        // Pre-generate 3 flickering variants for each chain bolt
+        const chainBolts = [];
+        for (let i = 0; i < dischargeNodes.length - 1; i++) {
+            const from = dischargeNodes[i];
+            const to = dischargeNodes[i + 1];
+            chainBolts.push({
+                from, to,
+                startT: INITIAL_WAIT + i * (CHAIN_DUR - CHAIN_OVERLAP),
+                endT: INITIAL_WAIT + i * (CHAIN_DUR - CHAIN_OVERLAP) + CHAIN_DUR,
+                variants: Array.from({ length: 3 }, () => makeZigzag(from.x, from.y, to.x, to.y, 12)),
             });
-            return {
-                node,
-                nearestCorner: nc,
-                boltOffsets: Array.from({ length: 3 }, () => ({
-                    dx: (Math.random() - 0.5) * 20,
-                    dy: (Math.random() - 0.5) * 20,
-                })),
-            };
-        });
+        }
 
+        // RAF loop
         let phaseStart = null;
         const phase3Loop = (timestamp) => {
             if (!loopRunning) return;
@@ -1465,83 +1489,80 @@ export class TextRenderer {
 
             dCtx.clearRect(0, 0, dischargeCanvas.width, dischargeCanvas.height);
 
-            // Always draw all charged nodes (excluding fully-faded)
+            // Always: draw all charged nodes
             chargedNodesMap.forEach(node => {
                 if (node.state !== 'idle' && node.glowAlpha > 0) {
                     this._drawChargedNode(dCtx, node, elapsed);
                 }
             });
 
-            // Per-slot discharge animations
-            slotData.forEach((slot, i) => {
-                if (elapsed < INITIAL_WAIT) return;
-                const slotStart = INITIAL_WAIT + i * slotDur;
-                const t = elapsed - slotStart;
-                if (t < 0) return;
-
-                const { node, nearestCorner, boltOffsets } = slot;
-
-                // Fade node glow after electric phase ends
-                if (t >= BOLT_DUR + ELEC_DUR) {
-                    const fadeT = (t - BOLT_DUR - ELEC_DUR) / FADE_DUR;
-                    node.glowAlpha = Math.max(0, 1 - fadeT);
-                }
-
-                // Bolt: node → nearest corner
-                if (t >= 0 && t < BOLT_DUR + 40) {
-                    const bPts = [{ x: node.x, y: node.y }];
-                    for (let k = 0; k < 3; k++) {
-                        const f = (k + 1) / 4;
-                        bPts.push({
-                            x: node.x + (nearestCorner.x - node.x) * f + boltOffsets[k].dx,
-                            y: node.y + (nearestCorner.y - node.y) * f + boltOffsets[k].dy,
-                        });
-                    }
-                    bPts.push(nearestCorner);
-                    dCtx.save();
-                    dCtx.beginPath();
-                    bPts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
-                    dCtx.strokeStyle = 'rgba(200,150,255,0.85)';
-                    dCtx.lineWidth = 2;
-                    dCtx.shadowColor = '#aa55ff';
-                    dCtx.shadowBlur = 14;
-                    dCtx.stroke();
-                    dCtx.restore();
-                }
-
-                // Electric point traveling the border clockwise
-                if (t >= BOLT_DUR && t < BOLT_DUR + ELEC_DUR) {
-                    const elecT = (t - BOLT_DUR) / ELEC_DUR;
-                    const d = elecT * perimeter;
-                    const pos = this._borderPos(d, cLeft, cTop, cW, cH);
-                    const TRAIL = 16;
-                    for (let j = TRAIL; j >= 0; j--) {
-                        const td = Math.max(0, d - j * (perimeter * 0.012));
-                        const tp = this._borderPos(td, cLeft, cTop, cW, cH);
-                        const fa = (1 - j / TRAIL) * 0.75;
-                        const tr = Math.max(1, 4 * (1 - j / TRAIL));
-                        dCtx.save();
-                        dCtx.globalAlpha = fa;
-                        dCtx.beginPath();
-                        dCtx.arc(tp.x, tp.y, tr, 0, Math.PI * 2);
-                        dCtx.fillStyle = 'rgba(140,80,220,1)';
-                        dCtx.shadowColor = '#9b59b6';
-                        dCtx.shadowBlur = 8;
-                        dCtx.fill();
-                        dCtx.restore();
-                    }
-                    dCtx.save();
-                    dCtx.beginPath();
-                    dCtx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
-                    dCtx.fillStyle = '#ffffff';
-                    dCtx.shadowColor = 'rgba(200,150,255,1)';
-                    dCtx.shadowBlur = 18;
-                    dCtx.fill();
-                    dCtx.restore();
-                }
+            // ── Phase A: chain bolts node → node (sequential) ─────────────
+            chainBolts.forEach(bolt => {
+                if (elapsed < bolt.startT || elapsed > bolt.endT + 60) return;
+                const progress = Math.min(1, (elapsed - bolt.startT) / CHAIN_DUR);
+                const fadeOut = elapsed > bolt.endT ? 1 - (elapsed - bolt.endT) / 60 : 1;
+                const vi = Math.floor(elapsed / 35) % 3;
+                const pts = bolt.variants[vi];
+                dCtx.save();
+                dCtx.globalAlpha = progress * fadeOut;
+                drawZigzag(dCtx, pts, 'rgba(180,100,255,0.9)', 3.5, 20);
+                dCtx.restore();
             });
 
-            if (elapsed >= totalDur) { finish(); return; }
+            // ── Phase B: simultaneous big discharge into container ─────────
+            if (elapsed >= DISCHARGE_START) {
+                const disT = (elapsed - DISCHARGE_START) / DISCHARGE_DUR;
+                const disAlpha = Math.max(0, 1 - disT);
+
+                // DOM glow on container (set once)
+                if (!containerGlowSet && this.container) {
+                    containerGlowSet = true;
+                    this.container.style.transition = 'none';
+                    this.container.style.boxShadow =
+                        '0 0 70px rgba(180,100,255,0.95), 0 0 130px rgba(155,89,182,0.7), inset 0 0 35px rgba(180,100,255,0.45)';
+                    this.container.style.borderColor = 'rgba(220,180,255,1)';
+                    setTimeout(() => {
+                        if (!this.container) return;
+                        this.container.style.transition = 'box-shadow 0.5s ease-out, border-color 0.5s ease-out';
+                        this.container.style.boxShadow = '0 0 18px rgba(155,89,182,0.3)';
+                        this.container.style.borderColor = '';
+                    }, 380);
+                }
+
+                // Canvas: all nodes fire bolts to container right border simultaneously
+                if (disT < 0.85) {
+                    dischargeNodes.forEach(node => {
+                        const nBolts = 2 + Math.floor(Math.random() * 2);
+                        for (let b = 0; b < nBolts; b++) {
+                            const targetY = cTop + Math.random() * cH;
+                            const pts = makeZigzag(node.x, node.y, containerRightX, targetY, 28);
+                            dCtx.save();
+                            dCtx.globalAlpha = disAlpha * (0.55 + Math.random() * 0.45);
+                            drawZigzag(dCtx, pts, 'rgba(200,120,255,0.9)', 3 + Math.random() * 2, 20);
+                            dCtx.restore();
+                        }
+                    });
+                }
+
+                // Canvas: glowing border rect flash
+                if (disAlpha > 0) {
+                    dCtx.save();
+                    dCtx.globalAlpha = disAlpha * 0.55;
+                    dCtx.strokeStyle = `rgba(210,160,255,${disAlpha})`;
+                    dCtx.lineWidth = 3;
+                    dCtx.shadowColor = '#bb66ff';
+                    dCtx.shadowBlur = 28 * disAlpha;
+                    dCtx.strokeRect(cLeft, cTop, cW, cH);
+                    dCtx.restore();
+                }
+
+                // Node fade-out during discharge
+                dischargeNodes.forEach(node => {
+                    node.glowAlpha = Math.max(0, disAlpha);
+                });
+            }
+
+            if (elapsed >= TOTAL_DUR) { finish(); return; }
             rafId = requestAnimationFrame(phase3Loop);
         };
 
@@ -1586,14 +1607,23 @@ export class TextRenderer {
     // === Phase 4: Text Restoration Wave ======================================
     _restoreTextWave(litLines, visualLines, isSealed, onDone) {
         if (isSealed && visualLines && this.words) {
-            // Only restore lines that were lit (in litLines)
+            // SUCCESS: restore ALL lines to white (not just litLines)
             visualLines.forEach((line, i) => {
-                if (!litLines.has(i)) return;     // not lit → grey stays grey
-                setTimeout(() => { this._lightUpLine(i); }, i * 55);
+                setTimeout(() => {
+                    if (!line.wordIndices) return;
+                    line.wordIndices.forEach(wIdx => {
+                        const word = this.words[wIdx];
+                        if (word && word.element) {
+                            word.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+                            word.element.style.color = '#ffffff';
+                            word.element.style.textShadow = '0 0 8px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                        }
+                    });
+                }, i * 50);
             });
         }
-        // Not sealed → all text stays grey (no restoration)
-        const waveDur = isSealed ? (visualLines ? visualLines.length * 55 : 0) + 200 : 0;
+        // FAIL: all text stays grey (no restoration)
+        const waveDur = isSealed ? (visualLines ? visualLines.length * 50 : 0) + 200 : 0;
         setTimeout(() => { this._showInlineResult(isSealed, onDone); }, waveDur);
     }
 
