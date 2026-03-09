@@ -1877,7 +1877,7 @@ export class TextRenderer {
     // Fires when a purple node becomes fully charged (line transition confirm).
     // Spawns a flying ink particle that travels to the HUD ink icon.
     _fireInkDrop(node) {
-        const INK_PER_LINE = 1;
+        const INK_PER_LINE = 10;
         try {
             // 1. Spawn flying ink via Game helper (bezier → HUD → addInk)
             if (window.Game && typeof window.Game.spawnFlyingResource === 'function') {
