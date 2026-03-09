@@ -2203,7 +2203,7 @@ export class TextRenderer {
             });
         }
         // FAIL: all text stays grey (no restoration)
-        const waveDur = isSealed ? (visualLines ? visualLines.length * 50 : 0) + 200 : 0;
+        const waveDur = isSealed ? (visualLines ? visualLines.length * 50 : 0) + 1400 : 0;  // +400ms transition + 1000ms pause
         setTimeout(() => { this._showReplayEndCard(isSealed, litLines, visualLines, onDone); }, waveDur);
     }
 
