@@ -1695,13 +1695,22 @@ export class TextRenderer {
                 : ct.includes('aesop') ? './aesopBook.png'
                     : './aliceBook.png';
 
-            // ── Overlay (full-screen) ──
+            // ── Popup card (centered over the passage) ──
             const overlay = document.createElement('div');
             overlay.id = 'replay-intro-card';
             Object.assign(overlay.style, {
                 position: 'fixed',
-                top: '0', left: '0', width: '100%', height: '100%',
-                background: 'radial-gradient(ellipse at 50% 40%, rgba(60,0,100,0.98) 0%, rgba(8,4,20,1) 70%)',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -52%) scale(0.92)',
+                width: 'min(380px, 90vw)',
+                background: 'rgba(28,4,52,0.96)',
+                border: '1.5px solid rgba(180,110,255,0.65)',
+                borderRadius: '18px',
+                padding: '28px 24px 22px',
+                boxSizing: 'border-box',
+                boxShadow: '0 0 48px rgba(140,60,255,0.5), 0 8px 32px rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(12px)',
                 zIndex: '9999998',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1709,7 +1718,7 @@ export class TextRenderer {
                 justifyContent: 'center',
                 pointerEvents: 'none',
                 opacity: '0',
-                transition: 'opacity 0.5s ease',
+                transition: 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
                 gap: '0',
             });
 
@@ -1823,7 +1832,10 @@ export class TextRenderer {
             overlay.appendChild(logo);
             document.body.appendChild(overlay);
 
-            requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                overlay.style.transform = 'translate(-50%, -52%) scale(1)';
+            });
 
             setTimeout(() => {
                 overlay.style.opacity = '0';
@@ -1869,13 +1881,22 @@ export class TextRenderer {
             const resultText = sealed ? '\u2605  RIFT SEALED  \u2605' : '\u22c6  RIFT INCOMPLETE';
             const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
 
-            // ── Full-screen overlay ──
+            // ── Popup card ──
             const overlay = document.createElement('div');
             overlay.id = 'replay-rift-result';
             Object.assign(overlay.style, {
                 position: 'fixed',
-                top: '0', left: '0', width: '100%', height: '100%',
-                background: bgMain,
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -52%) scale(0.88)',
+                width: 'min(380px, 90vw)',
+                background: sealed ? 'rgba(36,0,62,0.96)' : 'rgba(12,8,28,0.96)',
+                border: `1.5px solid ${bdrClr}`,
+                borderRadius: '18px',
+                padding: '28px 24px 22px',
+                boxSizing: 'border-box',
+                boxShadow: `0 0 52px rgba(140,60,255,0.45), 0 8px 32px rgba(0,0,0,0.7)`,
+                backdropFilter: 'blur(14px)',
                 zIndex: '9999990',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1883,7 +1904,7 @@ export class TextRenderer {
                 justifyContent: 'center',
                 pointerEvents: 'none',
                 opacity: '0',
-                transition: 'opacity 0.45s ease',
+                transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
                 gap: '0',
             });
 
@@ -1989,7 +2010,10 @@ export class TextRenderer {
             overlay.appendChild(logo);
             document.body.appendChild(overlay);
 
-            requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                overlay.style.transform = 'translate(-50%, -50%) scale(1)';
+            });
 
             setTimeout(() => {
                 overlay.style.opacity = '0';
