@@ -1142,9 +1142,11 @@ export class TextRenderer {
             }
 
             // ─────────────────────────────────────────────
-            // PHASE 1: Gray out all text
+            // OPENING CARD (2.2s) → PHASE 1: Gray out all text
             // ─────────────────────────────────────────────
-            this._grayOutAllText();
+            this._showReplayIntroCard(() => {
+                this._grayOutAllText();
+            });
 
             // ─────────────────────────────────────────────
             // PHASE 2: Plasma dot + Charging nodes (No progress bar)
@@ -1665,88 +1667,284 @@ export class TextRenderer {
         rafId = requestAnimationFrame(phase3Loop);
     }
 
-    // === Phase 4: inline result message =====================================
-    _showInlineResult(isSealed, onDone) {
+    // === Phase 0: Replay Opening Card ========================================
+    _showReplayIntroCard(onDone) {
         try {
-            // Remove any existing result banner
+            const old = document.getElementById('replay-intro-card');
+            if (old) { try { old.remove(); } catch (e) { } }
+
+            // Gather meta
+            const chapterBadge = document.getElementById('chapter-title-badge');
+            const chapterText = chapterBadge ? chapterBadge.textContent.trim() : 'The Book Wardens';
+            const wpmEl = document.getElementById('wpm-display');
+            const wpmVal = wpmEl ? wpmEl.textContent.trim() : '—';
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+
+            // Overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'replay-intro-card';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                top: '0', left: '0', width: '100%', height: '100%',
+                background: 'radial-gradient(ellipse at center, rgba(40,0,70,0.97) 0%, rgba(5,3,15,0.99) 100%)',
+                zIndex: '9999998',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                opacity: '0',
+                transition: 'opacity 0.45s ease',
+                gap: '14px',
+            });
+
+            // Decorative top line
+            const line1 = document.createElement('div');
+            Object.assign(line1.style, {
+                width: '60px', height: '2px',
+                background: 'linear-gradient(90deg, transparent, rgba(180,100,255,0.9), transparent)',
+                marginBottom: '4px',
+            });
+
+            // Badge
+            const badge = document.createElement('div');
+            badge.textContent = '✦ GAZE REPLAY ✦';
+            Object.assign(badge.style, {
+                fontFamily: 'monospace',
+                fontSize: 'clamp(10px, 2.8vw, 13px)',
+                letterSpacing: '5px',
+                color: 'rgba(180,120,255,0.8)',
+                textTransform: 'uppercase',
+            });
+
+            // Chapter title
+            const title = document.createElement('div');
+            title.textContent = chapterText;
+            Object.assign(title.style, {
+                fontFamily: "'Cinzel', 'Georgia', serif",
+                fontSize: 'clamp(15px, 4.5vw, 22px)',
+                fontWeight: '700',
+                color: '#f0d8ff',
+                textAlign: 'center',
+                maxWidth: '80vw',
+                lineHeight: '1.4',
+                textShadow: '0 0 24px rgba(180,100,255,0.7), 0 0 8px rgba(255,255,255,0.3)',
+                padding: '0 16px',
+            });
+
+            // Divider
+            const divider = document.createElement('div');
+            Object.assign(divider.style, {
+                width: '120px', height: '1px',
+                background: 'linear-gradient(90deg, transparent, rgba(155,89,182,0.6), transparent)',
+                margin: '2px 0',
+            });
+
+            // Stats row
+            const stats = document.createElement('div');
+            Object.assign(stats.style, {
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '30px',
+                alignItems: 'center',
+                marginTop: '4px',
+            });
+            const mkStat = (label, val) => {
+                const s = document.createElement('div');
+                Object.assign(s.style, { textAlign: 'center', fontFamily: 'monospace' });
+                const v = document.createElement('div');
+                v.textContent = val;
+                Object.assign(v.style, { fontSize: 'clamp(13px,3.5vw,18px)', fontWeight: '700', color: '#e8d0ff' });
+                const l = document.createElement('div');
+                l.textContent = label;
+                Object.assign(l.style, { fontSize: '10px', color: 'rgba(180,150,220,0.65)', letterSpacing: '2px', marginTop: '2px' });
+                s.appendChild(v); s.appendChild(l);
+                return s;
+            };
+            stats.appendChild(mkStat('WPM', wpmVal));
+            stats.appendChild(mkStat('DATE', dateStr));
+
+            // Logo watermark
+            const logo = document.createElement('div');
+            logo.textContent = 'THE BOOK WARDENS';
+            Object.assign(logo.style, {
+                fontFamily: "'Cinzel', monospace",
+                fontSize: 'clamp(8px, 2vw, 10px)',
+                letterSpacing: '4px',
+                color: 'rgba(155,89,182,0.4)',
+                textTransform: 'uppercase',
+                marginTop: '20px',
+            });
+
+            overlay.appendChild(line1);
+            overlay.appendChild(badge);
+            overlay.appendChild(title);
+            overlay.appendChild(divider);
+            overlay.appendChild(stats);
+            overlay.appendChild(logo);
+            document.body.appendChild(overlay);
+
+            // Fade in
+            requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+
+            // Hold 2.2s then fade out and proceed
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
+                    if (typeof onDone === 'function') onDone();
+                }, 480);
+            }, 2200);
+
+        } catch (err) {
+            console.error('[_showReplayIntroCard]', err);
+            if (typeof onDone === 'function') onDone();
+        }
+    }
+
+    // === Phase 4: Replay Ending Card ==========================================
+    _showReplayEndCard(isSealed, litLines, visualLines, onDone) {
+        try {
             const old = document.getElementById('replay-rift-result');
             if (old) { try { old.remove(); } catch (e) { } }
 
             const sealed = isSealed;
-            const bgColor = sealed ? 'rgba(52,0,80,0.92)' : 'rgba(14,10,26,0.88)';
-            const borderClr = sealed ? 'rgba(190,120,255,0.85)' : 'rgba(100,88,140,0.55)';
-            const textColor = sealed ? '#f0d8ff' : 'rgba(175,165,205,0.9)';
-            const glowText = sealed
-                ? '0 0 24px rgba(200,100,255,0.95), 0 0 8px rgba(255,255,255,0.7), 0 0 48px rgba(155,89,182,0.65)'
-                : '0 0 6px rgba(120,105,160,0.5)';
-            const label = sealed ? '\u2605 RIFT SEALED \u2605' : '\u22c6 RIFT NOT YET SEALED';
-            const subLabel = sealed ? 'All seals restored' : 'Reading incomplete';
 
+            // ── Collect stats ──
+            const inkEl = document.getElementById('ink-count');
+            const inkVal = inkEl ? (parseInt(inkEl.textContent, 10) || 0) : 0;
+            const wpmEl = document.getElementById('wpm-display');
+            const wpmVal = wpmEl ? (wpmEl.textContent.trim() || '—') : '—';
+            const totalL = visualLines ? visualLines.length : 0;
+            const litCount = litLines ? litLines.size : 0;
+            const sealPct = totalL > 0 ? Math.round((litCount / totalL) * 100) : 0;
+
+            // ── Colors by outcome ──
+            const bg = sealed ? 'rgba(36,0,58,0.95)' : 'rgba(10,8,22,0.95)';
+            const bdrClr = sealed ? 'rgba(190,120,255,0.85)' : 'rgba(90,78,130,0.55)';
+            const accent = sealed ? '#e8c8ff' : 'rgba(165,155,200,0.85)';
+            const glow = sealed
+                ? '0 0 22px rgba(200,100,255,0.9), 0 0 6px rgba(255,255,255,0.6)'
+                : '0 0 6px rgba(110,95,155,0.5)';
+
+            const resultText = sealed ? '\u2605 RIFT SEALED \u2605' : '\u22c6 RIFT INCOMPLETE';
+            const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
+
+            // ── Wrapper ──
             const wrap = document.createElement('div');
             wrap.id = 'replay-rift-result';
             Object.assign(wrap.style, {
                 position: 'fixed',
-                bottom: '60px',
+                bottom: '52px',
                 left: '50%',
-                transform: 'translateX(-50%) scale(0.82)',
-                background: bgColor,
-                border: `1.5px solid ${borderClr}`,
-                borderRadius: '12px',
-                padding: '14px 28px 12px',
+                transform: 'translateX(-50%) scale(0.80)',
+                background: bg,
+                border: `1.5px solid ${bdrClr}`,
+                borderRadius: '14px',
+                padding: '16px 24px 14px',
                 boxSizing: 'border-box',
-                // Width: shrink-to-fit but never exceed 90vw
-                maxWidth: 'min(420px, 90vw)',
+                maxWidth: 'min(400px, 92vw)',
                 width: 'max-content',
                 textAlign: 'center',
                 pointerEvents: 'none',
                 zIndex: '9999990',
                 opacity: '0',
-                transition: 'opacity 0.32s ease, transform 0.32s cubic-bezier(0.34,1.56,0.64,1)',
-                boxShadow: `0 0 36px rgba(155,89,182,0.38), inset 0 0 18px rgba(155,89,182,0.07)`,
-                backdropFilter: 'blur(6px)',
+                transition: 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                boxShadow: `0 0 40px rgba(155,89,182,0.35), inset 0 0 20px rgba(155,89,182,0.06)`,
+                backdropFilter: 'blur(8px)',
             });
 
-            // Main label
-            const main = document.createElement('div');
-            Object.assign(main.style, {
-                color: textColor,
-                // Fluid font: scales with viewport, capped at 22px
-                fontSize: 'clamp(16px, 4vw, 22px)',
+            // Result title
+            const title = document.createElement('div');
+            title.textContent = resultText;
+            Object.assign(title.style, {
+                color: accent,
+                fontSize: 'clamp(14px, 3.8vw, 20px)',
                 fontWeight: '800',
                 fontFamily: 'monospace',
                 letterSpacing: '4px',
                 textTransform: 'uppercase',
-                // Allow natural line break on narrow screens
                 whiteSpace: 'normal',
                 wordBreak: 'keep-all',
                 lineHeight: '1.3',
-                textShadow: glowText,
+                textShadow: glow,
+                marginBottom: '10px',
             });
-            main.textContent = label;
+
+            // Divider line
+            const div = document.createElement('div');
+            Object.assign(div.style, {
+                width: '100%', height: '1px',
+                background: `linear-gradient(90deg, transparent, ${bdrClr}, transparent)`,
+                margin: '6px 0 10px',
+            });
+
+            // Stats row
+            const statsRow = document.createElement('div');
+            Object.assign(statsRow.style, {
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: '20px',
+                margin: '0 0 8px',
+            });
+            const mkStat = (icon, val, lbl) => {
+                const s = document.createElement('div');
+                Object.assign(s.style, { textAlign: 'center', fontFamily: 'monospace' });
+                const ic = document.createElement('div');
+                ic.textContent = icon;
+                ic.style.fontSize = '14px';
+                const vv = document.createElement('div');
+                vv.textContent = val;
+                Object.assign(vv.style, { fontSize: 'clamp(13px,3.5vw,17px)', fontWeight: '700', color: accent });
+                const ll = document.createElement('div');
+                ll.textContent = lbl;
+                Object.assign(ll.style, { fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(180,150,220,0.6)', marginTop: '1px' });
+                s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
+                return s;
+            };
+            statsRow.appendChild(mkStat('🖋', inkVal, 'INK'));
+            statsRow.appendChild(mkStat('⚡', wpmVal, 'WPM'));
+            statsRow.appendChild(mkStat('🔮', `${sealPct}%`, 'SEALED'));
 
             // Sub label
             const sub = document.createElement('div');
+            sub.textContent = resultSub;
             Object.assign(sub.style, {
-                color: sealed ? 'rgba(205,165,255,0.72)' : 'rgba(145,135,175,0.6)',
-                fontSize: '11px',
+                color: sealed ? 'rgba(205,165,255,0.65)' : 'rgba(135,125,170,0.6)',
+                fontSize: '10px',
                 fontFamily: 'monospace',
-                letterSpacing: '2.5px',
-                marginTop: '6px',
+                letterSpacing: '2px',
                 textTransform: 'uppercase',
+                marginTop: '4px',
             });
-            sub.textContent = subLabel;
 
-            wrap.appendChild(main);
+            // Game logo watermark
+            const logo = document.createElement('div');
+            logo.textContent = 'THE BOOK WARDENS';
+            Object.assign(logo.style, {
+                fontFamily: "'Cinzel', monospace",
+                fontSize: '8px',
+                letterSpacing: '3px',
+                color: 'rgba(155,89,182,0.35)',
+                marginTop: '10px',
+            });
+
+            wrap.appendChild(title);
+            wrap.appendChild(div);
+            wrap.appendChild(statsRow);
             wrap.appendChild(sub);
+            wrap.appendChild(logo);
             document.body.appendChild(wrap);
 
-            // Pop-in animation (wait one tick for layout)
+            // Animate in
             requestAnimationFrame(() => {
                 wrap.style.opacity = '1';
                 wrap.style.transform = 'translateX(-50%) scale(1)';
             });
 
-            // Linger then fade out and call onDone
+            // Linger 3.2s then fade out → onDone
             setTimeout(() => {
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'translateX(-50%) scale(0.92)';
@@ -1754,10 +1952,10 @@ export class TextRenderer {
                     try { if (wrap.parentNode) wrap.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
                 }, 420);
-            }, 2800);
+            }, 3200);
 
         } catch (err) {
-            console.error('[showInlineResult]', err);
+            console.error('[_showReplayEndCard]', err);
             if (typeof onDone === 'function') onDone();
         }
     }
@@ -1782,7 +1980,7 @@ export class TextRenderer {
         }
         // FAIL: all text stays grey (no restoration)
         const waveDur = isSealed ? (visualLines ? visualLines.length * 50 : 0) + 200 : 0;
-        setTimeout(() => { this._showInlineResult(isSealed, onDone); }, waveDur);
+        setTimeout(() => { this._showReplayEndCard(isSealed, litLines, visualLines, onDone); }, waveDur);
     }
 
     // === Helper: Draw purple charged node (sphere + wrapping lightning) =======
