@@ -743,15 +743,17 @@ const Game = {
         const elRank = document.getElementById('report-rank-text');
         if (elRank) elRank.innerText = rank;
 
-        // [FIX] Bind Claim Reward Button logic
+        // [FIX v2] Bind Claim Reward Button logic (deferred until DOM is settled)
+        setTimeout(() => {
         const btnClaim = document.getElementById("btn-claim-reward");
-        const emailInput = document.getElementById("warden-email");
         if (btnClaim) {
             // Remove old listeners (clone node trick)
             const newBtn = btnClaim.cloneNode(true);
             if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
 
             newBtn.onclick = async () => {
+                // Re-query emailInput fresh on every click (avoid stale DOM ref)
+                const emailInput = document.getElementById("warden-email");
                 const email = emailInput ? emailInput.value.trim() : "";
 
                 if (!email || !email.includes("@")) {
@@ -862,6 +864,7 @@ const Game = {
                     });
             };
         }
+        }, 300); // end setTimeout - deferred bind after DOM is ready
     },
 
     // NEW: Custom Success Modal Logic
