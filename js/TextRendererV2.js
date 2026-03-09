@@ -1143,7 +1143,7 @@ export class TextRenderer {
             this._grayOutAllText();
 
             // ─────────────────────────────────────────────
-            // PHASE 2: Canvas + Progress Bar setup
+            // PHASE 2: Plasma dot + Charging nodes (No progress bar)
             // ─────────────────────────────────────────────
             const canvas = document.createElement('canvas');
             canvas.width = window.innerWidth;
@@ -1152,449 +1152,554 @@ export class TextRenderer {
             document.body.appendChild(canvas);
             const ctx = canvas.getContext('2d');
 
-            const progressContainer = this._createProgressBar();
-
             const path = processedPath;
             const duration = Math.max(1500, replaySegments.length * 500);
             let startTime = null;
-const litLines = new Set();        // 점등된 줄 Set
-const chargedNodes = [];            // 전기 대기 노드 (순서 보존)
-let auraRafId = null;           // 스파크 RAF handle
-const auraCanvas = document.createElement('canvas');
-auraCanvas.width = window.innerWidth;
-auraCanvas.height = window.innerHeight;
-auraCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999996;';
-document.body.appendChild(auraCanvas);
-const aC = auraCanvas.getContext('2d');
 
-// ── Aura 스파크 RAF 루프 (Phase 2 동안 계속) ──
-const drawAuras = () => {
-    aC.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
-    chargedNodes.forEach(node => {
-        const cx = node.x, cy = node.y, r = node.radius;
-        const nSpokes = 9 + Math.floor(Math.random() * 5);
-        for (let s = 0; s < nSpokes; s++) {
-            const angle = (Math.PI * 2 / nSpokes) * s + (Math.random() - 0.5) * 0.4;
-            const len = r + 4 + Math.random() * 10;
-            const sx2 = cx + Math.cos(angle) * r;
-            const sy2 = cy + Math.sin(angle) * r;
-            const ex = cx + Math.cos(angle) * len;
-            const ey = cy + Math.sin(angle) * len;
-            aC.save();
-            aC.globalAlpha = 0.6 + Math.random() * 0.4;
-            aC.beginPath(); aC.moveTo(sx2, sy2); aC.lineTo(ex, ey);
-            aC.strokeStyle = 'rgba(155,89,182,0.8)'; aC.lineWidth = 3;
-            aC.shadowColor = '#9b59b6'; aC.shadowBlur = 12; aC.stroke();
-            aC.beginPath(); aC.moveTo(sx2, sy2); aC.lineTo(ex, ey);
-            aC.strokeStyle = '#ffffff'; aC.lineWidth = 1;
-            aC.shadowColor = '#fff'; aC.shadowBlur = 6; aC.stroke();
-            aC.restore();
-        }
-    });
-    auraRafId = requestAnimationFrame(drawAuras);
-};
-auraRafId = requestAnimationFrame(drawAuras);
+            const litLines = new Set();
+            const PANG_X = window.innerWidth - 24;
+            const CHARGE_THRESH = window.innerWidth * 0.25;
 
-const PANG_X = window.innerWidth - 24;
-
-const animate = (timestamp) => {
-    if (!startTime) startTime = timestamp;
-    const elapsed = timestamp - startTime;
-    const progress = elapsed / duration;
-
-    if (progress >= 1) {
-        canvas.style.transition = 'opacity 0.5s';
-        canvas.style.opacity = '0';
-        this._replayRAFId = null;
-        if (auraRafId) { cancelAnimationFrame(auraRafId); auraRafId = null; }
-        setTimeout(() => {
-            canvas.remove();
-            // ─────────────────────────────────────────
-            // PHASE 3: Chain Lightning → Progress Bar
-            // ─────────────────────────────────────────
-            this._runChainLightning(chargedNodes, litLines, visualLines, auraCanvas, progressContainer, () => {
-                if (progressContainer.parentNode) progressContainer.remove();
-                if (onComplete) onComplete();
-            });
-        }, 500);
-        return;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const maxIdx = Math.floor(path.length * progress);
-    if (maxIdx >= 0 && maxIdx < path.length) {
-        const head = path[maxIdx];
-        if (head && !head.isJump) {
-            const lineIdx = this._findLineForY(head.y, visualLines);
-            if (lineIdx !== null && !litLines.has(lineIdx)) {
-                litLines.add(lineIdx);
-                this._lightUpLine(lineIdx);
-                const vl = visualLines[lineIdx];
-                chargedNodes.push({
+            // chargedNodesMap: lineIdx → node (pre-populate all visual lines as idle)
+            const chargedNodesMap = new Map();
+            visualLines.forEach((vl, lineIdx) => {
+                chargedNodesMap.set(lineIdx, {
                     lineIdx,
                     x: PANG_X,
-                    y: vl ? vl.visualY : head.y,
-                    radius: 12,
+                    y: vl ? vl.visualY : 0,
+                    radius: 14,
+                    state: 'idle',     // 'idle' | 'entering' | 'charging' | 'charged'
+                    chargePct: 0,
+                    fixedAngles: null, // locked on 'charged' confirm
+                    glowAlpha: 1.0,    // faded during Phase 3 discharge
                 });
-            }
-            ctx.beginPath();
-            ctx.fillStyle = '#00ff00';
-            ctx.shadowColor = '#00ff00';
-            ctx.shadowBlur = 12;
-            ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-    }
+            });
 
-    this._replayRAFId = requestAnimationFrame(animate);
-};
+            const trailBuffer = [];
+            let prevLineIdx = null;
 
-this._replayRAFId = requestAnimationFrame(animate);
+            const animate = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                const progress = elapsed / duration;
+
+                if (progress >= 1.0) {
+                    // Finalize remaining nodes → 'charged'
+                    chargedNodesMap.forEach(node => {
+                        if (node.state !== 'charged' && node.state !== 'idle') {
+                            node.state = 'charged';
+                            node.chargePct = 1;
+                        }
+                        if (node.state === 'charged' && !node.fixedAngles) {
+                            node.fixedAngles = [
+                                Math.random() * Math.PI * 2,
+                                Math.random() * Math.PI * 2,
+                                Math.random() * Math.PI * 2,
+                            ];
+                        }
+                    });
+                    this._replayRAFId = null;
+                    canvas.style.transition = 'opacity 0.4s';
+                    canvas.style.opacity = '0';
+                    setTimeout(() => {
+                        canvas.remove();
+                        // ─────────────────────────────────────
+                        // PHASE 3: Wire Discharge
+                        // ─────────────────────────────────────
+                        this._runWireDischarge(chargedNodesMap, litLines, visualLines, onComplete);
+                    }, 500);
+                    return;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const maxIdx = Math.floor(path.length * progress);
+                const head = (maxIdx >= 0 && maxIdx < path.length) ? path[maxIdx] : null;
+
+                if (head && head.isJump) {
+                    trailBuffer.length = 0;
+                } else if (head && !head.isJump) {
+                    const lineIdx = this._findLineForY(head.y, visualLines);
+
+                    // New line entered
+                    if (lineIdx !== null && !litLines.has(lineIdx)) {
+                        litLines.add(lineIdx);
+                        this._lightUpLine(lineIdx);
+                        const node = chargedNodesMap.get(lineIdx);
+                        if (node) node.state = 'entering';
+                    }
+
+                    if (lineIdx !== null) {
+                        const node = chargedNodesMap.get(lineIdx);
+                        // Charging distance check
+                        if (node && (node.state === 'entering' || node.state === 'charging')) {
+                            const dist = PANG_X - head.x;
+                            if (dist <= CHARGE_THRESH) {
+                                node.state = 'charging';
+                                node.chargePct = Math.max(0, Math.min(1, 1 - dist / CHARGE_THRESH));
+                            }
+                        }
+                        // Line transition → confirm previous as charged
+                        if (prevLineIdx !== null && prevLineIdx !== lineIdx) {
+                            const prevNode = chargedNodesMap.get(prevLineIdx);
+                            if (prevNode && prevNode.state !== 'charged') {
+                                prevNode.state = 'charged';
+                                prevNode.chargePct = 1;
+                                if (!prevNode.fixedAngles) {
+                                    prevNode.fixedAngles = [
+                                        Math.random() * Math.PI * 2,
+                                        Math.random() * Math.PI * 2,
+                                        Math.random() * Math.PI * 2,
+                                    ];
+                                }
+                            }
+                        }
+                        prevLineIdx = lineIdx;
+                    }
+
+                    // Trail buffer
+                    trailBuffer.push({ x: head.x, y: head.y });
+                    if (trailBuffer.length > 12) trailBuffer.shift();
+
+                    // Draw trail
+                    for (let i = trailBuffer.length - 1; i >= 0; i--) {
+                        const tp = trailBuffer[i];
+                        const alpha = (i + 1) / trailBuffer.length * 0.5;
+                        const r = 4 * ((i + 1) / trailBuffer.length);
+                        ctx.save();
+                        ctx.globalAlpha = alpha;
+                        ctx.beginPath();
+                        ctx.arc(tp.x, tp.y, r, 0, Math.PI * 2);
+                        ctx.fillStyle = '#00ff88';
+                        ctx.shadowColor = '#00ff88';
+                        ctx.shadowBlur = 6;
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // Plasma core
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 20;
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Inner ring (rotating)
+                    const theta = elapsed * 0.003;
+                    ctx.save();
+                    ctx.translate(head.x, head.y);
+                    ctx.rotate(theta);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0,255,120,0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.shadowColor = 'rgba(0,255,120,0.8)';
+                    ctx.shadowBlur = 12;
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // Outer ring (counter-rotating)
+                    ctx.save();
+                    ctx.translate(head.x, head.y);
+                    ctx.rotate(-theta * 0.6);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0,255,120,0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.shadowColor = 'rgba(0,255,120,0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Draw all charged nodes (purple spheres with lightning)
+                chargedNodesMap.forEach(node => {
+                    this._drawChargedNode(ctx, node, elapsed);
+                });
+
+                this._replayRAFId = requestAnimationFrame(animate);
+            };
+
+            this._replayRAFId = requestAnimationFrame(animate);
 
         }, 500);
     }
 
-// ─── Phase 1: Gray all text ───────────────────────────────────────────────
-_grayOutAllText() {
-    if (!this.words) return;
-    this.words.forEach(w => {
-        if (!w.element) return;
-        w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
-        w.element.style.color = 'rgba(255,255,255,0.18)';
-        w.element.style.textShadow = 'none';
-    });
-}
+    // ─── Phase 1: Gray all text ───────────────────────────────────────────────
+    _grayOutAllText() {
+        if (!this.words) return;
+        this.words.forEach(w => {
+            if (!w.element) return;
+            w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+            w.element.style.color = 'rgba(255,255,255,0.18)';
+            w.element.style.textShadow = 'none';
+        });
+    }
 
-// ─── Phase 2: Find closest line index by Y ────────────────────────────────
-_findLineForY(y, visualLines) {
-    let closest = null, minDist = Infinity;
-    visualLines.forEach((line, idx) => {
-        const d = Math.abs(line.visualY - y);
-        if (d < minDist) { minDist = d; closest = idx; }
-    });
-    return (minDist < 60) ? closest : null;
-}
+    // ─── Phase 2: Find closest line index by Y ────────────────────────────────
+    _findLineForY(y, visualLines) {
+        let closest = null, minDist = Infinity;
+        visualLines.forEach((line, idx) => {
+            const d = Math.abs(line.visualY - y);
+            if (d < minDist) { minDist = d; closest = idx; }
+        });
+        return (minDist < 60) ? closest : null;
+    }
 
-// ─── Phase 2: Light up line (flash → settle) ─────────────────────────────
-_lightUpLine(lineIndex) {
-    if (!this.lines || !this.lines[lineIndex]) return;
-    const line = this.lines[lineIndex];
-    if (!line.wordIndices) return;
-    line.wordIndices.forEach(wIdx => {
-        const word = this.words[wIdx];
-        if (word && word.element) {
-            word.element.style.transition = 'none';
-            word.element.style.color = '#ffffff';
-            word.element.style.textShadow =
-                '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
-            word.element.style.filter = 'brightness(2.0)';
-        }
-    });
-    setTimeout(() => {
+    // ─── Phase 2: Light up line (flash → settle) ─────────────────────────────
+    _lightUpLine(lineIndex) {
+        if (!this.lines || !this.lines[lineIndex]) return;
+        const line = this.lines[lineIndex];
+        if (!line.wordIndices) return;
         line.wordIndices.forEach(wIdx => {
             const word = this.words[wIdx];
             if (word && word.element) {
-                word.element.style.transition = 'text-shadow 0.4s ease-out, filter 0.4s ease-out';
-                word.element.style.textShadow = '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
-                word.element.style.filter = 'brightness(1.0)';
+                word.element.style.transition = 'none';
+                word.element.style.color = '#ffffff';
+                word.element.style.textShadow =
+                    '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
+                word.element.style.filter = 'brightness(2.0)';
             }
         });
-    }, 100);
-}
-
-// ─── Phase 3: Create progress bar DOM ────────────────────────────────────
-_createProgressBar() {
-    const container = document.createElement('div');
-    container.id = 'replay-progress-container';
-    container.style.cssText = [
-        'position:fixed', 'bottom:28px', 'left:50%', 'transform:translateX(-50%)',
-        'width:78%', 'height:14px',
-        'background:rgba(20,5,35,0.75)',
-        'border-radius:7px',
-        'border:1px solid rgba(155,89,182,0.55)',
-        'box-shadow:0 0 14px rgba(155,89,182,0.3)',
-        'z-index:999998', 'overflow:visible',
-    ].join(';');
-    const fill = document.createElement('div');
-    fill.id = 'replay-progress-fill';
-    fill.style.cssText = [
-        'width:0%', 'height:100%',
-        'background:linear-gradient(90deg,#4a1a6b,#8e44ad,#c39bd3)',
-        'border-radius:7px',
-        'box-shadow:0 0 18px rgba(155,89,182,0.85)',
-        'transition:width 0.35s ease-out',
-    ].join(';');
-    const label = document.createElement('div');
-    label.id = 'replay-progress-label';
-    label.style.cssText = [
-        'position:absolute', 'top:-22px', 'right:0',
-        'color:#d7bde2', 'font-size:11px',
-        'font-family:monospace', 'letter-spacing:1px',
-    ].join(';');
-    label.textContent = '0%';
-    const titleEl = document.createElement('div');
-    titleEl.id = 'replay-rift-title';
-    titleEl.style.cssText = [
-        'position:absolute', 'top:-22px', 'left:0',
-        'color:rgba(155,89,182,0.75)', 'font-size:11px',
-        'font-family:monospace', 'letter-spacing:2px', 'text-transform:uppercase',
-        'transition:opacity 0.4s ease',
-    ].join(';');
-    titleEl.textContent = 'Rift Sealing';
-    container.appendChild(fill);
-    container.appendChild(label);
-    container.appendChild(titleEl);
-    document.body.appendChild(container);
-    return container;
-}
-
-// ─── Phase 3: Chain Lightning (마커→마커→바) ──────────────────────────────
-_runChainLightning(chargedNodes, litLines, visualLines, auraCanvas, progressContainer, onDone) {
-    const totalLines = visualLines.length;
-    const finalPct = totalLines > 0 ? (litLines.size / totalLines) * 100 : 0;
-    const isSealed = finalPct >= 60;
-
-    let completed = false;
-    const hardTimeout = setTimeout(() => {
-        if (!completed) {
-            completed = true;
-            try { auraCanvas.remove(); } catch (e) { }
-            if (isSealed) this._sealRiftVFX(visualLines, () => this._showInlineResult(isSealed, onDone));
-            else this._showInlineResult(isSealed, onDone);
-        }
-    }, 8000);
-
-    const finish = () => {
-        if (completed) return;
-        completed = true;
-        clearTimeout(hardTimeout);
-        try { auraCanvas.remove(); } catch (e) { }
-        if (isSealed) this._sealRiftVFX(visualLines, () => this._showInlineResult(isSealed, onDone));
-        else this._showInlineResult(isSealed, onDone);
-    };
-
-    if (chargedNodes.length === 0) { finish(); return; }
-
-    const fill = document.getElementById('replay-progress-fill');
-    const label = document.getElementById('replay-progress-label');
-    const barRect = progressContainer.getBoundingClientRect();
-    const barLeft = barRect.width ? barRect.left : window.innerWidth * 0.11;
-    const barWidth = barRect.width ? barRect.width : window.innerWidth * 0.78;
-    const barCX = barLeft + barWidth / 2;
-    const barCY = barRect.height ? barRect.top + barRect.height / 2 : window.innerHeight * 0.95;
-
-    const nodes = [...chargedNodes].sort((a, b) => a.y - b.y);
-    document.body.appendChild(auraCanvas); // 재삽입 (removed될 수 있으므로)
-    const bCtx = auraCanvas.getContext('2d');
-
-    const makeZigzag = (x0, y0, x1, y1, t, nK) => {
-        const pts = [{ x: x0, y: y0 }];
-        for (let k = 1; k <= nK; k++) {
-            const f = (k / (nK + 1)) * t;
-            pts.push({
-                x: x0 + (x1 - x0) * f + (Math.random() - 0.5) * 26,
-                y: y0 + (y1 - y0) * f + (Math.random() - 0.5) * 20,
-            });
-        }
-        pts.push({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t });
-        return pts;
-    };
-
-    const drawBolt = (x0, y0, x1, y1, t) => {
-        const pts = makeZigzag(x0, y0, x1, y1, t, 3);
-        bCtx.beginPath();
-        pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
-        bCtx.strokeStyle = 'rgba(155,89,182,0.75)'; bCtx.lineWidth = 5;
-        bCtx.shadowColor = '#9b59b6'; bCtx.shadowBlur = 22; bCtx.stroke();
-        bCtx.beginPath();
-        pts.forEach((p, pi) => pi === 0 ? bCtx.moveTo(p.x, p.y) : bCtx.lineTo(p.x, p.y));
-        bCtx.strokeStyle = '#ffffff'; bCtx.lineWidth = 1.5;
-        bCtx.shadowColor = '#ffffff'; bCtx.shadowBlur = 8; bCtx.stroke();
-    };
-
-    const receivePulse = (node) => {
-        let pTs = null;
-        const pDur = 250;
-        const doPulse = (ts) => {
-            if (!pTs) pTs = ts;
-            const t = Math.min(1, (ts - pTs) / pDur);
-            const r = node.radius + (1 - Math.abs(t * 2 - 1)) * 18;
-            bCtx.save();
-            bCtx.globalAlpha = 0.8 * (1 - t);
-            bCtx.beginPath();
-            bCtx.arc(node.x, node.y, r, 0, Math.PI * 2);
-            bCtx.strokeStyle = '#ffffff'; bCtx.lineWidth = 2;
-            bCtx.shadowColor = '#9b59b6'; bCtx.shadowBlur = 18; bCtx.stroke();
-            bCtx.restore();
-            if (t < 1) requestAnimationFrame(doPulse);
-        };
-        requestAnimationFrame(doPulse);
-    };
-
-    const BOLT_DUR = 280;
-    const CHAIN_GAP = 200;
-    const segments = [];
-    for (let i = 0; i < nodes.length - 1; i++) {
-        segments.push({ from: nodes[i], to: nodes[i + 1], isBar: false });
-    }
-    segments.push({ from: nodes[nodes.length - 1], to: { x: barCX, y: barCY }, isBar: true });
-
-    let segIdx = 0;
-    const realPct = Math.round((litLines.size / totalLines) * 100);
-
-    const runSegment = (seg) => {
-        if (completed) return;
-        let boltTs = null;
-        const { from, to, isBar } = seg;
-        const animBolt = (ts) => {
-            if (completed) return;
-            if (!boltTs) boltTs = ts;
-            const t = Math.min(1, (ts - boltTs) / BOLT_DUR);
-            bCtx.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
-            drawBolt(from.x, from.y, to.x, to.y, t);
-            if (t < 1) {
-                requestAnimationFrame(animBolt);
-            } else {
-                bCtx.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
-                if (!isBar) receivePulse(to);
-                const stepPct = Math.round(((segIdx + 1) / segments.length) * realPct);
-                if (fill) fill.style.width = Math.min(100, stepPct) + '%';
-                if (label) label.textContent = Math.min(100, stepPct) + '%';
-                segIdx++;
-                if (segIdx < segments.length) {
-                    setTimeout(() => runSegment(segments[segIdx]), CHAIN_GAP);
-                } else {
-                    if (fill) fill.style.width = realPct + '%';
-                    if (label) label.textContent = realPct + '%';
-                    setTimeout(finish, 400);
-                }
-            }
-        };
-        requestAnimationFrame(animBolt);
-    };
-
-    setTimeout(() => { if (!completed) runSegment(segments[0]); }, 300);
-}
-
-// === Phase 4: inline result message =====================================
-_showInlineResult(isSealed, onDone) {
-    try {
-        const titleEl = document.getElementById('replay-rift-title');
-        if (titleEl) titleEl.style.opacity = '0';
-        const msgEl = document.createElement('div');
-        msgEl.id = 'replay-rift-result';
-        msgEl.style.cssText = [
-            'position:fixed', 'bottom:68px', 'left:50%',
-            'transform:translateX(-50%)',
-            'font-size:17px', 'font-weight:700', 'font-family:monospace',
-            'letter-spacing:4px', 'text-transform:uppercase',
-            'white-space:nowrap', 'pointer-events:none', 'z-index:9999990',
-            'opacity:0', 'transition:opacity 0.4s ease',
-            isSealed
-                ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff'
-                : 'color:rgba(180,180,210,0.85)',
-        ].join(';');
-        msgEl.textContent = isSealed ? '\u2726 RIFT SEALED \u2726' : '\u22c6 RIFT NOT YET SEALED';
-        document.body.appendChild(msgEl);
-        requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
         setTimeout(() => {
-            msgEl.style.opacity = '0';
-            setTimeout(() => {
-                try { if (msgEl.parentNode) msgEl.remove(); } catch (e) { }
-                if (typeof onDone === 'function') onDone();
-            }, 500);
-        }, 2500);
-    } catch (err) {
-        console.error('[showInlineResult]', err);
-        if (typeof onDone === 'function') onDone();
-    }
-}
-
-// === Phase 4-B: Rift Sealed VFX =========================================
-_sealRiftVFX(visualLines, onDone) {
-    const fill = document.getElementById('replay-progress-fill');
-    if (fill) {
-        fill.style.transition = 'width 0.3s ease-out, box-shadow 0.3s ease-out';
-        fill.style.width = '108%';
-        fill.style.boxShadow = '0 0 50px rgba(155,89,182,1), 0 0 20px #fff';
-    }
-    setTimeout(() => {
-        const flash = document.createElement('div');
-        flash.style.cssText = [
-            'position:fixed', 'inset:0', 'z-index:9999995', 'pointer-events:none',
-            'background:radial-gradient(ellipse at center,rgba(215,189,226,0.55) 0%,rgba(155,89,182,0.25) 50%,transparent 80%)',
-            'opacity:1', 'transition:opacity 0.6s ease-out',
-        ].join(';');
-        document.body.appendChild(flash);
-        const cont = this.container;
-        if (cont) {
-            cont.style.transition = 'box-shadow 0.15s ease-out, border-color 0.15s ease-out';
-            cont.style.boxShadow = '0 0 60px rgba(155,89,182,0.9), inset 0 0 30px rgba(155,89,182,0.35)';
-            cont.style.borderColor = 'rgba(215,189,226,0.95)';
-        }
-        requestAnimationFrame(() => { flash.style.opacity = '0'; });
-        setTimeout(() => { try { flash.remove(); } catch (e) { } }, 700);
-        if (visualLines && this.words) {
-            visualLines.forEach((line, i) => {
-                setTimeout(() => {
-                    if (!line.wordIndices) return;
-                    line.wordIndices.forEach(wIdx => {
-                        const word = this.words[wIdx];
-                        if (word && word.element) {
-                            word.element.style.transition = 'color 0.35s ease, text-shadow 0.35s ease, filter 0.35s ease';
-                            word.element.style.color = '#ffffff';
-                            word.element.style.textShadow = '0 0 10px rgba(155,89,182,0.6), 0 0 2px rgba(255,255,255,0.5)';
-                            word.element.style.filter = 'brightness(1.0)';
-                        }
-                    });
-                }, i * 55);
-            });
-        }
-        const waveDur = (visualLines ? visualLines.length * 55 : 0) + 400;
-        setTimeout(() => {
-            if (cont) {
-                cont.style.transition = 'box-shadow 0.8s ease, border-color 0.8s ease';
-                cont.style.boxShadow = '';
-                cont.style.borderColor = '';
-            }
-            if (fill) {
-                fill.style.transition = 'width 0.4s ease-out';
-                fill.style.width = '100%';
-                fill.style.boxShadow = '0 0 18px rgba(155,89,182,0.85)';
-            }
-            if (typeof onDone === 'function') onDone();
-        }, waveDur);
-    }, 300);
-}
-
-// === Phase 4-A: Wave text (fallback) =====================================
-_waveTextWhite(visualLines) {
-    if (!visualLines || !this.words) return;
-    visualLines.forEach((line, i) => {
-        setTimeout(() => {
-            if (!line.wordIndices) return;
             line.wordIndices.forEach(wIdx => {
                 const word = this.words[wIdx];
                 if (word && word.element) {
-                    word.element.style.transition = 'color 0.45s ease, text-shadow 0.45s ease';
-                    word.element.style.color = '#ffffff';
-                    word.element.style.textShadow = '0 0 12px rgba(155,89,182,0.7), 0 0 3px rgba(255,255,255,0.55)';
+                    word.element.style.transition = 'text-shadow 0.4s ease-out, filter 0.4s ease-out';
+                    word.element.style.textShadow = '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                    word.element.style.filter = 'brightness(1.0)';
                 }
             });
-        }, i * 70);
-    });
-}
+        }, 100);
+    }
 
-// === Legacy stubs ========================================================
-_runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
-    if (typeof onDone === 'function') onDone();
-}
-_showRiftPopup() { }
-_checkReplayCombo() { }
-_showMiniScore() { }
-_animateScoreToHud() { }
-_spawnReplayPulse() { }
+    // ─── Progress bar: REMOVED (no-op stub kept for legacy safety) ───────────
+    _createProgressBar() { return null; }
+
+    // ─── Phase 3: Wire Discharge (전선 방전) ──────────────────────────────────
+    _runWireDischarge(chargedNodesMap, litLines, visualLines, onDone) {
+        const totalLines = visualLines.length;
+        const isSealed = totalLines > 0 && (litLines.size / totalLines) >= 0.6;
+
+        let loopRunning = true;
+        let completed = false;
+        let rafId = null;
+
+        const dischargeCanvas = document.createElement('canvas');
+        dischargeCanvas.width = window.innerWidth;
+        dischargeCanvas.height = window.innerHeight;
+        dischargeCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999998;';
+        document.body.appendChild(dischargeCanvas);
+        const dCtx = dischargeCanvas.getContext('2d');
+
+        const finish = () => {
+            if (completed) return;
+            completed = true;
+            loopRunning = false;
+            clearTimeout(hardTimeout);
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+            try { dischargeCanvas.remove(); } catch (e) { }
+            this._restoreTextWave(litLines, visualLines, isSealed, onDone);
+        };
+
+        const hardTimeout = setTimeout(finish, 8000);
+
+        // Container border geometry
+        const cRect = this.container ? this.container.getBoundingClientRect() : null;
+        const cLeft = cRect ? cRect.left : 10;
+        const cTop = cRect ? cRect.top : 10;
+        const cW = cRect ? cRect.width : window.innerWidth - 20;
+        const cH = cRect ? cRect.height : window.innerHeight - 20;
+        const perimeter = 2 * (cW + cH);
+
+        // Only discharge charged nodes in litLines, Y-ascending
+        const dischargeNodes = [];
+        chargedNodesMap.forEach(node => {
+            if (litLines.has(node.lineIdx) && node.state === 'charged') {
+                dischargeNodes.push(node);
+            }
+        });
+        dischargeNodes.sort((a, b) => a.y - b.y);
+
+        const INITIAL_WAIT = 400;
+        const BOLT_DUR = 80;
+        const ELEC_DUR = 600;
+        const FADE_DUR = 250;
+        const GAP = 120;
+        const slotDur = BOLT_DUR + ELEC_DUR + GAP;
+        const totalDur = INITIAL_WAIT +
+            Math.max(0, dischargeNodes.length - 1) * slotDur +
+            BOLT_DUR + ELEC_DUR + FADE_DUR + 350;
+
+        // Pre-compute nearest corner and bolt offsets per node
+        const corners = [
+            { x: cLeft, y: cTop },
+            { x: cLeft + cW, y: cTop },
+            { x: cLeft + cW, y: cTop + cH },
+            { x: cLeft, y: cTop + cH },
+        ];
+        const slotData = dischargeNodes.map(node => {
+            let nc = corners[0], minD = Infinity;
+            corners.forEach(c => {
+                const d = Math.hypot(c.x - node.x, c.y - node.y);
+                if (d < minD) { minD = d; nc = c; }
+            });
+            return {
+                node,
+                nearestCorner: nc,
+                boltOffsets: Array.from({ length: 3 }, () => ({
+                    dx: (Math.random() - 0.5) * 20,
+                    dy: (Math.random() - 0.5) * 20,
+                })),
+            };
+        });
+
+        let phaseStart = null;
+        const phase3Loop = (timestamp) => {
+            if (!loopRunning) return;
+            if (!phaseStart) phaseStart = timestamp;
+            const elapsed = timestamp - phaseStart;
+
+            dCtx.clearRect(0, 0, dischargeCanvas.width, dischargeCanvas.height);
+
+            // Always draw all charged nodes (excluding fully-faded)
+            chargedNodesMap.forEach(node => {
+                if (node.state !== 'idle' && node.glowAlpha > 0) {
+                    this._drawChargedNode(dCtx, node, elapsed);
+                }
+            });
+
+            // Per-slot discharge animations
+            slotData.forEach((slot, i) => {
+                if (elapsed < INITIAL_WAIT) return;
+                const slotStart = INITIAL_WAIT + i * slotDur;
+                const t = elapsed - slotStart;
+                if (t < 0) return;
+
+                const { node, nearestCorner, boltOffsets } = slot;
+
+                // Fade node glow after electric phase ends
+                if (t >= BOLT_DUR + ELEC_DUR) {
+                    const fadeT = (t - BOLT_DUR - ELEC_DUR) / FADE_DUR;
+                    node.glowAlpha = Math.max(0, 1 - fadeT);
+                }
+
+                // Bolt: node → nearest corner
+                if (t >= 0 && t < BOLT_DUR + 40) {
+                    const bPts = [{ x: node.x, y: node.y }];
+                    for (let k = 0; k < 3; k++) {
+                        const f = (k + 1) / 4;
+                        bPts.push({
+                            x: node.x + (nearestCorner.x - node.x) * f + boltOffsets[k].dx,
+                            y: node.y + (nearestCorner.y - node.y) * f + boltOffsets[k].dy,
+                        });
+                    }
+                    bPts.push(nearestCorner);
+                    dCtx.save();
+                    dCtx.beginPath();
+                    bPts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
+                    dCtx.strokeStyle = 'rgba(200,150,255,0.85)';
+                    dCtx.lineWidth = 2;
+                    dCtx.shadowColor = '#aa55ff';
+                    dCtx.shadowBlur = 14;
+                    dCtx.stroke();
+                    dCtx.restore();
+                }
+
+                // Electric point traveling the border clockwise
+                if (t >= BOLT_DUR && t < BOLT_DUR + ELEC_DUR) {
+                    const elecT = (t - BOLT_DUR) / ELEC_DUR;
+                    const d = elecT * perimeter;
+                    const pos = this._borderPos(d, cLeft, cTop, cW, cH);
+                    const TRAIL = 16;
+                    for (let j = TRAIL; j >= 0; j--) {
+                        const td = Math.max(0, d - j * (perimeter * 0.012));
+                        const tp = this._borderPos(td, cLeft, cTop, cW, cH);
+                        const fa = (1 - j / TRAIL) * 0.75;
+                        const tr = Math.max(1, 4 * (1 - j / TRAIL));
+                        dCtx.save();
+                        dCtx.globalAlpha = fa;
+                        dCtx.beginPath();
+                        dCtx.arc(tp.x, tp.y, tr, 0, Math.PI * 2);
+                        dCtx.fillStyle = 'rgba(140,80,220,1)';
+                        dCtx.shadowColor = '#9b59b6';
+                        dCtx.shadowBlur = 8;
+                        dCtx.fill();
+                        dCtx.restore();
+                    }
+                    dCtx.save();
+                    dCtx.beginPath();
+                    dCtx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
+                    dCtx.fillStyle = '#ffffff';
+                    dCtx.shadowColor = 'rgba(200,150,255,1)';
+                    dCtx.shadowBlur = 18;
+                    dCtx.fill();
+                    dCtx.restore();
+                }
+            });
+
+            if (elapsed >= totalDur) { finish(); return; }
+            rafId = requestAnimationFrame(phase3Loop);
+        };
+
+        if (dischargeNodes.length === 0) { setTimeout(finish, 400); return; }
+        rafId = requestAnimationFrame(phase3Loop);
+    }
+
+    // === Phase 4: inline result message =====================================
+    _showInlineResult(isSealed, onDone) {
+        try {
+            const titleEl = document.getElementById('replay-rift-title');
+            if (titleEl) titleEl.style.opacity = '0';
+            const msgEl = document.createElement('div');
+            msgEl.id = 'replay-rift-result';
+            msgEl.style.cssText = [
+                'position:fixed', 'bottom:68px', 'left:50%',
+                'transform:translateX(-50%)',
+                'font-size:17px', 'font-weight:700', 'font-family:monospace',
+                'letter-spacing:4px', 'text-transform:uppercase',
+                'white-space:nowrap', 'pointer-events:none', 'z-index:9999990',
+                'opacity:0', 'transition:opacity 0.4s ease',
+                isSealed
+                    ? 'color:#d7bde2;text-shadow:0 0 20px rgba(155,89,182,1),0 0 8px #fff'
+                    : 'color:rgba(180,180,210,0.85)',
+            ].join(';');
+            msgEl.textContent = isSealed ? '\u2726 RIFT SEALED \u2726' : '\u22c6 RIFT NOT YET SEALED';
+            document.body.appendChild(msgEl);
+            requestAnimationFrame(() => { msgEl.style.opacity = '1'; });
+            setTimeout(() => {
+                msgEl.style.opacity = '0';
+                setTimeout(() => {
+                    try { if (msgEl.parentNode) msgEl.remove(); } catch (e) { }
+                    if (typeof onDone === 'function') onDone();
+                }, 500);
+            }, 2500);
+        } catch (err) {
+            console.error('[showInlineResult]', err);
+            if (typeof onDone === 'function') onDone();
+        }
+    }
+
+    // === Phase 4: Text Restoration Wave ======================================
+    _restoreTextWave(litLines, visualLines, isSealed, onDone) {
+        if (isSealed && visualLines && this.words) {
+            // Only restore lines that were lit (in litLines)
+            visualLines.forEach((line, i) => {
+                if (!litLines.has(i)) return;     // not lit → grey stays grey
+                setTimeout(() => { this._lightUpLine(i); }, i * 55);
+            });
+        }
+        // Not sealed → all text stays grey (no restoration)
+        const waveDur = isSealed ? (visualLines ? visualLines.length * 55 : 0) + 200 : 0;
+        setTimeout(() => { this._showInlineResult(isSealed, onDone); }, waveDur);
+    }
+
+    // === Helper: Draw purple charged node (sphere + wrapping lightning) =======
+    _drawChargedNode(ctx, node, elapsed) {
+        const { x, y, radius, state, chargePct, fixedAngles } = node;
+        const alpha = (node.glowAlpha !== undefined) ? node.glowAlpha : 1;
+        if (alpha <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (state === 'idle') {
+            // Dim glow only
+            ctx.globalAlpha = 0.35 * alpha;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#2a0044';
+            ctx.shadowColor = 'rgba(155,89,182,0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
+
+        // Sphere body (radial gradient for 3D look)
+        const sphereAlpha = 0.6 + chargePct * 0.4;
+        ctx.globalAlpha = sphereAlpha * alpha;
+        const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, 1, x, y, radius);
+        grad.addColorStop(0, '#b066dd');
+        grad.addColorStop(0.5, '#5c0099');
+        grad.addColorStop(1, '#1a0033');
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.shadowColor = `rgba(180,100,255,${chargePct * 0.9})`;
+        ctx.shadowBlur = 10 + chargePct * 22;
+        ctx.fill();
+        ctx.restore();
+
+        if (state !== 'charging' && state !== 'charged') return;
+
+        // Wrapping lightning bolts
+        const numBolts = (state === 'charged' || chargePct >= 0.5) ? 3 : 2;
+        const angles = (state === 'charged' && fixedAngles)
+            ? fixedAngles
+            : Array.from({ length: numBolts }, () => Math.random() * Math.PI * 2);
+
+        for (let b = 0; b < numBolts; b++) {
+            const startAngle = angles[b];
+            const sweep = Math.PI * 0.6 + (Math.random() - 0.5) * 0.3; // ~108°
+            const numSeg = 5;
+            const pts = [];
+            const jitterAmt = state === 'charged' ? 3 : 7;
+            for (let s = 0; s <= numSeg; s++) {
+                const a = startAngle + (sweep / numSeg) * s;
+                const sr = radius + (Math.random() - 0.5) * jitterAmt;
+                pts.push({ x: x + Math.cos(a) * sr, y: y + Math.sin(a) * sr });
+            }
+
+            // Outer glow
+            ctx.save();
+            ctx.globalAlpha = (0.7 + chargePct * 0.3) * alpha;
+            ctx.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.strokeStyle = `rgba(180,100,255,0.85)`;
+            ctx.lineWidth = 3 + chargePct * 2;
+            ctx.shadowColor = '#9b59b6';
+            ctx.shadowBlur = 16 + chargePct * 10;
+            ctx.stroke();
+            // Inner white core
+            ctx.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // === Helper: Border position interpolation (clockwise) ===================
+    _borderPos(d, left, top, w, h) {
+        const p = 2 * (w + h);
+        d = ((d % p) + p) % p;
+        if (d <= w) return { x: left + d, y: top };
+        d -= w;
+        if (d <= h) return { x: left + w, y: top + d };
+        d -= h;
+        if (d <= w) return { x: left + w - d, y: top + h };
+        d -= w;
+        return { x: left, y: top + h - d };
+    }
+
+    // === Legacy stubs ========================================================
+    _sealRiftVFX(visualLines, onDone) { if (typeof onDone === 'function') onDone(); }
+    _waveTextWhite(visualLines) { }
+    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
+        if (typeof onDone === 'function') onDone();
+    }
+    _showRiftPopup() { }
+    _checkReplayCombo() { }
+    _showMiniScore() { }
+    _animateScoreToHud() { }
+    _spawnReplayPulse() { }
 }
 window.TextRenderer = TextRenderer;
+
