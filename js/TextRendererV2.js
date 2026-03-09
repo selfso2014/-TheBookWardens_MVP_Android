@@ -1607,7 +1607,7 @@ export class TextRenderer {
         // Phase C: scan bar
         const SCAN_START_T = BORDER_START_T + BORDER_DUR;
         const SCAN_DUR = 550;           // top→bottom travel time
-        const PHASE3_DUR = SCAN_START_T + SCAN_DUR + 200;
+        const PHASE3_DUR = SCAN_START_T + SCAN_DUR + 1000;
 
         // ── helper: zigzag path ──────────────────────────────────────────────
         const makeZigzag = (x0, y0, x1, y1, jitter = 18, steps = 5) => {
@@ -2175,7 +2175,7 @@ export class TextRenderer {
                     } catch (e) { }
                     if (typeof onDone === 'function') onDone();
                 }, 500);
-            }, 5000);
+            }, 3000);
 
         } catch (err) {
             console.error('[_showReplayEndCard]', err);
