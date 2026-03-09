@@ -145,3 +145,25 @@
     z-index: 10001;
     /* Ensure on top */
 }
+
+/* HUD Ink Icon Pop (fires on each purple node charge) */
+@keyframes ink-pop-anim {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    35% {
+        transform: scale(1.45);
+        filter: brightness(1.7) drop-shadow(0 0 8px #00ffff);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+.ink-pop {
+    animation: ink-pop-anim 0.38s ease-out forwards;
+}

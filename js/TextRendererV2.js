@@ -1172,6 +1172,7 @@ export class TextRenderer {
                     chargePct: 0,
                     fixedAngles: null, // locked on 'charged' confirm
                     glowAlpha: 1.0,    // faded during Phase 3 discharge
+                    inkDropFired: false, // fire once when charged
                 });
             });
 
@@ -1196,6 +1197,11 @@ export class TextRenderer {
                                 Math.random() * Math.PI * 2,
                                 Math.random() * Math.PI * 2,
                             ];
+                        }
+                        // Fire ink drop for any newly charged nodes
+                        if (node.state === 'charged' && !node.inkDropFired) {
+                            node.inkDropFired = true;
+                            this._fireInkDrop(node);
                         }
                     });
                     this._replayRAFId = null;
@@ -1251,6 +1257,11 @@ export class TextRenderer {
                                         Math.random() * Math.PI * 2,
                                         Math.random() * Math.PI * 2,
                                     ];
+                                }
+                                // Fire ink drop on charge confirm
+                                if (!prevNode.inkDropFired) {
+                                    prevNode.inkDropFired = true;
+                                    this._fireInkDrop(prevNode);
                                 }
                             }
                         }
@@ -1717,6 +1728,34 @@ export class TextRenderer {
         if (d <= w) return { x: left + w - d, y: top + h };
         d -= w;
         return { x: left, y: top + h - d };
+    }
+
+    // === Helper: Ink drop VFX → HUD =========================================
+    // Fires when a purple node becomes fully charged (line transition confirm).
+    // Spawns a flying ink particle that travels to the HUD ink icon.
+    _fireInkDrop(node) {
+        const INK_PER_LINE = 1;
+        try {
+            // 1. Spawn flying ink via Game helper (bezier → HUD → addInk)
+            if (window.Game && typeof window.Game.spawnFlyingResource === 'function') {
+                window.Game.spawnFlyingResource(node.x, node.y, INK_PER_LINE, 'ink');
+            }
+
+            // 2. HUD icon pop animation
+            const inkCountEl = document.getElementById('ink-count');
+            const iconEl = inkCountEl
+                ? inkCountEl.parentElement && inkCountEl.parentElement.querySelector('img.res-icon')
+                : null;
+            if (iconEl) {
+                iconEl.classList.remove('ink-pop');
+                // Force reflow to restart animation if already running
+                void iconEl.offsetWidth;
+                iconEl.classList.add('ink-pop');
+                setTimeout(() => iconEl.classList.remove('ink-pop'), 400);
+            }
+        } catch (e) {
+            console.warn('[_fireInkDrop]', e);
+        }
     }
 
     // === Legacy stubs ========================================================
