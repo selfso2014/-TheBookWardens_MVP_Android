@@ -1412,8 +1412,7 @@ export class TextRenderer {
         let loopRunning = true;
         let completed = false;
         let rafId = null;
-        let containerGlowSet = false;
-        let flashCreated = false;
+        let borderGlowSet = false;
 
         const dischargeCanvas = document.createElement('canvas');
         dischargeCanvas.width = window.innerWidth;
@@ -1456,22 +1455,17 @@ export class TextRenderer {
         dischargeNodes.sort((a, b) => a.y - b.y);
 
         // ── timing ──────────────────────────────────────────────────────────
-        const INITIAL_WAIT = 400;  // nodes vibrate
-        const CHAIN_DUR = 200;  // bolt duration node→node
-        const CHAIN_OVERLAP = 55;   // overlap between bolts
+        const INITIAL_WAIT = 400;            // nodes vibrate before chain
+        const CHAIN_DUR = 200;            // single bolt duration
+        const CHAIN_OVERLAP = 55;             // overlap between sequential bolts
         const chainTotalDur = Math.max(0, dischargeNodes.length - 1) * (CHAIN_DUR - CHAIN_OVERLAP);
-        // Gather: all nodes converge to center (100ms after chain ends)
-        const GATHER_START = INITIAL_WAIT + chainTotalDur + 80;
-        const GATHER_DUR = 300;  // convergence animation
-        const DISCHARGE_START = GATHER_START + GATHER_DUR + 60;  // big bang
-        const DISCHARGE_DUR = 600;  // simultaneous discharge flash
-        const DISCHARGE_BURST = 200;  // peak burst window
-        const TOTAL_DUR = DISCHARGE_START + DISCHARGE_DUR + 300;
-        // ── Scan-bar timing (starts when burst peaks, sweeps to bottom) ───────
-        const SCAN_START_T = DISCHARGE_START + DISCHARGE_BURST; // ms into Phase3
-        const SCAN_DUR = 550;  // top→bottom travel time (fast scan feel)
-        const SCAN_TOTAL = SCAN_START_T + SCAN_DUR + 300;     // Phase3 must last at least this long
-        const PHASE3_DUR = Math.max(TOTAL_DUR, SCAN_TOTAL);   // whichever is longer
+        // Phase B: border electric crawl
+        const BORDER_START_T = INITIAL_WAIT + chainTotalDur + 80;
+        const BORDER_DUR = 700;           // "파지직" border crawl duration
+        // Phase C: scan bar
+        const SCAN_START_T = BORDER_START_T + BORDER_DUR;
+        const SCAN_DUR = 550;           // top→bottom travel time
+        const PHASE3_DUR = SCAN_START_T + SCAN_DUR + 200;
 
         // ── helper: zigzag path ──────────────────────────────────────────────
         const makeZigzag = (x0, y0, x1, y1, jitter = 18, steps = 5) => {
@@ -1513,11 +1507,7 @@ export class TextRenderer {
             });
         }
 
-        // Gather bolt variants: each node → center
-        const gatherBolts = dischargeNodes.map(node => ({
-            node,
-            variants: Array.from({ length: 4 }, () => makeZigzag(node.x, node.y, gatherX, gatherY, 22, 6)),
-        }));
+
 
         // RAF loop
         let phaseStart = null;
@@ -1547,142 +1537,108 @@ export class TextRenderer {
                 dCtx.restore();
             });
 
-            // ── Phase B: gather — all nodes converge to center ──
-            if (elapsed >= GATHER_START && elapsed < DISCHARGE_START + 60) {
-                const gT = Math.min(1, (elapsed - GATHER_START) / GATHER_DUR);
-                const gFade = elapsed >= DISCHARGE_START ? 1 - (elapsed - DISCHARGE_START) / 60 : 1;
-                const vi = Math.floor(elapsed / 25) % 4;
-                gatherBolts.forEach(gb => {
-                    dCtx.save();
-                    dCtx.globalAlpha = gT * gFade * (0.7 + Math.random() * 0.3);
-                    drawZigzag(dCtx, gb.variants[vi], 'rgba(220,150,255,0.95)', 5, 30, 2);
-                    dCtx.restore();
-                });
-                // Center accumulation glow
-                const glowR = 8 + gT * 28;
-                dCtx.save();
-                dCtx.globalAlpha = gT * gFade * 0.9;
-                const grd = dCtx.createRadialGradient(gatherX, gatherY, 2, gatherX, gatherY, glowR);
-                grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-                grd.addColorStop(0.4, 'rgba(200,120,255,0.8)');
-                grd.addColorStop(1, 'rgba(155,89,182,0)');
-                dCtx.beginPath();
-                dCtx.arc(gatherX, gatherY, glowR, 0, Math.PI * 2);
-                dCtx.fillStyle = grd;
-                dCtx.shadowColor = '#cc88ff';
-                dCtx.shadowBlur = 40 * gT;
-                dCtx.fill();
-                dCtx.restore();
-            }
+            // ── Phase B: border electric crawl ("파지직") ────────────────────
+            if (elapsed >= BORDER_START_T && elapsed < SCAN_START_T + 100) {
+                const bElapsed = elapsed - BORDER_START_T;
+                // intensity: fade-in 100ms → MAX → fade-out last 100ms
+                const rawIntensity = Math.min(bElapsed / 100, 1,
+                    (BORDER_DUR - bElapsed + 100) / 100);
+                const intensity = Math.max(0, rawIntensity);
 
-            // ── Phase C: big bang discharge ─────────────────────────────
-            if (elapsed >= DISCHARGE_START) {
-                const disT = (elapsed - DISCHARGE_START) / DISCHARGE_DUR;
-                const disAlpha = Math.max(0, 1 - disT);
-                const burstT = Math.min(1, (elapsed - DISCHARGE_START) / DISCHARGE_BURST);
-                // burstAlpha: rises quickly then falls
-                const burstAlpha = burstT < 0.5 ? burstT * 2 : (1 - burstT) * 2;
-
-                // 1. Full-screen radial flash (DOM)
-                if (!flashCreated) {
-                    flashCreated = true;
-                    const flash = document.createElement('div');
-                    flash.style.cssText = [
-                        'position:fixed', 'inset:0', 'pointer-events:none', 'z-index:9999996',
-                        'background:radial-gradient(ellipse at center,',
-                        '  rgba(230,200,255,0.65) 0%,rgba(155,89,182,0.35) 45%,transparent 75%)',
-                        'opacity:1', 'transition:opacity 0.45s ease-out',
-                    ].join(';');
-                    document.body.appendChild(flash);
-                    requestAnimationFrame(() => { flash.style.opacity = '0'; });
-                    setTimeout(() => { try { flash.remove(); } catch (e) { } }, 600);
-                }
-
-                // 2. Container DOM glow (set once, max intensity)
-                if (!containerGlowSet && this.container) {
-                    containerGlowSet = true;
+                // ── DOM border glow (set once at start) ──
+                if (!borderGlowSet && this.container) {
+                    borderGlowSet = true;
                     this.container.style.transition = 'none';
                     this.container.style.boxShadow =
-                        '0 0 90px rgba(200,120,255,1), 0 0 180px rgba(155,89,182,0.8), ' +
-                        'inset 0 0 60px rgba(200,120,255,0.55)';
-                    this.container.style.borderColor = 'rgba(240,200,255,1)';
+                        '0 0 0 2px rgba(255,255,255,0.85), ' +
+                        '0 0 18px 4px rgba(255,255,255,0.55), ' +
+                        '0 0 40px 8px rgba(200,140,255,0.45)';
+                    this.container.style.borderColor = 'rgba(240,220,255,1)';
+                    // start fade-out of DOM glow at end of border phase
                     setTimeout(() => {
                         if (!this.container) return;
-                        this.container.style.transition = 'box-shadow 0.5s ease-out, border-color 0.5s ease-out';
-                        this.container.style.boxShadow = '0 0 15px rgba(155,89,182,0.25)';
+                        this.container.style.transition =
+                            'box-shadow 0.35s ease-out, border-color 0.35s ease-out';
+                        this.container.style.boxShadow = '';
                         this.container.style.borderColor = '';
-                    }, 350);
+                    }, BORDER_DUR - 80);
                 }
 
-                // 3. Canvas: thick burst bolts from center → container all edges
-                if (disT < 0.75) {
-                    const nBurst = Math.ceil(6 + burstAlpha * 8); // 6~14 bolts
-                    for (let b = 0; b < nBurst; b++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const edgePct = Math.random();
-                        // Target: random point on all 4 edges
-                        let tx, ty;
-                        const edge = Math.floor(Math.random() * 4);
-                        if (edge === 0) { tx = cLeft + edgePct * cW; ty = cTop; }
-                        else if (edge === 1) { tx = cLeft + cW; ty = cTop + edgePct * cH; }
-                        else if (edge === 2) { tx = cLeft + edgePct * cW; ty = cTop + cH; }
-                        else { tx = cLeft; ty = cTop + edgePct * cH; }
+                // ── Canvas: perimeter spark walkers ──
+                const numSparks = Math.round(6 + intensity * 4); // 6~10
+                const perimeter = 2 * (cW + cH);
 
-                        const pts = makeZigzag(gatherX, gatherY, tx, ty, 35, 6);
-                        const bAlpha = disAlpha * (0.6 + Math.random() * 0.4 + burstAlpha * 0.4);
-                        dCtx.save();
-                        dCtx.globalAlpha = Math.min(1, bAlpha);
-                        drawZigzag(dCtx, pts, 'rgba(220,150,255,1)', 5 + burstAlpha * 5, 40, 2.5);
-                        dCtx.restore();
+                // helper: perimeter pos → {x,y}
+                const perimPt = (d) => {
+                    d = ((d % perimeter) + perimeter) % perimeter;
+                    if (d <= cW) return { x: cLeft + d, y: cTop };
+                    d -= cW;
+                    if (d <= cH) return { x: cLeft + cW, y: cTop + d };
+                    d -= cH;
+                    if (d <= cW) return { x: cLeft + cW - d, y: cTop + cH };
+                    d -= cW;
+                    return { x: cLeft, y: cTop + cH - d };
+                };
+
+                for (let s = 0; s < numSparks; s++) {
+                    // Each spark: random start position, random short arc length
+                    const startD = Math.random() * perimeter;
+                    const arcLen = 30 + Math.random() * 70; // 30~100px along perimeter
+                    const steps = 5;
+                    const jitter = 4 + Math.random() * 8;   // perpendicular jitter
+                    const pts = [];
+                    for (let k = 0; k <= steps; k++) {
+                        const d = startD + (arcLen / steps) * k;
+                        const base = perimPt(d);
+                        // Jitter perpendicular to border: outward-facing
+                        const onTop = base.y === cTop;
+                        const onBot = Math.abs(base.y - (cTop + cH)) < 1;
+                        const onLeft = base.x === cLeft;
+                        const jx = onTop || onBot ? (Math.random() - 0.5) * jitter * 0.5
+                            : (onLeft ? -1 : 1) * Math.random() * jitter;
+                        const jy = onLeft || (!onTop && !onBot) ? (Math.random() - 0.5) * jitter * 0.5
+                            : (onTop ? -1 : 1) * Math.random() * jitter;
+                        pts.push({ x: base.x + jx, y: base.y + jy });
                     }
-                }
 
-                // 4. Canvas: triple-layer border rect
-                if (disAlpha > 0) {
-                    // Layer 1: outer wide glow
+                    const alpha = intensity * (0.55 + Math.random() * 0.45);
+                    const lw = 1.5 + Math.random() * 2.5;
+                    const blur = 10 + Math.random() * 20;
                     dCtx.save();
-                    dCtx.globalAlpha = disAlpha * 0.5;
-                    dCtx.strokeStyle = `rgba(200,140,255,${disAlpha})`;
-                    dCtx.lineWidth = 14;
-                    dCtx.shadowColor = '#bb66ff';
-                    dCtx.shadowBlur = 50 * disAlpha;
-                    dCtx.strokeRect(cLeft - 6, cTop - 6, cW + 12, cH + 12);
-                    dCtx.restore();
-                    // Layer 2: mid
-                    dCtx.save();
-                    dCtx.globalAlpha = disAlpha * 0.75;
-                    dCtx.strokeStyle = `rgba(230,180,255,${disAlpha})`;
-                    dCtx.lineWidth = 5;
-                    dCtx.shadowColor = '#dd99ff';
-                    dCtx.shadowBlur = 25 * disAlpha;
-                    dCtx.strokeRect(cLeft, cTop, cW, cH);
-                    dCtx.restore();
-                    // Layer 3: inner bright white
-                    dCtx.save();
-                    dCtx.globalAlpha = disAlpha * burstAlpha * 0.9;
+                    dCtx.globalAlpha = alpha;
+                    dCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
+                    dCtx.strokeStyle = `rgba(200,160,255,0.9)`;
+                    dCtx.lineWidth = lw + 1;
+                    dCtx.shadowColor = 'rgba(180,120,255,1)';
+                    dCtx.shadowBlur = blur;
+                    dCtx.stroke();
+                    // white core
+                    dCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
                     dCtx.strokeStyle = '#ffffff';
-                    dCtx.lineWidth = 2;
+                    dCtx.lineWidth = lw * 0.5;
                     dCtx.shadowColor = '#ffffff';
-                    dCtx.shadowBlur = 15;
-                    dCtx.strokeRect(cLeft + 1, cTop + 1, cW - 2, cH - 2);
+                    dCtx.shadowBlur = 8;
+                    dCtx.stroke();
                     dCtx.restore();
                 }
 
-                // Node fade-out during discharge
-                dischargeNodes.forEach(node => { node.glowAlpha = Math.max(0, disAlpha); });
+                // Node fade-out during border phase
+                const nodeFade = Math.max(0, 1 - bElapsed / BORDER_DUR);
+                dischargeNodes.forEach(node => { node.glowAlpha = nodeFade; });
             }
 
-            // ── Scan bar: white glow bar sweeps top → bottom of container ───
+            // ── Phase C: scan bar sweeps top→bottom ──────────────────────────
             if (elapsed >= SCAN_START_T && this.container) {
                 const scanProg = Math.min(1, (elapsed - SCAN_START_T) / SCAN_DUR);
-                // easeInOut so it starts with a pop, then settles
                 const eased = scanProg < 0.5
                     ? 2 * scanProg * scanProg
                     : 1 - Math.pow(-2 * scanProg + 2, 2) / 2;
 
                 const r = this.container.getBoundingClientRect();
                 const scanY = r.top + eased * r.height;
-                const barAlpha = scanProg < 0.97 ? 0.92 : (1 - (scanProg - 0.97) / 0.03); // fade at end
+                const barAlpha = scanProg < 0.97 ? 0.92 : (1 - (scanProg - 0.97) / 0.03);
 
                 // Layer 1: trailing gradient above bar
                 const grad = dCtx.createLinearGradient(0, scanY - 40, 0, scanY);
