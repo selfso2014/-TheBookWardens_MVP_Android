@@ -855,12 +855,12 @@ const Game = {
                         if (emailInput) emailInput.disabled = true;
                     })
                     .catch((error) => {
-                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
-                        console.error("Firebase Save Error:", error);
-                        console.error("Transmission Failed: " + error.message);
-                        newBtn.disabled = false;
-                        newBtn.innerText = originalText;
-                        newBtn.style.opacity = "1";
+                        console.error('[Firebase] Save Error (non-blocking):', error.message || error);
+                        // Firebase failed - still proceed to share screen (don't block user)
+                        this.showSuccessModal(() => { this.goToNewShare(); });
+                        newBtn.innerText = 'CLAIMED';
+                        newBtn.style.background = '#4CAF50';
+                        if (emailInput) emailInput.disabled = true;
                     });
             };
         }
