@@ -1681,21 +1681,27 @@ export class TextRenderer {
             const old = document.getElementById('replay-intro-card');
             if (old) { try { old.remove(); } catch (e) { } }
 
-            // Gather meta
+            // ── Meta data ──
             const chapterBadge = document.getElementById('chapter-title-badge');
             const chapterText = chapterBadge ? chapterBadge.textContent.trim() : 'The Book Wardens';
             const wpmEl = document.getElementById('wpm-display');
-            const wpmVal = wpmEl ? wpmEl.textContent.trim() : '—';
+            const wpmVal = wpmEl ? wpmEl.textContent.trim() : '0';
             const now = new Date();
             const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
 
-            // Overlay
+            // ── Book cover image mapping ──
+            const ct = chapterText.toLowerCase();
+            const bookImg = ct.includes('sherlock') ? './SherlockBook.png'
+                : ct.includes('aesop') ? './aesopBook.png'
+                    : './aliceBook.png';
+
+            // ── Overlay (full-screen) ──
             const overlay = document.createElement('div');
             overlay.id = 'replay-intro-card';
             Object.assign(overlay.style, {
                 position: 'fixed',
                 top: '0', left: '0', width: '100%', height: '100%',
-                background: 'radial-gradient(ellipse at center, rgba(40,0,70,0.97) 0%, rgba(5,3,15,0.99) 100%)',
+                background: 'radial-gradient(ellipse at 50% 40%, rgba(60,0,100,0.98) 0%, rgba(8,4,20,1) 70%)',
                 zIndex: '9999998',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1703,106 +1709,128 @@ export class TextRenderer {
                 justifyContent: 'center',
                 pointerEvents: 'none',
                 opacity: '0',
-                transition: 'opacity 0.45s ease',
-                gap: '14px',
+                transition: 'opacity 0.5s ease',
+                gap: '0',
             });
 
-            // Decorative top line
-            const line1 = document.createElement('div');
-            Object.assign(line1.style, {
-                width: '60px', height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(180,100,255,0.9), transparent)',
-                marginBottom: '4px',
-            });
-
-            // Badge
+            // ── Top badge ──
             const badge = document.createElement('div');
-            badge.textContent = '✦ GAZE REPLAY ✦';
+            badge.textContent = '✦  GAZE REPLAY  ✦';
             Object.assign(badge.style, {
                 fontFamily: 'monospace',
-                fontSize: 'clamp(10px, 2.8vw, 13px)',
-                letterSpacing: '5px',
-                color: 'rgba(180,120,255,0.8)',
+                fontSize: 'clamp(11px, 3vw, 14px)',
+                letterSpacing: '6px',
+                color: 'rgba(210,160,255,1)',
                 textTransform: 'uppercase',
+                textShadow: '0 0 16px rgba(180,100,255,0.9)',
+                marginBottom: '18px',
             });
 
-            // Chapter title
+            // ── Book cover image ──
+            const cover = document.createElement('img');
+            cover.src = bookImg;
+            cover.alt = chapterText;
+            Object.assign(cover.style, {
+                width: 'clamp(80px, 22vw, 130px)',
+                height: 'auto',
+                objectFit: 'contain',
+                borderRadius: '6px',
+                boxShadow: '0 0 32px rgba(180,100,255,0.7), 0 4px 20px rgba(0,0,0,0.8)',
+                marginBottom: '20px',
+                border: '1.5px solid rgba(200,140,255,0.5)',
+            });
+
+            // ── Chapter title ──
             const title = document.createElement('div');
             title.textContent = chapterText;
             Object.assign(title.style, {
                 fontFamily: "'Cinzel', 'Georgia', serif",
-                fontSize: 'clamp(15px, 4.5vw, 22px)',
+                fontSize: 'clamp(16px, 4.8vw, 24px)',
                 fontWeight: '700',
-                color: '#f0d8ff',
+                color: '#ffffff',
                 textAlign: 'center',
-                maxWidth: '80vw',
-                lineHeight: '1.4',
-                textShadow: '0 0 24px rgba(180,100,255,0.7), 0 0 8px rgba(255,255,255,0.3)',
+                maxWidth: '82vw',
+                lineHeight: '1.45',
+                textShadow: '0 0 30px rgba(200,130,255,1), 0 0 10px rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.9)',
                 padding: '0 16px',
+                marginBottom: '10px',
             });
 
-            // Divider
+            // ── Divider ──
             const divider = document.createElement('div');
             Object.assign(divider.style, {
-                width: '120px', height: '1px',
-                background: 'linear-gradient(90deg, transparent, rgba(155,89,182,0.6), transparent)',
-                margin: '2px 0',
+                width: '160px', height: '1.5px',
+                background: 'linear-gradient(90deg, transparent, rgba(200,140,255,0.9), transparent)',
+                margin: '4px 0 16px',
             });
 
-            // Stats row
+            // ── Stats row ──
             const stats = document.createElement('div');
             Object.assign(stats.style, {
                 display: 'flex',
                 flexDirection: 'row',
-                gap: '30px',
+                gap: '36px',
                 alignItems: 'center',
-                marginTop: '4px',
             });
             const mkStat = (label, val) => {
                 const s = document.createElement('div');
-                Object.assign(s.style, { textAlign: 'center', fontFamily: 'monospace' });
+                Object.assign(s.style, { textAlign: 'center' });
                 const v = document.createElement('div');
                 v.textContent = val;
-                Object.assign(v.style, { fontSize: 'clamp(13px,3.5vw,18px)', fontWeight: '700', color: '#e8d0ff' });
+                Object.assign(v.style, {
+                    fontSize: 'clamp(16px, 4vw, 22px)',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                    textShadow: '0 0 12px rgba(210,170,255,0.9)',
+                });
                 const l = document.createElement('div');
                 l.textContent = label;
-                Object.assign(l.style, { fontSize: '10px', color: 'rgba(180,150,220,0.65)', letterSpacing: '2px', marginTop: '2px' });
+                Object.assign(l.style, {
+                    fontSize: 'clamp(9px, 2vw, 11px)',
+                    color: 'rgba(200,170,240,0.85)',
+                    letterSpacing: '3px',
+                    marginTop: '3px',
+                    fontFamily: 'monospace',
+                });
                 s.appendChild(v); s.appendChild(l);
                 return s;
             };
             stats.appendChild(mkStat('WPM', wpmVal));
+            // vertical sep
+            const sep = document.createElement('div');
+            Object.assign(sep.style, { width: '1px', height: '32px', background: 'rgba(180,140,255,0.35)' });
+            stats.appendChild(sep);
             stats.appendChild(mkStat('DATE', dateStr));
 
-            // Logo watermark
+            // ── Logo ──
             const logo = document.createElement('div');
             logo.textContent = 'THE BOOK WARDENS';
             Object.assign(logo.style, {
                 fontFamily: "'Cinzel', monospace",
-                fontSize: 'clamp(8px, 2vw, 10px)',
-                letterSpacing: '4px',
-                color: 'rgba(155,89,182,0.4)',
+                fontSize: 'clamp(9px, 2.2vw, 11px)',
+                letterSpacing: '5px',
+                color: 'rgba(180,140,220,0.55)',
+                marginTop: '28px',
                 textTransform: 'uppercase',
-                marginTop: '20px',
             });
 
-            overlay.appendChild(line1);
             overlay.appendChild(badge);
+            overlay.appendChild(cover);
             overlay.appendChild(title);
             overlay.appendChild(divider);
             overlay.appendChild(stats);
             overlay.appendChild(logo);
             document.body.appendChild(overlay);
 
-            // Fade in
             requestAnimationFrame(() => { overlay.style.opacity = '1'; });
 
-            // Hold 2.2s then fade out and proceed
             setTimeout(() => {
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
-                }, 480);
+                }, 500);
             }, 5000);
 
         } catch (err) {
@@ -1823,44 +1851,40 @@ export class TextRenderer {
             const inkEl = document.getElementById('ink-count');
             const inkVal = inkEl ? (parseInt(inkEl.textContent, 10) || 0) : 0;
             const wpmEl = document.getElementById('wpm-display');
-            const wpmVal = wpmEl ? (wpmEl.textContent.trim() || '—') : '—';
+            const wpmVal = wpmEl ? (wpmEl.textContent.trim() || '0') : '0';
             const totalL = visualLines ? visualLines.length : 0;
             const litCount = litLines ? litLines.size : 0;
             const sealPct = totalL > 0 ? Math.round((litCount / totalL) * 100) : 0;
 
-            // ── Colors by outcome ──
-            const bg = sealed ? 'rgba(36,0,58,0.95)' : 'rgba(10,8,22,0.95)';
-            const bdrClr = sealed ? 'rgba(190,120,255,0.85)' : 'rgba(90,78,130,0.55)';
-            const accent = sealed ? '#e8c8ff' : 'rgba(165,155,200,0.85)';
+            // ── Colors ──
+            const bgMain = sealed ? 'radial-gradient(ellipse at 50% 30%, rgba(70,0,110,0.98) 0%, rgba(8,4,22,1) 70%)'
+                : 'radial-gradient(ellipse at 50% 30%, rgba(20,10,45,0.98) 0%, rgba(5,3,15,1) 70%)';
+            const accent = sealed ? '#ffffff' : 'rgba(210,200,240,0.9)';
+            const accentSub = sealed ? 'rgba(220,180,255,0.85)' : 'rgba(170,160,210,0.7)';
+            const bdrClr = sealed ? 'rgba(200,140,255,0.7)' : 'rgba(100,85,150,0.5)';
             const glow = sealed
-                ? '0 0 22px rgba(200,100,255,0.9), 0 0 6px rgba(255,255,255,0.6)'
-                : '0 0 6px rgba(110,95,155,0.5)';
+                ? '0 0 30px rgba(210,120,255,1), 0 0 12px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+                : '0 0 10px rgba(130,110,180,0.7), 0 2px 4px rgba(0,0,0,0.8)';
 
-            const resultText = sealed ? '\u2605 RIFT SEALED \u2605' : '\u22c6 RIFT INCOMPLETE';
+            const resultText = sealed ? '\u2605  RIFT SEALED  \u2605' : '\u22c6  RIFT INCOMPLETE';
             const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
 
-            // ── Wrapper ──
-            const wrap = document.createElement('div');
-            wrap.id = 'replay-rift-result';
-            Object.assign(wrap.style, {
+            // ── Full-screen overlay ──
+            const overlay = document.createElement('div');
+            overlay.id = 'replay-rift-result';
+            Object.assign(overlay.style, {
                 position: 'fixed',
-                bottom: '52px',
-                left: '50%',
-                transform: 'translateX(-50%) scale(0.80)',
-                background: bg,
-                border: `1.5px solid ${bdrClr}`,
-                borderRadius: '14px',
-                padding: '16px 24px 14px',
-                boxSizing: 'border-box',
-                maxWidth: 'min(400px, 92vw)',
-                width: 'max-content',
-                textAlign: 'center',
-                pointerEvents: 'none',
+                top: '0', left: '0', width: '100%', height: '100%',
+                background: bgMain,
                 zIndex: '9999990',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
                 opacity: '0',
-                transition: 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-                boxShadow: `0 0 40px rgba(155,89,182,0.35), inset 0 0 20px rgba(155,89,182,0.06)`,
-                backdropFilter: 'blur(8px)',
+                transition: 'opacity 0.45s ease',
+                gap: '0',
             });
 
             // Result title
@@ -1868,98 +1892,111 @@ export class TextRenderer {
             title.textContent = resultText;
             Object.assign(title.style, {
                 color: accent,
-                fontSize: 'clamp(14px, 3.8vw, 20px)',
-                fontWeight: '800',
-                fontFamily: 'monospace',
-                letterSpacing: '4px',
-                textTransform: 'uppercase',
-                whiteSpace: 'normal',
-                wordBreak: 'keep-all',
-                lineHeight: '1.3',
+                fontSize: 'clamp(20px, 6vw, 32px)',
+                fontWeight: '900',
+                fontFamily: "'Cinzel', monospace",
+                letterSpacing: '5px',
+                textAlign: 'center',
                 textShadow: glow,
-                marginBottom: '10px',
+                lineHeight: '1.3',
+                marginBottom: '6px',
             });
 
-            // Divider line
+            // Sub text
+            const sub = document.createElement('div');
+            sub.textContent = resultSub;
+            Object.assign(sub.style, {
+                color: accentSub,
+                fontSize: 'clamp(11px, 2.8vw, 14px)',
+                fontFamily: 'monospace',
+                letterSpacing: '3px',
+                textTransform: 'uppercase',
+                textShadow: '0 0 8px rgba(180,140,255,0.6)',
+                marginBottom: '28px',
+            });
+
+            // Divider
             const div = document.createElement('div');
             Object.assign(div.style, {
-                width: '100%', height: '1px',
+                width: '200px', height: '1.5px',
                 background: `linear-gradient(90deg, transparent, ${bdrClr}, transparent)`,
-                margin: '6px 0 10px',
+                margin: '0 0 28px',
             });
 
-            // Stats row
+            // Stats row container
             const statsRow = document.createElement('div');
             Object.assign(statsRow.style, {
                 display: 'flex',
                 flexDirection: 'row',
                 justifyContent: 'center',
-                gap: '20px',
-                margin: '0 0 8px',
+                gap: '0',
+                alignItems: 'stretch',
             });
-            const mkStat = (icon, val, lbl) => {
+
+            const mkStat = (icon, val, lbl, last) => {
                 const s = document.createElement('div');
-                Object.assign(s.style, { textAlign: 'center', fontFamily: 'monospace' });
+                Object.assign(s.style, {
+                    textAlign: 'center',
+                    padding: '0 28px',
+                    borderRight: last ? 'none' : `1px solid rgba(180,140,255,0.3)`,
+                });
                 const ic = document.createElement('div');
                 ic.textContent = icon;
-                ic.style.fontSize = '14px';
+                Object.assign(ic.style, { fontSize: 'clamp(20px,5vw,28px)', lineHeight: '1', marginBottom: '6px' });
                 const vv = document.createElement('div');
                 vv.textContent = val;
-                Object.assign(vv.style, { fontSize: 'clamp(13px,3.5vw,17px)', fontWeight: '700', color: accent });
+                Object.assign(vv.style, {
+                    fontSize: 'clamp(22px, 6vw, 34px)',
+                    fontWeight: '900',
+                    color: accent,
+                    fontFamily: 'monospace',
+                    lineHeight: '1',
+                    textShadow: '0 0 16px rgba(210,170,255,0.9)',
+                    marginBottom: '5px',
+                });
                 const ll = document.createElement('div');
                 ll.textContent = lbl;
-                Object.assign(ll.style, { fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(180,150,220,0.6)', marginTop: '1px' });
+                Object.assign(ll.style, {
+                    fontSize: 'clamp(9px, 2.2vw, 11px)',
+                    color: accentSub,
+                    letterSpacing: '3px',
+                    fontFamily: 'monospace',
+                    textTransform: 'uppercase',
+                });
                 s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
                 return s;
             };
-            statsRow.appendChild(mkStat('🖋', inkVal, 'INK'));
-            statsRow.appendChild(mkStat('⚡', wpmVal, 'WPM'));
-            statsRow.appendChild(mkStat('🔮', `${sealPct}%`, 'SEALED'));
+            statsRow.appendChild(mkStat('\uD83D\uDD8B', inkVal, 'INK', false));
+            statsRow.appendChild(mkStat('\u26A1', wpmVal, 'WPM', false));
+            statsRow.appendChild(mkStat('\uD83D\uDD2E', `${sealPct}%`, 'SEALED', true));
 
-            // Sub label
-            const sub = document.createElement('div');
-            sub.textContent = resultSub;
-            Object.assign(sub.style, {
-                color: sealed ? 'rgba(205,165,255,0.65)' : 'rgba(135,125,170,0.6)',
-                fontSize: '10px',
-                fontFamily: 'monospace',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                marginTop: '4px',
-            });
-
-            // Game logo watermark
+            // Logo
             const logo = document.createElement('div');
             logo.textContent = 'THE BOOK WARDENS';
             Object.assign(logo.style, {
                 fontFamily: "'Cinzel', monospace",
-                fontSize: '8px',
-                letterSpacing: '3px',
-                color: 'rgba(155,89,182,0.35)',
-                marginTop: '10px',
+                fontSize: 'clamp(9px, 2.2vw, 11px)',
+                letterSpacing: '5px',
+                color: 'rgba(180,140,220,0.45)',
+                marginTop: '36px',
+                textTransform: 'uppercase',
             });
 
-            wrap.appendChild(title);
-            wrap.appendChild(div);
-            wrap.appendChild(statsRow);
-            wrap.appendChild(sub);
-            wrap.appendChild(logo);
-            document.body.appendChild(wrap);
+            overlay.appendChild(title);
+            overlay.appendChild(sub);
+            overlay.appendChild(div);
+            overlay.appendChild(statsRow);
+            overlay.appendChild(logo);
+            document.body.appendChild(overlay);
 
-            // Animate in
-            requestAnimationFrame(() => {
-                wrap.style.opacity = '1';
-                wrap.style.transform = 'translateX(-50%) scale(1)';
-            });
+            requestAnimationFrame(() => { overlay.style.opacity = '1'; });
 
-            // Linger 3.2s then fade out → onDone
             setTimeout(() => {
-                wrap.style.opacity = '0';
-                wrap.style.transform = 'translateX(-50%) scale(0.92)';
+                overlay.style.opacity = '0';
                 setTimeout(() => {
-                    try { if (wrap.parentNode) wrap.remove(); } catch (e) { }
+                    try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
                     if (typeof onDone === 'function') onDone();
-                }, 420);
+                }, 500);
             }, 5000);
 
         } catch (err) {
@@ -1967,6 +2004,7 @@ export class TextRenderer {
             if (typeof onDone === 'function') onDone();
         }
     }
+
 
     // === Phase 4: Text Restoration Wave ======================================
     _restoreTextWave(litLines, visualLines, isSealed, onDone) {
@@ -2023,7 +2061,7 @@ export class TextRenderer {
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = grad;
-        ctx.shadowColor = `rgba(180,100,255,${chargePct * 0.9})`;
+        ctx.shadowColor = `rgba(180, 100, 255, ${chargePct * 0.9})`;
         ctx.shadowBlur = 10 + chargePct * 22;
         ctx.fill();
         ctx.restore();
@@ -2053,7 +2091,7 @@ export class TextRenderer {
             ctx.globalAlpha = (0.7 + chargePct * 0.3) * alpha;
             ctx.beginPath();
             pts.forEach((p, pi) => pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-            ctx.strokeStyle = `rgba(180,100,255,0.85)`;
+            ctx.strokeStyle = `rgba(180, 100, 255, 0.85)`;
             ctx.lineWidth = 3 + chargePct * 2;
             ctx.shadowColor = '#9b59b6';
             ctx.shadowBlur = 16 + chargePct * 10;
