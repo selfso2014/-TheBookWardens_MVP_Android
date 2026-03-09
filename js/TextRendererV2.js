@@ -1722,17 +1722,20 @@ export class TextRenderer {
                 gap: '0',
             });
 
-            // ── Top badge ──
+            // ── Hero title: GAZE REPLAY ──
             const badge = document.createElement('div');
-            badge.textContent = '✦  GAZE REPLAY  ✦';
+            badge.textContent = 'GAZE REPLAY';
             Object.assign(badge.style, {
-                fontFamily: 'monospace',
-                fontSize: 'clamp(11px, 3vw, 14px)',
+                fontFamily: "'Cinzel', 'Georgia', serif",
+                fontSize: 'clamp(24px, 7vw, 36px)',
+                fontWeight: '900',
                 letterSpacing: '6px',
-                color: 'rgba(210,160,255,1)',
+                color: '#ffffff',
                 textTransform: 'uppercase',
-                textShadow: '0 0 16px rgba(180,100,255,0.9)',
-                marginBottom: '18px',
+                textAlign: 'center',
+                textShadow: '0 0 36px rgba(200,120,255,1), 0 0 14px rgba(255,255,255,0.8), 0 2px 6px rgba(0,0,0,0.9)',
+                lineHeight: '1.2',
+                marginBottom: '16px',
             });
 
             // ── Book cover image ──
@@ -1749,20 +1752,22 @@ export class TextRenderer {
                 border: '1.5px solid rgba(200,140,255,0.5)',
             });
 
-            // ── Chapter title ──
+            // ── Sub-title: chapter name ──
             const title = document.createElement('div');
             title.textContent = chapterText;
             Object.assign(title.style, {
-                fontFamily: "'Cinzel', 'Georgia', serif",
-                fontSize: 'clamp(16px, 4.8vw, 24px)',
-                fontWeight: '700',
-                color: '#ffffff',
+                fontFamily: 'monospace',
+                fontSize: 'clamp(10px, 2.6vw, 13px)',
+                fontWeight: '400',
+                color: 'rgba(200,170,240,0.85)',
                 textAlign: 'center',
                 maxWidth: '82vw',
-                lineHeight: '1.45',
-                textShadow: '0 0 30px rgba(200,130,255,1), 0 0 10px rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.9)',
-                padding: '0 16px',
+                lineHeight: '1.5',
+                letterSpacing: '2px',
+                textShadow: '0 0 8px rgba(180,130,255,0.5)',
+                padding: '0 12px',
                 marginBottom: '10px',
+                textTransform: 'uppercase',
             });
 
             // ── Divider ──
