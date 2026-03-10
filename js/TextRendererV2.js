@@ -1159,30 +1159,30 @@ export class TextRenderer {
                 const label = document.createElement('div');
                 label.id = 'replay-watermark-label';
                 Object.assign(label.style, {
-                    position      : 'fixed',
-                    display       : 'flex',
-                    alignItems    : 'center',
-                    padding       : '3px 11px 3px 6px',
-                    background    : 'rgba(18,6,38,0.96)',
-                    border        : '1.5px solid rgba(180,120,255,0.60)',
-                    borderRadius  : '50px',
-                    boxShadow     : '0 0 16px rgba(120,60,220,0.40)',
+                    position: 'fixed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '3px 11px 3px 6px',
+                    background: 'rgba(18,6,38,0.96)',
+                    border: '1.5px solid rgba(180,120,255,0.60)',
+                    borderRadius: '50px',
+                    boxShadow: '0 0 16px rgba(120,60,220,0.40)',
                     backdropFilter: 'blur(8px)',
-                    pointerEvents : 'none',
-                    zIndex        : '9999999',
-                    opacity       : '1',
+                    pointerEvents: 'none',
+                    zIndex: '9999999',
+                    opacity: '1',
                 });
 
                 // ── Mini canvas: same plasma sphere as Phase 2 ────────────
                 const cvs = document.createElement('canvas');
-                cvs.width  = 80;   // same scale as full canvas sphere (r=34 outer ring -> 80px fits)
+                cvs.width = 80;   // same scale as full canvas sphere (r=34 outer ring -> 80px fits)
                 cvs.height = 80;
                 Object.assign(cvs.style, {
-                    width       : '32px',
-                    height      : '32px',
-                    marginRight : '8px',
-                    flexShrink  : '0',
-                    display     : 'block',
+                    width: '32px',
+                    height: '32px',
+                    marginRight: '8px',
+                    flexShrink: '0',
+                    display: 'block',
                     imageRendering: 'crisp-edges',
                 });
                 const mCtx = cvs.getContext('2d');
@@ -1197,19 +1197,19 @@ export class TextRenderer {
                 }
                 const textWrap = document.createElement('span');
                 Object.assign(textWrap.style, {
-                    display  : 'inline-block',
+                    display: 'inline-block',
                     animation: 'replayTextBlink 1.8s ease-in-out infinite',
                 });
                 const txt = document.createElement('span');
                 txt.textContent = 'Gaze Replay';
                 Object.assign(txt.style, {
-                    fontFamily   : "'Cinzel', 'Georgia', serif",
-                    fontSize     : 'clamp(11px, 2.9vw, 15px)',
-                    fontWeight   : '700',
+                    fontFamily: "'Cinzel', 'Georgia', serif",
+                    fontSize: 'clamp(11px, 2.9vw, 15px)',
+                    fontWeight: '700',
                     letterSpacing: '4px',
-                    color        : '#ffffff',
-                    textShadow   : '0 0 12px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
-                    whiteSpace   : 'nowrap',
+                    color: '#ffffff',
+                    textShadow: '0 0 12px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
+                    whiteSpace: 'nowrap',
                 });
                 textWrap.appendChild(txt);
                 label.appendChild(cvs);
@@ -1218,25 +1218,25 @@ export class TextRenderer {
                 // ── Position: between HUD bottom and chapter badge top ─────
                 document.body.appendChild(label);
                 try {
-                    const hud   = document.getElementById('hud') ||
-                                  document.querySelector('.hud-container, .hud, #resource-hud');
+                    const hud = document.getElementById('hud') ||
+                        document.querySelector('.hud-container, .hud, #resource-hud');
                     const badge = document.getElementById('chapter-title-badge');
-                    const lh    = label.getBoundingClientRect().height;
+                    const lh = label.getBoundingClientRect().height;
                     if (badge) {
                         const br = badge.getBoundingClientRect();
                         // Place below text box (this.container) bottom border
                         const contRect = this.container ? this.container.getBoundingClientRect() : br;
-                        label.style.top       = (contRect.bottom + 6) + 'px';
-                        label.style.left      = (contRect.left + contRect.width / 2) + 'px';
+                        label.style.top = (contRect.bottom + 6) + 'px';
+                        label.style.left = (contRect.left + contRect.width / 2) + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
-                        label.style.top       = '88%';
-                        label.style.left      = '50%';
+                        label.style.top = '88%';
+                        label.style.left = '50%';
                         label.style.transform = 'translateX(-50%)';
                     }
                 } catch (e) {
-                    label.style.top       = '14%';
-                    label.style.left      = '50%';
+                    label.style.top = '14%';
+                    label.style.left = '50%';
                     label.style.transform = 'translateX(-50%)';
                 }
 
@@ -1246,7 +1246,7 @@ export class TextRenderer {
                     if (!cvs.isConnected) return;   // stop if removed from DOM
                     if (!rafStart) rafStart = timestamp;
                     const elapsed = timestamp - rafStart;
-                    const theta   = elapsed * 0.003;  // same rotation speed as Phase 2
+                    const theta = elapsed * 0.003;  // same rotation speed as Phase 2
 
                     mCtx.clearRect(0, 0, 80, 80);
 
@@ -1254,9 +1254,9 @@ export class TextRenderer {
                     mCtx.save();
                     mCtx.beginPath();
                     mCtx.arc(cx, cy, 6, 0, Math.PI * 2);
-                    mCtx.fillStyle    = '#ffffff';
-                    mCtx.shadowColor  = '#00ff88';
-                    mCtx.shadowBlur   = 20;
+                    mCtx.fillStyle = '#ffffff';
+                    mCtx.shadowColor = '#00ff88';
+                    mCtx.shadowBlur = 20;
                     mCtx.fill();
                     mCtx.restore();
 
@@ -1267,9 +1267,9 @@ export class TextRenderer {
                     mCtx.beginPath();
                     mCtx.arc(0, 0, 18, 0, Math.PI * 2);
                     mCtx.strokeStyle = 'rgba(0,255,120,0.5)';
-                    mCtx.lineWidth   = 1.5;
+                    mCtx.lineWidth = 1.5;
                     mCtx.shadowColor = 'rgba(0,255,120,0.8)';
-                    mCtx.shadowBlur  = 12;
+                    mCtx.shadowBlur = 12;
                     mCtx.stroke();
                     mCtx.restore();
 
@@ -1280,9 +1280,9 @@ export class TextRenderer {
                     mCtx.beginPath();
                     mCtx.arc(0, 0, 34, 0, Math.PI * 2);
                     mCtx.strokeStyle = 'rgba(0,255,120,0.2)';
-                    mCtx.lineWidth   = 1;
+                    mCtx.lineWidth = 1;
                     mCtx.shadowColor = 'rgba(0,255,120,0.4)';
-                    mCtx.shadowBlur  = 6;
+                    mCtx.shadowBlur = 6;
                     mCtx.stroke();
                     mCtx.restore();
 
@@ -2100,7 +2100,7 @@ export class TextRenderer {
                 alignItems: 'stretch',
             });
 
-            const mkStat = (icon, val, lbl, last) => {
+            const mkStat = (icon, val, lbl, last, sublbl) => {
                 const s = document.createElement('div');
                 Object.assign(s.style, {
                     textAlign: 'center',
@@ -2131,12 +2131,25 @@ export class TextRenderer {
                     textTransform: 'uppercase',
                 });
                 if (icon) s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
+                if (sublbl) {
+                    const sl = document.createElement('div');
+                    sl.textContent = sublbl;
+                    Object.assign(sl.style, {
+                        fontSize: 'clamp(8px, 1.8vw, 9px)',
+                        color: 'rgba(180,150,220,0.55)',
+                        letterSpacing: '1.5px',
+                        fontFamily: 'monospace',
+                        textTransform: 'uppercase',
+                        marginTop: '2px',
+                    });
+                    s.appendChild(sl);
+                }
                 return s;
             };
-            // Accuracy = litLines read / totalLines
-            const accuracyVal = sealPct;  // already computed as litCount/totalL * 100
-            statsRow.appendChild(mkStat('', wpmVal, 'WPM', false));
-            statsRow.appendChild(mkStat('', accuracyVal + '%', 'ACCURACY', true));
+            // Line Coverage = litLines read / totalLines
+            const coverageVal = sealPct;  // already computed as litCount/totalL * 100
+            statsRow.appendChild(mkStat('', wpmVal, 'WPM', false, 'Words Per Minute'));
+            statsRow.appendChild(mkStat('', coverageVal + '%', 'LINE COVERAGE', true));
 
             // Logo
             const logo = document.createElement('div');
