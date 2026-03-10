@@ -468,6 +468,7 @@
        - 데스크탑 폴백: <a download> 자동 다운로드
        ============================================================ -->
   <button id="dev-screenshot-btn" aria-label="[DEV] Take Screenshot" title="[DEV] Take Screenshot" style="
+      display:none;
       position:fixed; top:12px; right:12px;
       z-index:2147483647;
       width:40px; height:40px;
@@ -653,7 +654,7 @@
         <div class="start-prompt">Touch to Start</div>
         <!-- [DEV] Shortcut to Score Screen -->
         <button id="dev-score-btn" onclick="window.Game && window.Game.goToNewScore({wpm:185,ink:240,rune:80,gem:60})"
-          style="position:absolute;bottom:18px;right:14px;padding:6px 13px;font-size:0.72rem;
+          style="display:none;position:absolute;bottom:18px;right:14px;padding:6px 13px;font-size:0.72rem;
                  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.22);
                  color:rgba(255,255,255,0.55);border-radius:20px;cursor:pointer;letter-spacing:1px;
                  font-family:monospace;">
