@@ -1,4 +1,4 @@
-import { storyParagraphs } from './data/StoryContent.js?v=20260224-FQ';
+﻿import { storyParagraphs } from './data/StoryContent.js?v=20260224-FQ';
 import { storyChapter1 } from './data/StoryContent_Dynamic.js?v=20260224-FQ';
 import { vocabList, midBossQuizzes, finalBossQuiz } from './data/QuizData.js?v=20260224-FQ';
 import { ScoreManager } from './managers/ScoreManager.js?v=20260224-FQ';
@@ -745,125 +745,125 @@ const Game = {
 
         // [FIX v2] Bind Claim Reward Button logic (deferred until DOM is settled)
         setTimeout(() => {
-        const btnClaim = document.getElementById("btn-claim-reward");
-        if (btnClaim) {
-            // Remove old listeners (clone node trick)
-            const newBtn = btnClaim.cloneNode(true);
-            if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
+            const btnClaim = document.getElementById("btn-claim-reward");
+            if (btnClaim) {
+                // Remove old listeners (clone node trick)
+                const newBtn = btnClaim.cloneNode(true);
+                if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
 
-            newBtn.onclick = async () => {
-                // Re-query emailInput fresh on every click (avoid stale DOM ref)
-                const emailInput = document.getElementById("warden-email");
-                const email = emailInput ? emailInput.value.trim() : "";
+                newBtn.onclick = async () => {
+                    // Re-query emailInput fresh on every click (avoid stale DOM ref)
+                    const emailInput = document.getElementById("warden-email");
+                    const email = emailInput ? emailInput.value.trim() : "";
 
-                if (!email || !email.includes("@")) {
-                    alert("Please enter a valid email address.");
-                    return;
-                }
-
-                // 1. Load Firebase SDK on demand (deferred from page load)
-                if (typeof firebase === "undefined") {
-                    newBtn.innerText = "⏳ CONNECTING...";
-                    try {
-                        await loadFirebaseSDK();
-                    } catch (e) {
-                        console.error("[Firebase] SDK dynamic load failed:", e);
-                        alert("System Error: Firebase SDK failed to load.");
-                        newBtn.disabled = false;
-                        newBtn.innerText = "CLAIM REWARD";
+                    if (!email || !email.includes("@")) {
+                        alert("Please enter a valid email address.");
                         return;
                     }
-                }
 
-                if (!firebase.apps.length) {
-                    if (window.FIREBASE_CONFIG) {
+                    // 1. Load Firebase SDK on demand (deferred from page load)
+                    if (typeof firebase === "undefined") {
+                        newBtn.innerText = "⏳ CONNECTING...";
                         try {
-                            firebase.initializeApp(window.FIREBASE_CONFIG);
+                            await loadFirebaseSDK();
                         } catch (e) {
-                            console.error("Firebase Init Error:", e);
-                            alert("Database Connection Failed.");
+                            console.error("[Firebase] SDK dynamic load failed:", e);
+                            alert("System Error: Firebase SDK failed to load.");
+                            newBtn.disabled = false;
+                            newBtn.innerText = "CLAIM REWARD";
                             return;
                         }
-                    } else {
-                        alert("System Error: Firebase Config missing.");
-                        return;
                     }
-                }
 
-                // 2. Prepare Data
-                const now = new Date();
-                // KST (UTC+9) formatting
-                const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                const kstStr = kstDate.toISOString().replace('T', ' ').slice(0, 19);
-
-                const reportData = {
-                    email: email,
-                    timestamp: kstStr,
-                    wpm: finalWPM,
-                    rank: rank,
-                    ink: finalInk,
-                    rune: finalRune,
-                    gem: finalGem,
-                    device: navigator.userAgent
-                };
-
-                // 3. Save to Realtime Database
-                const originalText = "CLAIM REWARD";
-                newBtn.disabled = true;
-                newBtn.innerText = "⏳ SAVING...";
-                newBtn.style.opacity = "0.7";
-
-                // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
-                const db = firebase.database();
-
-                // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
-                const newLeadRef = db.ref("warden_leads/" + (window.Game.firebaseSessionId || window.Game.sessionId));
-
-                // Add Session ID reference to report data
-                reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
-
-                // Amplitude 'Reward_Claimed' event and User Properties
-                if (window.amplitude) {
-                    if (window.amplitude.Identify) {
-                        const identifyEvent = new window.amplitude.Identify().set('email', email);
-                        window.amplitude.identify(identifyEvent);
+                    if (!firebase.apps.length) {
+                        if (window.FIREBASE_CONFIG) {
+                            try {
+                                firebase.initializeApp(window.FIREBASE_CONFIG);
+                            } catch (e) {
+                                console.error("Firebase Init Error:", e);
+                                alert("Database Connection Failed.");
+                                return;
+                            }
+                        } else {
+                            alert("System Error: Firebase Config missing.");
+                            return;
+                        }
                     }
-                    window.amplitude.track('Reward_Claimed', { rank: rank });
-                }
 
-                // Promise Array for Parallel saving
-                const promises = [];
+                    // 2. Prepare Data
+                    const now = new Date();
+                    // KST (UTC+9) formatting
+                    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                    const kstStr = kstDate.toISOString().replace('T', ' ').slice(0, 19);
 
-                // 1. Save Lead Data (Summary)
-                promises.push(newLeadRef.set(reportData));
+                    const reportData = {
+                        email: email,
+                        timestamp: kstStr,
+                        wpm: finalWPM,
+                        rank: rank,
+                        ink: finalInk,
+                        rune: finalRune,
+                        gem: finalGem,
+                        device: navigator.userAgent
+                    };
 
-                // 2. Save Full Gaze Data (Detail) - if available
-                if (window.gazeDataManager) {
-                    newBtn.innerText = "⏳ DATA SYNC...";
-                    console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
-                    promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
-                }
+                    // 3. Save to Realtime Database
+                    const originalText = "CLAIM REWARD";
+                    newBtn.disabled = true;
+                    newBtn.innerText = "⏳ SAVING...";
+                    newBtn.style.opacity = "0.7";
 
-                Promise.all(promises)
-                    .then(() => {
-                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
-                        this.showSuccessModal(() => {
-                            this.goToNewShare();
+                    // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
+                    const db = firebase.database();
+
+                    // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
+                    const newLeadRef = db.ref("warden_leads/" + (window.Game.firebaseSessionId || window.Game.sessionId));
+
+                    // Add Session ID reference to report data
+                    reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
+
+                    // Amplitude 'Reward_Claimed' event and User Properties
+                    if (window.amplitude) {
+                        if (window.amplitude.Identify) {
+                            const identifyEvent = new window.amplitude.Identify().set('email', email);
+                            window.amplitude.identify(identifyEvent);
+                        }
+                        window.amplitude.track('Reward_Claimed', { rank: rank });
+                    }
+
+                    // Promise Array for Parallel saving
+                    const promises = [];
+
+                    // 1. Save Lead Data (Summary)
+                    promises.push(newLeadRef.set(reportData));
+
+                    // 2. Save Full Gaze Data (Detail) - if available
+                    if (window.gazeDataManager) {
+                        newBtn.innerText = "⏳ DATA SYNC...";
+                        console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
+                        promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
+                    }
+
+                    Promise.all(promises)
+                        .then(() => {
+                            // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
+                            this.showSuccessModal(() => {
+                                this.goToNewShare();
+                            });
+                            newBtn.innerText = "✅ CLAIMED";
+                            newBtn.style.background = "#4CAF50";
+                            if (emailInput) emailInput.disabled = true;
+                        })
+                        .catch((error) => {
+                            console.error('[Firebase] Save Error (non-blocking):', error.message || error);
+                            // Firebase failed - still proceed to share screen (don't block user)
+                            this.showSuccessModal(() => { this.goToNewShare(); });
+                            newBtn.innerText = 'CLAIMED';
+                            newBtn.style.background = '#4CAF50';
+                            if (emailInput) emailInput.disabled = true;
                         });
-                        newBtn.innerText = "✅ CLAIMED";
-                        newBtn.style.background = "#4CAF50";
-                        if (emailInput) emailInput.disabled = true;
-                    })
-                    .catch((error) => {
-                        console.error('[Firebase] Save Error (non-blocking):', error.message || error);
-                        // Firebase failed - still proceed to share screen (don't block user)
-                        this.showSuccessModal(() => { this.goToNewShare(); });
-                        newBtn.innerText = 'CLAIMED';
-                        newBtn.style.background = '#4CAF50';
-                        if (emailInput) emailInput.disabled = true;
-                    });
-            };
-        }
+                };
+            }
         }, 300); // end setTimeout - deferred bind after DOM is ready
     },
 
@@ -1664,11 +1664,12 @@ Game.typewriter = {
 
                 // Step 5: Advance
                 if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                    console.log("[Game] All paragraphs done. Triggering Boss Calibration...");
+                    // [SKIP] Boss Calibration 2 screens removed.
+                    // Previously: screen-boss-calibration → 5-point gaze calibration → showFinalBossAlert
+                    // Now: directly jump to Final Boss alert after last mini-boss answer.
+                    console.log("[Game] All paragraphs done. Skipping Boss Calibration → Final Boss directly.");
                     setTimeout(() => {
-                        Game.switchScreen('screen-boss-calibration');
-                        const intro = document.getElementById('boss-cal-intro');
-                        if (intro) intro.style.display = 'block';
+                        this.showFinalBossAlert();
                     }, 1000);
                 } else {
                     const villainModal = document.getElementById("villain-modal");
