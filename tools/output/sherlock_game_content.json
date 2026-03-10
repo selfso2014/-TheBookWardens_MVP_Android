@@ -1,0 +1,1274 @@
+{
+  "book_id": "sherlock",
+  "title": "The Adventures of Sherlock Holmes",
+  "author": "Arthur Conan Doyle",
+  "total_days": 11,
+  "chapters": [
+    {
+      "chapter_num": 1,
+      "chapter_id": "ch1",
+      "title": "A Scandal In Bohemia",
+      "day": 1,
+      "passages": {
+        "A": {
+          "text": "To Sherlock Holmes she is always _the_ woman. I have seldom heard him mention her under any other name. In his eyes she eclipses and predominates the whole of her sex. It was not that he felt any emotion akin to love for Irene Adler. All emotions, and that one particularly, were abhorrent to his cold, precise but admirably balanced mind. He was, I take it, the most perfect reasoning and observing machine that the world has seen, but as a lover he would have placed himself in a false position. He never spoke of the softer passions, save with a gibe and a sneer. They were admirable things for the observer—excellent for drawing the veil from men’s motives and actions. But for the trained reasoner to admit such intrusions into his own delicate and finely adjusted temperament was to introduce a distracting factor which might throw a doubt upon all his mental results. Grit in a sensitive instrument, or a crack in one of his own high-power lenses, would not be more disturbing than a strong emotion in a nature such as his. And yet there was but one woman to him, and that woman was the late Irene Adler, of dubious and questionable memory.",
+          "word_count": 206,
+          "source_ids": [
+            "ch1_p1"
+          ],
+          "vocab": {
+            "word": "emotion",
+            "sentence": "It was not that he felt any <b>emotion</b> akin to love for Irene Adler.",
+            "options": [
+              "A. A physical sensation",
+              "B. A mental state or feeling",
+              "C. A logical reasoning"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/emotion.png",
+            "definition": "A mental state or feeling"
+          },
+          "midBossQuiz": {
+            "q": "How does Sherlock Holmes view emotions in relation to his reasoning?",
+            "o": [
+              "He believes they enhance his reasoning.",
+              "He finds them distracting to his mental results.",
+              "He thinks they are necessary for understanding people."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "Holmes laughed. “It is quite a pretty little problem,” said he. “But a very serious one to me,” returned the King reproachfully. “Very, indeed. And what does she propose to do with the photograph?” “I am about to be married.” “So I have heard.” “To Clotilde Lothman von Saxe-Meningen, second daughter of the King of Scandinavia. You may know the strict principles of her family. She is herself the very soul of delicacy. A shadow of a doubt as to my conduct would bring the matter to an end.” “Threatens to send them the photograph. And she will do it. I know that she will do it. You do not know her, but she has a soul of steel. She has the face of the most beautiful of women, and the mind of the most resolute of men. Rather than I should marry another woman, there are no lengths to which she would not go—none.”",
+          "word_count": 155,
+          "source_ids": [
+            "ch1_p85",
+            "ch1_p86",
+            "ch1_p87",
+            "ch1_p90",
+            "ch1_p91",
+            "ch1_p92",
+            "ch1_p94"
+          ],
+          "vocab": {
+            "word": "delicacy",
+            "sentence": "She is herself the very soul of <b>delicacy</b>.",
+            "options": [
+              "A. a quality of being fragile",
+              "B. a quality of refined beauty or grace",
+              "C. a state of being unrefined"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/delicacy.png",
+            "definition": "a quality of refined beauty or grace"
+          },
+          "midBossQuiz": {
+            "q": "What does the woman threaten to do with the photograph?",
+            "o": [
+              "She will destroy the photograph.",
+              "She threatens to send them the photograph.",
+              "She will keep the photograph hidden."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“Her banker or her lawyer. There is that double possibility. But I am inclined to think neither. Women are naturally secretive, and they like to do their own secreting. Why should she hand it over to anyone else? She could trust her own guardianship, but she could not tell what indirect or political influence might be brought to bear upon a business man. Besides, remember that she had resolved to use it within a few days. It must be where she can lay her hands upon it. It must be in her own house.” “But it has twice been burgled.” “Pshaw! They did not know how to look.” “But how will you look?” “I will not look.” “I will get her to show me.” “But she will refuse.” “She will not be able to. But I hear the rumble of wheels. It is her carriage. Now carry out my orders to the letter.”",
+          "word_count": 153,
+          "source_ids": [
+            "ch1_p169",
+            "ch1_p170",
+            "ch1_p171",
+            "ch1_p172",
+            "ch1_p173",
+            "ch1_p175",
+            "ch1_p176",
+            "ch1_p177"
+          ],
+          "vocab": {
+            "word": "secreting",
+            "sentence": "Women are naturally secretive, and they like to do their own <b>secreting</b>.",
+            "options": [
+              "A. revealing secrets",
+              "B. keeping secrets",
+              "C. sharing information"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/secreting.png",
+            "definition": "keeping secrets"
+          },
+          "midBossQuiz": {
+            "q": "What did Holmes intend to do to find the item Irene Adler was hiding?",
+            "o": [
+              "He planned to search her house himself.",
+              "He would get her to show him.",
+              "He would ask her banker about it."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'A Scandal In Bohemia', Sherlock Holmes is approached by the King of Bohemia, who is troubled by a photograph of him with Irene Adler that could jeopardize his impending marriage. Holmes views Adler as a unique woman, transcending his usual emotional detachment, yet he approaches the case with his characteristic logic and reason. The narrative explores themes of secrecy, the complexity of human emotions, and the lengths to which individuals will go to protect their reputations and desires.",
+        "q": "How does the relationship between Sherlock Holmes and Irene Adler challenge Holmes's perception of emotion and logic throughout the chapter?",
+        "o": [
+          "A. It shows that Holmes is ultimately indifferent to the feelings of others.",
+          "B. It illustrates that even the most rational minds can be influenced by strong emotions.",
+          "C. It proves that Irene Adler is merely a distraction for Holmes.",
+          "D. It reveals that Holmes believes love is irrelevant to his work."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 2,
+      "chapter_id": "ch2",
+      "title": "The Red-Headed League",
+      "day": 2,
+      "passages": {
+        "A": {
+          "text": "I had called upon my friend, Mr. Sherlock Holmes, one day in the autumn of last year and found him in deep conversation with a very stout, florid-faced, elderly gentleman with fiery red hair. With an apology for my intrusion, I was about to withdraw when Holmes pulled me abruptly into the room and closed the door behind me. “You could not possibly have come at a better time, my dear Watson,” he said cordially. “I was afraid that you were engaged.” “So I am. Very much so.” “Then I can wait in the next room.” “Not at all. This gentleman, Mr. Wilson, has been my partner and helper in many of my most successful cases, and I have no doubt that he will be of the utmost use to me in yours also.” The stout gentleman half rose from his chair and gave a bob of greeting, with a quick little questioning glance from his small fat-encircled eyes.",
+          "word_count": 159,
+          "source_ids": [
+            "ch2_p1",
+            "ch2_p2",
+            "ch2_p3",
+            "ch2_p4",
+            "ch2_p5",
+            "ch2_p6",
+            "ch2_p7"
+          ],
+          "vocab": {
+            "word": "cordially",
+            "sentence": "“You could not possibly have come at a better time, my dear Watson,” he said <b>cordially</b>.",
+            "options": [
+              "A. in a hostile manner",
+              "B. in a warm and friendly way",
+              "C. in a hurried manner"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/cordially.png",
+            "definition": "in a warm and friendly way"
+          },
+          "midBossQuiz": {
+            "q": "Who was the stout gentleman in the room with Holmes?",
+            "o": [
+              "Mr. Watson",
+              "Mr. Wilson",
+              "Dr. John"
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“Now a pawnbroker’s business is mostly done of an evening, Mr. Holmes, especially Thursday and Friday evening, which is just before pay-day; so it would suit me very well to earn a little in the mornings. Besides, I knew that my assistant was a good man, and that he would see to anything that turned up. “‘That would suit me very well,’ said I. ‘And the pay?’ “‘Is £ 4 a week.’ “‘What do you call purely nominal?’ “‘Well, you have to be in the office, or at least in the building, the whole time. If you leave, you forfeit your whole position forever. The will is very clear upon that point. You don’t comply with the conditions if you budge from the office during that time.’ “‘It’s only four hours a day, and I should not think of leaving,’ said I. “‘No excuse will avail,’ said Mr. Duncan Ross; ‘neither sickness nor business nor anything else. There you must stay, or you lose your billet.’",
+          "word_count": 166,
+          "source_ids": [
+            "ch2_p72",
+            "ch2_p73",
+            "ch2_p74",
+            "ch2_p77",
+            "ch2_p78",
+            "ch2_p79",
+            "ch2_p80"
+          ],
+          "vocab": {
+            "word": "billet",
+            "sentence": "‘There you must stay, or you lose your <b>billet</b>.’",
+            "options": [
+              "A. a temporary position",
+              "B. a job or position",
+              "C. a place to stay overnight"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/billet.png",
+            "definition": "a job or position"
+          },
+          "midBossQuiz": {
+            "q": "What will happen if the person leaves the office during the stipulated time?",
+            "o": [
+              "They will receive a bonus.",
+              "They will lose their position.",
+              "They will be promoted."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“The knees of his trousers.” “And what did you see?” “What I expected to see.” “Why did you beat the pavement?” “My dear doctor, this is a time for observation, not for talk. We are spies in an enemy’s country. We know something of Saxe-Coburg Square. Let us now explore the parts which lie behind it.” The road in which we found ourselves as we turned round the corner from the retired Saxe-Coburg Square presented as great a contrast to it as the front of a picture does to the back. It was one of the main arteries which conveyed the traffic of the City to the north and west. The roadway was blocked with the immense stream of commerce flowing in a double tide inward and outward, while the footpaths were black with the hurrying swarm of pedestrians. It was difficult to realise as we looked at the line of fine shops and stately business premises that they really abutted on the other side upon the faded and stagnant square which we had just quitted.",
+          "word_count": 176,
+          "source_ids": [
+            "ch2_p142",
+            "ch2_p143",
+            "ch2_p144",
+            "ch2_p145",
+            "ch2_p146",
+            "ch2_p147"
+          ],
+          "vocab": {
+            "word": "observation",
+            "sentence": "My dear doctor, this is a time for <b>observation</b>, not for talk.",
+            "options": [
+              "A. the act of watching something carefully",
+              "B. a feeling of excitement",
+              "C. a type of conversation"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/observation.png",
+            "definition": "the act of watching something carefully"
+          },
+          "midBossQuiz": {
+            "q": "What contrast is highlighted in the passage between Saxe-Coburg Square and the road they turned onto?",
+            "o": [
+              "The square is busy while the road is quiet.",
+              "The square is faded while the road is bustling with commerce.",
+              "The square is filled with shops while the road is empty."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Red-Headed League,' Sherlock Holmes investigates a peculiar case involving Mr. Wilson, a pawnbroker who is entangled in a mysterious job offer that requires him to remain in an office without leaving. As Holmes and Watson delve deeper, they explore the contrasting environments of Saxe-Coburg Square and the bustling city, emphasizing the theme of observation and the hidden complexities of seemingly simple scenarios. The story reveals how appearances can be deceptive and highlights the meticulous nature of detective work.",
+        "q": "What does the contrast between Saxe-Coburg Square and the busy city suggest about the nature of the case and the characters' approach to solving it?",
+        "o": [
+          "A. It shows that the case is straightforward and lacks depth.",
+          "B. It highlights the complexities and hidden dangers that can exist beneath a calm exterior.",
+          "C. It indicates that the characters are disinterested in the case.",
+          "D. It suggests that only the busy city holds significance in the investigation."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 3,
+      "chapter_id": "ch3",
+      "title": "A Case Of Identity",
+      "day": 3,
+      "passages": {
+        "A": {
+          "text": "“My dear fellow,” said Sherlock Holmes as we sat on either side of the fire in his lodgings at Baker Street, “life is infinitely stranger than anything which the mind of man could invent. We would not dare to conceive the things which are really mere commonplaces of existence. If we could fly out of that window hand in hand, hover over this great city, gently remove the roofs, and peep in at the queer things which are going on, the strange coincidences, the plannings, the cross-purposes, the wonderful chains of events, working through generations, and leading to the most _outré_ results, it would make all fiction with its conventionalities and foreseen conclusions most stale and unprofitable.” “And yet I am not convinced of it,” I answered. “The cases which come to light in the papers are, as a rule, bald enough, and vulgar enough. We have in our police reports realism pushed to its extreme limits, and yet the result is, it must be confessed, neither fascinating nor artistic.”",
+          "word_count": 170,
+          "source_ids": [
+            "ch3_p1",
+            "ch3_p2"
+          ],
+          "vocab": {
+            "word": "outré",
+            "sentence": "the most <b>outré</b> results, it would make all fiction with its conventionalities and foreseen conclusions most stale and unprofitable.",
+            "options": [
+              "A. ordinary",
+              "B. unconventional",
+              "C. predictable"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/outr.png",
+            "definition": "unconventional"
+          },
+          "midBossQuiz": {
+            "q": "What does Sherlock Holmes suggest about life compared to fiction?",
+            "o": [
+              "Life is more predictable than fiction.",
+              "Life is infinitely stranger than fiction.",
+              "Fiction is more fascinating than real life."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“No—except that it was Leadenhall Street.” “Where did you address your letters, then?” “To the Leadenhall Street Post Office, to be left till called for. He said that if they were sent to the office he would be chaffed by all the other clerks about having letters from a lady, so I offered to typewrite them, like he did his, but he wouldn’t have that, for he said that when I wrote them they seemed to come from me, but when they were typewritten he always felt that the machine had come between us. That will just show you how fond he was of me, Mr. Holmes, and the little things that he would think of.” “It was most suggestive,” said Holmes. “It has long been an axiom of mine that the little things are infinitely the most important. Can you remember any other little things about Mr. Hosmer Angel?”",
+          "word_count": 150,
+          "source_ids": [
+            "ch3_p46",
+            "ch3_p47",
+            "ch3_p48",
+            "ch3_p49"
+          ],
+          "vocab": {
+            "word": "suggestive",
+            "sentence": "“It was most <b>suggestive</b>,” said Holmes.",
+            "options": [
+              "A. unrelated",
+              "B. indicative",
+              "C. confusing"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/suggestive.png",
+            "definition": "indicative"
+          },
+          "midBossQuiz": {
+            "q": "What did Mr. Hosmer Angel prefer over typewritten letters?",
+            "o": [
+              "He preferred to send letters from a lady.",
+              "He preferred handwritten letters.",
+              "He preferred to have no letters at all."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“That will do,” said Holmes. “As to the letters,” he continued, glancing over them, “they are very commonplace. Absolutely no clue in them to Mr. Angel, save that he quotes Balzac once. There is one remarkable point, however, which will no doubt strike you.” “They are typewritten,” I remarked. “Not only that, but the signature is typewritten. Look at the neat little ‘Hosmer Angel’ at the bottom. There is a date, you see, but no superscription except Leadenhall Street, which is rather vague. The point about the signature is very suggestive—in fact, we may call it conclusive.” “My dear fellow, is it possible you do not see how strongly it bears upon the case?” “I cannot say that I do unless it were that he wished to be able to deny his signature if an action for breach of promise were instituted.” “No, that was not the point. However, I shall write two letters, which should settle the matter. One is to a firm in the City, the other is to the young lady’s stepfather, Mr. Windibank, asking him whether he could meet us here at six o’clock to-morrow evening. It is just as well that we should do business with the male relatives. And now, Doctor, we can do nothing until the answers to those letters come, so we may put our little problem upon the shelf for the interim.”",
+          "word_count": 231,
+          "source_ids": [
+            "ch3_p91",
+            "ch3_p92",
+            "ch3_p93",
+            "ch3_p95",
+            "ch3_p96",
+            "ch3_p97"
+          ],
+          "vocab": {
+            "word": "signature",
+            "sentence": "Not only that, but the <b>signature</b> is typewritten.",
+            "options": [
+              "A. A person's name written in their own handwriting",
+              "B. A person's name written in a formal way, usually for legal purposes",
+              "C. A mark indicating approval or acceptance"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/signature.png",
+            "definition": "A person's name written in a formal way, usually for legal purposes"
+          },
+          "midBossQuiz": {
+            "q": "What is the significance of the typewritten signature in the case?",
+            "o": [
+              "It suggests the person may want to deny involvement.",
+              "It indicates the person is a professional writer.",
+              "It proves the identity of Mr. Angel."
+            ],
+            "a": 0
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'A Case of Identity', Sherlock Holmes and Dr. Watson explore the complexities of identity and perception through the case of a woman whose fiancée's behavior raises suspicions. As they analyze letters and personal details, Holmes emphasizes the significance of seemingly trivial aspects in unraveling the truth. The chapter showcases Holmes's deductive reasoning and the contrast between reality and the romanticized notions of love and identity.",
+        "q": "What does the case reveal about the nature of identity and the importance of seemingly trivial details in understanding human relationships?",
+        "o": [
+          "A. Identity is solely determined by social status and wealth.",
+          "B. Small details can provide crucial insights into a person's true identity and intentions.",
+          "C. Love is the only factor that defines a person's identity.",
+          "D. The truth is always evident without the need for investigation."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 4,
+      "chapter_id": "ch4",
+      "title": "The Boscombe Valley Mystery",
+      "day": 4,
+      "passages": {
+        "A": {
+          "text": "We were seated at breakfast one morning, my wife and I, when the maid brought in a telegram. It was from Sherlock Holmes and ran in this way: “Have you a couple of days to spare? Have just been wired for from the west of England in connection with Boscombe Valley tragedy. Shall be glad if you will come with me. Air and scenery perfect. Leave Paddington by the 11:15.” “What do you say, dear?” said my wife, looking across at me. “Will you go?” “I really don’t know what to say. I have a fairly long list at present.” “Oh, Anstruther would do your work for you. You have been looking a little pale lately. I think that the change would do you good, and you are always so interested in Mr. Sherlock Holmes’ cases.” “I should be ungrateful if I were not, seeing what I gained through one of them,” I answered. “But if I am to go, I must pack at once, for I have only half an hour.”",
+          "word_count": 172,
+          "source_ids": [
+            "ch4_p1",
+            "ch4_p2",
+            "ch4_p3",
+            "ch4_p4",
+            "ch4_p5",
+            "ch4_p6"
+          ],
+          "vocab": {
+            "word": "telegram",
+            "sentence": "It was from Sherlock Holmes and ran in this way: “Have you a couple of days to spare? Have just been wired for from the west of England in connection with Boscombe Valley tragedy. Shall be glad if you will come with me. Air and scenery perfect. Leave Paddington by the 11:15.” “What do you say, dear?” said my wife, looking across at me. “Will you go?” “I really don’t know what to say. I have a fairly long list at present.” “Oh, Anstruther would do your work for you. You have been looking a little pale lately. I think that the change would do you good, and you are always so interested in Mr. Sherlock Holmes’ cases.” “I should be ungrateful if I were not, seeing what I gained through one of them,” I answered. “But if I am to go, I must pack at once, for I have only half an hour.”",
+            "options": [
+              "A. A written message sent electronically",
+              "B. A written message sent by telegraph",
+              "C. A verbal message delivered in person"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/telegram.png",
+            "definition": "A written message sent by telegraph"
+          },
+          "midBossQuiz": {
+            "q": "What does the protagonist's wife suggest about his health?",
+            "o": [
+              "He has been feeling very energetic.",
+              "He has been looking a little pale lately.",
+              "He should ignore his health and work harder."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“It was very nice and complimentary of you,” Holmes answered. “It is entirely a question of barometric pressure.” Lestrade looked startled. “I do not quite follow,” he said. “How is the glass? Twenty-nine, I see. No wind, and not a cloud in the sky. I have a caseful of cigarettes here which need smoking, and the sofa is very much superior to the usual country hotel abomination. I do not think that it is probable that I shall use the carriage to-night.” Lestrade laughed indulgently. “You have, no doubt, already formed your conclusions from the newspapers,” he said. “The case is as plain as a pikestaff, and the more one goes into it the plainer it becomes. Still, of course, one can’t refuse a lady, and such a very positive one, too. She has heard of you, and would have your opinion, though I repeatedly told her that there was nothing which you could do which I had not already done. Why, bless my soul! here is her carriage at the door.”",
+          "word_count": 172,
+          "source_ids": [
+            "ch4_p72",
+            "ch4_p73",
+            "ch4_p74",
+            "ch4_p75"
+          ],
+          "vocab": {
+            "word": "carriage",
+            "sentence": "Why, bless my soul! here is her <b>carriage</b> at the door.",
+            "options": [
+              "A. A type of vehicle",
+              "B. A type of train",
+              "C. A type of building"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/carriage.png",
+            "definition": "A type of vehicle"
+          },
+          "midBossQuiz": {
+            "q": "What does Lestrade imply about the case?",
+            "o": [
+              "It is complicated and requires extensive investigation.",
+              "It is very straightforward and easily understood.",
+              "It is unsolvable and mysterious."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“Is a tall man, left-handed, limps with the right leg, wears thick-soled shooting-boots and a grey cloak, smokes Indian cigars, uses a cigar-holder, and carries a blunt pen-knife in his pocket. There are several other indications, but these may be enough to aid us in our search.” Lestrade laughed. “I am afraid that I am still a sceptic,” he said. “Theories are all very well, but we have to deal with a hard-headed British jury.” “_Nous verrons_,” answered Holmes calmly. “You work your own method, and I shall work mine. I shall be busy this afternoon, and shall probably return to London by the evening train.” “And leave your case unfinished?” “Who was the criminal, then?” “The gentleman I describe.” “But who is he?” “Surely it would not be difficult to find out. This is not such a populous neighbourhood.” Lestrade shrugged his shoulders. “I am a practical man,” he said, “and I really cannot undertake to go about the country looking for a left-handed gentleman with a game leg. I should become the laughing-stock of Scotland Yard.”",
+          "word_count": 178,
+          "source_ids": [
+            "ch4_p143",
+            "ch4_p144",
+            "ch4_p145",
+            "ch4_p146",
+            "ch4_p150",
+            "ch4_p151",
+            "ch4_p152",
+            "ch4_p153",
+            "ch4_p154"
+          ],
+          "vocab": {
+            "word": "sceptic",
+            "sentence": "Lestrade laughed. “I am afraid that I am still a <b>sceptic</b>,” he said.",
+            "options": [
+              "A. A person who doubts or questions",
+              "B. A person who believes without question",
+              "C. A person who is easily convinced"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/sceptic.png",
+            "definition": "A person who doubts or questions"
+          },
+          "midBossQuiz": {
+            "q": "What does Lestrade think about Holmes' theories?",
+            "o": [
+              "He fully supports them.",
+              "He is still a sceptic.",
+              "He finds them amusing."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Boscombe Valley Mystery', Dr. Watson receives a telegram from Sherlock Holmes inviting him to investigate a tragedy in the west of England. Holmes and the detective Lestrade discuss the details of the case, revealing their differing approaches to solving the mystery. Lestrade is confident in his methods, while Holmes remains calm and observant, suggesting that he has a unique perspective on the evidence at hand.",
+        "q": "What do the differing attitudes of Holmes and Lestrade towards evidence and investigation reveal about their characters and approaches to solving mysteries?",
+        "o": [
+          "A. Lestrade is more experienced and reliable than Holmes.",
+          "B. Holmes values observation and intuition over conventional methods, while Lestrade relies on established procedures.",
+          "C. Both Holmes and Lestrade approach the case with the same level of skepticism.",
+          "D. Holmes is uninterested in the case compared to Lestrade."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 5,
+      "chapter_id": "ch5",
+      "title": "The Five Orange Pips",
+      "day": 5,
+      "passages": {
+        "A": {
+          "text": "When I glance over my notes and records of the Sherlock Holmes cases between the years ’82 and ’90, I am faced by so many which present strange and interesting features that it is no easy matter to know which to choose and which to leave. Some, however, have already gained publicity through the papers, and others have not offered a field for those peculiar qualities which my friend possessed in so high a degree, and which it is the object of these papers to illustrate. Some, too, have baffled his analytical skill, and would be, as narratives, beginnings without an ending, while others have been but partially cleared up, and have their explanations founded rather upon conjecture and surmise than on that absolute logical proof which was so dear to him. There is, however, one of these last which was so remarkable in its details and so startling in its results that I am tempted to give some account of it in spite of the fact that there are points in connection with it which never have been, and probably never will be, entirely cleared up.",
+          "word_count": 187,
+          "source_ids": [
+            "ch5_p1"
+          ],
+          "vocab": {
+            "word": "baffled",
+            "sentence": "Some, too, have <b>baffled</b> his analytical skill, and would be, as narratives, beginnings without an ending, while others have been but partially cleared up, and have their explanations founded rather upon conjecture and surmise than on that absolute logical proof which was so dear to him.",
+            "options": [
+              "A. confused or puzzled",
+              "B. clarified or explained",
+              "C. enhanced or improved"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/baffled.png",
+            "definition": "confused or puzzled"
+          },
+          "midBossQuiz": {
+            "q": "What characteristic quality of Sherlock Holmes is highlighted in the passage?",
+            "o": [
+              "His ability to entertain",
+              "His analytical skill",
+              "His physical strength"
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“‘Some preposterous practical joke,’ said he. ‘What have I to do with sundials and papers? I shall take no notice of such nonsense.’ “‘I should certainly speak to the police,’ I said. “‘And be laughed at for my pains. Nothing of the sort.’ “‘Then let me do so?’ “‘No, I forbid you. I won’t have a fuss made about such nonsense.’ “It was in vain to argue with him, for he was a very obstinate man. I went about, however, with a heart which was full of forebodings. “On the third day after the coming of the letter my father went from home to visit an old friend of his, Major Freebody, who is in command of one of the forts upon Portsdown Hill. I was glad that he should go, for it seemed to me that he was farther from danger when he was away from home. In that, however, I was in error. Upon the second day of his absence I received a telegram from the major, imploring me to come at once. My father had fallen over one of the deep chalk-pits which abound in the neighbourhood, and was lying senseless, with a shattered skull. I hurried to him, but he passed away without having ever recovered his consciousness. He had, as it appears, been returning from Fareham in the twilight, and as the country was unknown to him, and the chalk-pit unfenced, the jury had no hesitation in bringing in a verdict of ‘death from accidental causes.’ Carefully as I examined every fact connected with his death, I was unable to find anything which could suggest the idea of murder. There were no signs of violence, no footmarks, no robbery, no record of strangers having been seen upon the roads. And yet I need not tell you that my mind was far from at ease, and that I was well-nigh certain that some foul plot had been woven round him.",
+          "word_count": 324,
+          "source_ids": [
+            "ch5_p59",
+            "ch5_p60",
+            "ch5_p61",
+            "ch5_p62",
+            "ch5_p63",
+            "ch5_p64",
+            "ch5_p65"
+          ],
+          "vocab": {
+            "word": "telegram",
+            "sentence": "Upon the second day of his absence I received a <b>telegram</b> from the major, imploring me to come at once.",
+            "options": [
+              "A. a type of message sent by telegraph",
+              "B. a written letter delivered by hand",
+              "C. a formal invitation to an event"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/telegram.png",
+            "definition": "a type of message sent by telegraph"
+          },
+          "midBossQuiz": {
+            "q": "What happened to the narrator's father while he was away visiting Major Freebody?",
+            "o": [
+              "He won a prize at a local event.",
+              "He fell over a chalk-pit and died.",
+              "He returned home safely."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“From East London. What do you deduce from that?” “They are all seaports. That the writer was on board of a ship.” “Excellent. We have already a clue. There can be no doubt that the probability—the strong probability—is that the writer was on board of a ship. And now let us consider another point. In the case of Pondicherry, seven weeks elapsed between the threat and its fulfilment, in Dundee it was only some three or four days. Does that suggest anything?” “A greater distance to travel.” “But the letter had also a greater distance to come.” “Then I do not see the point.” “There is at least a presumption that the vessel in which the man or men are is a sailing-ship. It looks as if they always send their singular warning or token before them when starting upon their mission. You see how quickly the deed followed the sign when it came from Dundee. If they had come from Pondicherry in a steamer they would have arrived almost as soon as their letter. But, as a matter of fact, seven weeks elapsed. I think that those seven weeks represented the difference between the mail-boat which brought the letter and the sailing vessel which brought the writer.”",
+          "word_count": 208,
+          "source_ids": [
+            "ch5_p117",
+            "ch5_p118",
+            "ch5_p119",
+            "ch5_p120",
+            "ch5_p121",
+            "ch5_p122",
+            "ch5_p123"
+          ],
+          "vocab": {
+            "word": "probability",
+            "sentence": "And now let us consider another point. In the case of Pondicherry, seven weeks elapsed between the threat and its fulfilment, in Dundee it was only some three or four days. Does that suggest anything?” “A greater distance to travel.” “But the letter had also a greater distance to come.” “Then I do not see the point.” “There is at least a presumption that the vessel in which the man or men are is a sailing-ship. It looks as if they always send their singular warning or token before them when starting upon their mission. You see how quickly the deed followed the sign when it came from Dundee. If they had come from Pondicherry in a steamer they would have arrived almost as soon as their letter. But, as a matter of fact, seven weeks elapsed. I think that those seven weeks represented the difference between the mail-boat which brought the letter and the sailing vessel which brought the writer.”",
+            "options": [
+              "A. certainty or inevitability",
+              "B. likelihood or chance",
+              "C. impossibility or unlikelihood"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/probability.png",
+            "definition": "likelihood or chance"
+          },
+          "midBossQuiz": {
+            "q": "What was the difference in time between the threat and its fulfilment in Pondicherry compared to Dundee?",
+            "o": [
+              "Two weeks in Pondicherry and one day in Dundee",
+              "Seven weeks in Pondicherry and three or four days in Dundee",
+              "One month in Pondicherry and two weeks in Dundee"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Five Orange Pips', Dr. Watson reflects on the perplexing cases of Sherlock Holmes, particularly one involving a mysterious letter and the tragic death of a father. As Watson grapples with the suspicious circumstances surrounding the death, Holmes analyzes clues that suggest a deeper, possibly nautical connection to the events. The chapter explores themes of foreboding, the complexity of human motivations, and the unraveling of a sinister plot that remains partially unsolved.",
+        "q": "What does the chapter reveal about the nature of justice and the limits of Holmes's analytical skills in uncovering the truth behind mysterious deaths?",
+        "o": [
+          "A. Justice is always served, regardless of the circumstances.",
+          "B. Holmes's skills are challenged by the complexity of human motives and the elusive nature of evidence.",
+          "C. The chapter suggests that all mysteries can be solved through simple reasoning.",
+          "D. The events are purely coincidental and unrelated to any underlying motives."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 6,
+      "chapter_id": "ch6",
+      "title": "The Man With The Twisted Lip",
+      "day": 6,
+      "passages": {
+        "A": {
+          "text": "Isa Whitney, brother of the late Elias Whitney, D.D., Principal of the Theological College of St. George’s, was much addicted to opium. The habit grew upon him, as I understand, from some foolish freak when he was at college; for having read De Quincey’s description of his dreams and sensations, he had drenched his tobacco with laudanum in an attempt to produce the same effects. He found, as so many more have done, that the practice is easier to attain than to get rid of, and for many years he continued to be a slave to the drug, an object of mingled horror and pity to his friends and relatives. I can see him now, with yellow, pasty face, drooping lids, and pin-point pupils, all huddled in a chair, the wreck and ruin of a noble man. One night—it was in June, ’89—there came a ring to my bell, about the hour when a man gives his first yawn and glances at the clock. I sat up in my chair, and my wife laid her needle-work down in her lap and made a little face of disappointment.",
+          "word_count": 187,
+          "source_ids": [
+            "ch6_p1",
+            "ch6_p2"
+          ],
+          "vocab": {
+            "word": "opium",
+            "sentence": "Isa Whitney, brother of the late Elias Whitney, D.D., Principal of the Theological College of St. George’s, was much addicted to <b>opium</b>.",
+            "options": [
+              "A. a type of tobacco",
+              "B. a narcotic drug",
+              "C. a medical prescription"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/opium.png",
+            "definition": "a narcotic drug"
+          },
+          "midBossQuiz": {
+            "q": "What was Isa Whitney's condition as described in the passage?",
+            "o": [
+              "He was a famous scholar.",
+              "He was a slave to the drug.",
+              "He was a thriving businessman."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“No, I don’t think you would guess. Every pocket stuffed with pennies and half-pennies—421 pennies and 270 half-pennies. It was no wonder that it had not been swept away by the tide. But a human body is a different matter. There is a fierce eddy between the wharf and the house. It seemed likely enough that the weighted coat had remained when the stripped body had been sucked away into the river.” “But I understand that all the other clothes were found in the room. Would the body be dressed in a coat alone?” “No, sir, but the facts might be met speciously enough. Suppose that this man Boone had thrust Neville St. Clair through the window, there is no human eye which could have seen the deed. What would he do then? It would of course instantly strike him that he must get rid of the tell-tale garments. He would seize the coat, then, and be in the act of throwing it out, when it would occur to him that it would swim and not sink. He has little time, for he has heard the scuffle downstairs when the wife tried to force her way up, and perhaps he has already heard from his Lascar confederate that the police are hurrying up the street. There is not an instant to be lost. He rushes to some secret hoard, where he has accumulated the fruits of his beggary, and he stuffs all the coins upon which he can lay his hands into the pockets to make sure of the coat’s sinking. He throws it out, and would have done the same with the other garments had not he heard the rush of steps below, and only just had time to close the window when the police appeared.”",
+          "word_count": 297,
+          "source_ids": [
+            "ch6_p71",
+            "ch6_p72",
+            "ch6_p73"
+          ],
+          "vocab": {
+            "word": "eddies",
+            "sentence": "But a human body is a different matter. There is a fierce <b>eddy</b> between the wharf and the house.",
+            "options": [
+              "A. Calm waters",
+              "B. Circular currents of water",
+              "C. A type of fish"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/eddies.png",
+            "definition": "Circular currents of water"
+          },
+          "midBossQuiz": {
+            "q": "What did the man Boone likely do with the coat after throwing Neville St. Clair through the window?",
+            "o": [
+              "He hid it in a secret place.",
+              "He stuffed coins in its pockets to ensure it would sink.",
+              "He wore it himself to escape."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“No, but this horrible man confessed to having been there, and the Lascar was at the foot of the stairs.” “Quite so. Your husband, as far as you could see, had his ordinary clothes on?” “But without his collar or tie. I distinctly saw his bare throat.” “Had he ever spoken of Swandam Lane?” “Had he ever showed any signs of having taken opium?” “Thank you, Mrs. St. Clair. Those are the principal points about which I wished to be absolutely clear. We shall now have a little supper and then retire, for we may have a very busy day to-morrow.” A large and comfortable double-bedded room had been placed at our disposal, and I was quickly between the sheets, for I was weary after my night of adventure. Sherlock Holmes was a man, however, who, when he had an unsolved problem upon his mind, would go for days, and even for a week, without rest, turning it over, rearranging his facts, looking at it from every point of view until he had either fathomed it or convinced himself that his data were insufficient. It was soon evident to me that he was now preparing for an all-night sitting. He took off his coat and waistcoat, put on a large blue dressing-gown, and then wandered about the room collecting pillows from his bed and cushions from the sofa and armchairs. With these he constructed a sort of Eastern divan, upon which he perched himself cross-legged, with an ounce of shag tobacco and a box of matches laid out in front of him. In the dim light of the lamp I saw him sitting there, an old briar pipe between his lips, his eyes fixed vacantly upon the corner of the ceiling, the blue smoke curling up from him, silent, motionless, with the light shining upon his strong-set aquiline features. So he sat as I dropped off to sleep, and so he sat when a sudden ejaculation caused me to wake up, and I found the summer sun shining into the apartment. The pipe was still between his lips, the smoke still curled upward, and the room was full of a dense tobacco haze, but nothing remained of the heap of shag which I had seen upon the previous night.",
+          "word_count": 379,
+          "source_ids": [
+            "ch6_p141",
+            "ch6_p142",
+            "ch6_p143",
+            "ch6_p144",
+            "ch6_p145",
+            "ch6_p146",
+            "ch6_p147"
+          ],
+          "vocab": {
+            "word": "divan",
+            "sentence": "With these he constructed a sort of Eastern <b>divan</b>, upon which he perched himself cross-legged, with an ounce of shag tobacco and a box of matches laid out in front of him.",
+            "options": [
+              "A. a type of chair",
+              "B. a type of couch or seating area",
+              "C. a decorative table"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/divan.png",
+            "definition": "a type of couch or seating area"
+          },
+          "midBossQuiz": {
+            "q": "What was Sherlock Holmes doing when the narrator fell asleep?",
+            "o": [
+              "He was solving a case.",
+              "He was sitting silently with a pipe.",
+              "He was reading a book."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Man With The Twisted Lip', Sherlock Holmes investigates the mysterious disappearance of Neville St. Clair, whose opium-addicted brother Isa Whitney is introduced. The narrative reveals the complexities of human behavior, as Holmes deduces the likely sequence of events surrounding the case, including possible motives and actions taken by St. Clair's associates. The chapter explores themes of addiction, deception, and the lengths individuals will go to conceal their secrets.",
+        "q": "How do the actions of Isa Whitney reflect the broader themes of addiction and moral decline present in the chapter?",
+        "o": [
+          "A. They show that addiction leads to a lack of empathy for others.",
+          "B. They illustrate how addiction can transform a noble individual into a tragic figure, impacting their relationships and choices.",
+          "C. They highlight that addiction is solely a personal issue without societal implications.",
+          "D. They indicate that only wealthy individuals can struggle with addiction."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 7,
+      "chapter_id": "ch7",
+      "title": "The Adventure Of The Blue Carbuncle",
+      "day": 7,
+      "passages": {
+        "A": {
+          "text": "I had called upon my friend Sherlock Holmes upon the second morning after Christmas, with the intention of wishing him the compliments of the season. He was lounging upon the sofa in a purple dressing-gown, a pipe-rack within his reach upon the right, and a pile of crumpled morning papers, evidently newly studied, near at hand. Beside the couch was a wooden chair, and on the angle of the back hung a very seedy and disreputable hard-felt hat, much the worse for wear, and cracked in several places. A lens and a forceps lying upon the seat of the chair suggested that the hat had been suspended in this manner for the purpose of examination. “You are engaged,” said I; “perhaps I interrupt you.” “Not at all. I am glad to have a friend with whom I can discuss my results. The matter is a perfectly trivial one”—he jerked his thumb in the direction of the old hat—“but there are points in connection with it which are not entirely devoid of interest and even of instruction.”",
+          "word_count": 176,
+          "source_ids": [
+            "ch7_p1",
+            "ch7_p2",
+            "ch7_p3"
+          ],
+          "vocab": {
+            "word": "trivial",
+            "sentence": "The matter is a perfectly <b>trivial</b> one—he jerked his thumb in the direction of the old hat—“but there are points in connection with it which are not entirely devoid of interest and even of instruction.",
+            "options": [
+              "A. important",
+              "B. insignificant",
+              "C. complex"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/trivial.png",
+            "definition": "insignificant"
+          },
+          "midBossQuiz": {
+            "q": "What was Sherlock Holmes doing when Watson visited him?",
+            "o": [
+              "He was solving a complex case.",
+              "He was lounging upon the sofa.",
+              "He was reading a novel."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“Do you think that this man Horner is innocent?” “Well, then, do you imagine that this other one, Henry Baker, had anything to do with the matter?” “It is, I think, much more likely that Henry Baker is an absolutely innocent man, who had no idea that the bird which he was carrying was of considerably more value than if it were made of solid gold. That, however, I shall determine by a very simple test if we have an answer to our advertisement.” “And you can do nothing until then?” “In that case I shall continue my professional round. But I shall come back in the evening at the hour you have mentioned, for I should like to see the solution of so tangled a business.” “Very glad to see you. I dine at seven. There is a woodcock, I believe. By the way, in view of recent occurrences, perhaps I ought to ask Mrs. Hudson to examine its crop.”",
+          "word_count": 161,
+          "source_ids": [
+            "ch7_p70",
+            "ch7_p72",
+            "ch7_p73",
+            "ch7_p74",
+            "ch7_p76",
+            "ch7_p77"
+          ],
+          "vocab": {
+            "word": "innocent",
+            "sentence": "It is, I think, much more likely that Henry Baker is an absolutely <b>innocent</b> man, who had no idea that the bird which he was carrying was of considerably more value than if it were made of solid gold.",
+            "options": [
+              "A. guilty of a crime",
+              "B. free from guilt or sin",
+              "C. lacking knowledge"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/innocent.png",
+            "definition": "free from guilt or sin"
+          },
+          "midBossQuiz": {
+            "q": "What does Sherlock Holmes plan to do until he receives an answer to the advertisement?",
+            "o": [
+              "He will leave the case entirely.",
+              "He shall continue his professional round.",
+              "He will confront Henry Baker."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "Holmes turned to the page indicated. “Here you are, ‘Mrs. Oakshott, 117, Brixton Road, egg and poultry supplier.’” “Now, then, what’s the last entry?” “‘December 22nd. Twenty-four geese at 7_s_. 6_d_.’” “Quite so. There you are. And underneath?” “‘Sold to Mr. Windigate of the Alpha, at 12_s_.’” “What have you to say now?” Sherlock Holmes looked deeply chagrined. He drew a sovereign from his pocket and threw it down upon the slab, turning away with the air of a man whose disgust is too deep for words. A few yards off he stopped under a lamp-post and laughed in the hearty, noiseless fashion which was peculiar to him. “When you see a man with whiskers of that cut and the ‘Pink ’un’ protruding out of his pocket, you can always draw him by a bet,” said he. “I daresay that if I had put £ 100 down in front of him, that man would not have given me such complete information as was drawn from him by the idea that he was doing me on a wager. Well, Watson, we are, I fancy, nearing the end of our quest, and the only point which remains to be determined is whether we should go on to this Mrs. Oakshott to-night, or whether we should reserve it for to-morrow. It is clear from what that surly fellow said that there are others besides ourselves who are anxious about the matter, and I should—”",
+          "word_count": 241,
+          "source_ids": [
+            "ch7_p140",
+            "ch7_p141",
+            "ch7_p142",
+            "ch7_p143",
+            "ch7_p144",
+            "ch7_p145",
+            "ch7_p146",
+            "ch7_p147"
+          ],
+          "vocab": {
+            "word": "chagrined",
+            "sentence": "Sherlock Holmes looked deeply <b>chagrined</b>.",
+            "options": [
+              "A. pleased",
+              "B. distressed",
+              "C. indifferent"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/chagrined.png",
+            "definition": "distressed"
+          },
+          "midBossQuiz": {
+            "q": "What does Sherlock Holmes decide to do after learning about Mrs. Oakshott?",
+            "o": [
+              "He decides to visit her tonight.",
+              "He considers visiting her tomorrow.",
+              "He chooses to ignore her completely."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Adventure of the Blue Carbuncle', Sherlock Holmes investigates a peculiar case involving a lost hat and a valuable bird. The narrative unfolds around Holmes's deduction skills, as he analyzes clues and interacts with various characters, including Henry Baker and Mrs. Oakshott. Through his observations and conversations, Holmes reveals themes of innocence and the complexities of human nature, ultimately leading to a resolution of the mystery surrounding the blue carbuncle.",
+        "q": "What does Sherlock Holmes's approach to solving the mystery reveal about his views on human behavior and societal values?",
+        "o": [
+          "A. He believes that all individuals are inherently dishonest and deceitful.",
+          "B. He understands that people can be both innocent and unaware of the consequences of their actions.",
+          "C. He thinks that only those of higher social standing can be trusted.",
+          "D. He assumes that everyone is motivated by greed and selfishness."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 8,
+      "chapter_id": "ch8",
+      "title": "The Adventure Of The Speckled Band",
+      "day": 8,
+      "passages": {
+        "A": {
+          "text": "On glancing over my notes of the seventy odd cases in which I have during the last eight years studied the methods of my friend Sherlock Holmes, I find many tragic, some comic, a large number merely strange, but none commonplace; for, working as he did rather for the love of his art than for the acquirement of wealth, he refused to associate himself with any investigation which did not tend towards the unusual, and even the fantastic. Of all these varied cases, however, I cannot recall any which presented more singular features than that which was associated with the well-known Surrey family of the Roylotts of Stoke Moran. The events in question occurred in the early days of my association with Holmes, when we were sharing rooms as bachelors in Baker Street. It is possible that I might have placed them upon record before, but a promise of secrecy was made at the time, from which I have only been freed during the last month by the untimely death of the lady to whom the pledge was given. It is perhaps as well that the facts should now come to light, for I have reasons to know that there are widespread rumours as to the death of Dr. Grimesby Roylott which tend to make the matter even more terrible than the truth.",
+          "word_count": 223,
+          "source_ids": [
+            "ch8_p1"
+          ],
+          "vocab": {
+            "word": "unusual",
+            "sentence": "he refused to associate himself with any investigation which did not tend towards the <b>unusual</b>, and even the fantastic.",
+            "options": [
+              "A. ordinary",
+              "B. out of the ordinary",
+              "C. predictable"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/unusual.png",
+            "definition": "out of the ordinary"
+          },
+          "midBossQuiz": {
+            "q": "What was the nature of the promise made by the narrator regarding the case of the Roylotts?",
+            "o": [
+              "He promised to keep it a secret until the lady's death.",
+              "He promised to investigate it further.",
+              "He promised to tell everyone about it."
+            ],
+            "a": 0
+          }
+        },
+        "B": {
+          "text": "“It looks newer than the other things?” “Yes, it was only put there a couple of years ago.” “Your sister asked for it, I suppose?” “No, I never heard of her using it. We used always to get what we wanted for ourselves.” “Indeed, it seemed unnecessary to put so nice a bell-pull there. You will excuse me for a few minutes while I satisfy myself as to this floor.” He threw himself down upon his face with his lens in his hand and crawled swiftly backward and forward, examining minutely the cracks between the boards. Then he did the same with the wood-work with which the chamber was panelled. Finally he walked over to the bed and spent some time in staring at it and in running his eye up and down the wall. Finally he took the bell-rope in his hand and gave it a brisk tug. “Why, it’s a dummy,” said he.",
+          "word_count": 155,
+          "source_ids": [
+            "ch8_p143",
+            "ch8_p144",
+            "ch8_p145",
+            "ch8_p146",
+            "ch8_p147",
+            "ch8_p148"
+          ],
+          "vocab": {
+            "word": "dummy",
+            "sentence": "“Why, it’s a <b>dummy</b>,” said he.",
+            "options": [
+              "A. A real object",
+              "B. A false or non-functional version of something",
+              "C. A large piece of furniture"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/dummy.png",
+            "definition": "A false or non-functional version of something"
+          },
+          "midBossQuiz": {
+            "q": "What did Sherlock Holmes discover about the bell-rope?",
+            "o": [
+              "It was used frequently by the sister.",
+              "It was a dummy.",
+              "It was very old."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“I’ll do better. I’ll take you round to him myself.” “I should be immensely obliged to you.” “We’ll call a cab and go together. We shall just be in time to have a little breakfast with him. Do you feel equal to it?” “Yes; I shall not feel easy until I have told my story.” “Then my servant will call a cab, and I shall be with you in an instant.” I rushed upstairs, explained the matter shortly to my wife, and in five minutes was inside a hansom, driving with my new acquaintance to Baker Street. Sherlock Holmes was, as I expected, lounging about his sitting-room in his dressing-gown, reading the agony column of _The Times_ and smoking his before-breakfast pipe, which was composed of all the plugs and dottles left from his smokes of the day before, all carefully dried and collected on the corner of the mantelpiece. He received us in his quietly genial fashion, ordered fresh rashers and eggs, and joined us in a hearty meal. When it was concluded he settled our new acquaintance upon the sofa, placed a pillow beneath his head, and laid a glass of brandy and water within his reach.",
+          "word_count": 199,
+          "source_ids": [
+            "ch8_p285",
+            "ch8_p286",
+            "ch8_p287",
+            "ch8_p288",
+            "ch8_p289",
+            "ch8_p290"
+          ],
+          "vocab": {
+            "word": "hansom",
+            "sentence": "I rushed upstairs, explained the matter shortly to my wife, and in five minutes was inside a <b>hansom</b>, driving with my new acquaintance to Baker Street.",
+            "options": [
+              "A. A type of food",
+              "B. A type of cab",
+              "C. A type of clothing"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/hansom.png",
+            "definition": "A type of cab"
+          },
+          "midBossQuiz": {
+            "q": "What was Sherlock Holmes doing when they arrived?",
+            "o": [
+              "He was reading a book.",
+              "He was lounging about his sitting-room in his dressing-gown, reading the agony column of The Times.",
+              "He was taking a nap."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Adventure Of The Speckled Band', Dr. Watson reflects on the unusual cases he has experienced with Sherlock Holmes, emphasizing the perplexing nature of a specific case involving the Roylott family. The story unfolds with Holmes's meticulous investigation of peculiar details in the Roylott home, including a mysterious bell-pull that turns out to be a dummy. As the narrative progresses, the urgency for Watson and Holmes to uncover the truth behind a tragic death becomes evident, showcasing their dedication to solving complex mysteries.",
+        "q": "What underlying themes can be identified in the interactions and investigations of Holmes and Watson that reflect their characters' motivations and the nature of their partnership?",
+        "o": [
+          "A. The importance of wealth in solving crimes.",
+          "B. The value of friendship and collaboration in uncovering the truth.",
+          "C. The insignificance of minor details in investigations.",
+          "D. The notion that all cases are ultimately solvable by luck."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 10,
+      "chapter_id": "ch10",
+      "title": "The Adventure Of The Noble Bachelor",
+      "day": 10,
+      "passages": {
+        "A": {
+          "text": "The Lord St. Simon marriage, and its curious termination, have long ceased to be a subject of interest in those exalted circles in which the unfortunate bridegroom moves. Fresh scandals have eclipsed it, and their more piquant details have drawn the gossips away from this four-year-old drama. As I have reason to believe, however, that the full facts have never been revealed to the general public, and as my friend Sherlock Holmes had a considerable share in clearing the matter up, I feel that no memoir of him would be complete without some little sketch of this remarkable episode. It was a few weeks before my own marriage, during the days when I was still sharing rooms with Holmes in Baker Street, that he came home from an afternoon stroll to find a letter on the table waiting for him. I had remained indoors all day, for the weather had taken a sudden turn to rain, with high autumnal winds, and the jezail bullet which I had brought back in one of my limbs as a relic of my Afghan campaign throbbed with dull persistence. With my body in one easy-chair and my legs upon another, I had surrounded myself with a cloud of newspapers until at last, saturated with the news of the day, I tossed them all aside and lay listless, watching the huge crest and monogram upon the envelope upon the table and wondering lazily who my friend’s noble correspondent could be.",
+          "word_count": 245,
+          "source_ids": [
+            "ch10_p1",
+            "ch10_p2"
+          ],
+          "vocab": {
+            "word": "groom",
+            "sentence": "The Lord St. Simon marriage, and its curious termination, have long ceased to be a subject of interest in those exalted circles in which the unfortunate <b>bridegroom</b> moves.",
+            "options": [
+              "A. a person who prepares food",
+              "B. a man on his wedding day",
+              "C. a person who raises animals"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/groom.png",
+            "definition": "a man on his wedding day"
+          },
+          "midBossQuiz": {
+            "q": "What did Sherlock Holmes find on the table when he returned from his stroll?",
+            "o": [
+              "A letter",
+              "A newspaper",
+              "A package"
+            ],
+            "a": 0
+          }
+        },
+        "B": {
+          "text": "“The young lady came to London, then, and you renewed your acquaintance?” “Yes, her father brought her over for this last London season. I met her several times, became engaged to her, and have now married her.” “She brought, I understand, a considerable dowry?” “A fair dowry. Not more than is usual in my family.” “And this, of course, remains to you, since the marriage is a _fait accompli_?” “I really have made no inquiries on the subject.” “Very naturally not. Did you see Miss Doran on the day before the wedding?” “Was she in good spirits?” “Never better. She kept talking of what we should do in our future lives.” “Indeed! That is very interesting. And on the morning of the wedding?” “She was as bright as possible—at least until after the ceremony.” “And did you observe any change in her then?” “Well, to tell the truth, I saw then the first signs that I had ever seen that her temper was just a little sharp. The incident however, was too trivial to relate and can have no possible bearing upon the case.”",
+          "word_count": 184,
+          "source_ids": [
+            "ch10_p75",
+            "ch10_p76",
+            "ch10_p77",
+            "ch10_p78",
+            "ch10_p79",
+            "ch10_p80",
+            "ch10_p81",
+            "ch10_p82",
+            "ch10_p83",
+            "ch10_p84",
+            "ch10_p85",
+            "ch10_p86",
+            "ch10_p87"
+          ],
+          "vocab": {
+            "word": "dowry",
+            "sentence": "“And this, of course, remains to you, since the marriage is a <b>fait accompli</b>?” “I really have made no inquiries on the subject.”",
+            "options": [
+              "A. A gift or inheritance given to a groom",
+              "B. Property or money brought by a bride to her husband",
+              "C. A type of wedding ceremony"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/dowry.png",
+            "definition": "Property or money brought by a bride to her husband"
+          },
+          "midBossQuiz": {
+            "q": "What was Miss Doran's mood on the morning of the wedding?",
+            "o": [
+              "She was anxious about the ceremony.",
+              "She was as bright as possible—at least until after the ceremony.",
+              "She was upset and withdrawn."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“Have you dragged the basin of Trafalgar Square fountain?” he asked. “Why? What do you mean?” “Because you have just as good a chance of finding this lady in the one as in the other.” Lestrade shot an angry glance at my companion. “I suppose you know all about it,” he snarled. “Well, I have only just heard the facts, but my mind is made up.” “Oh, indeed! Then you think that the Serpentine plays no part in the matter?” “I think it very unlikely.” “Then perhaps you will kindly explain how it is that we found this in it?” He opened his bag as he spoke, and tumbled onto the floor a wedding-dress of watered silk, a pair of white satin shoes and a bride’s wreath and veil, all discoloured and soaked in water. “There,” said he, putting a new wedding-ring upon the top of the pile. “There is a little nut for you to crack, Master Holmes.”",
+          "word_count": 159,
+          "source_ids": [
+            "ch10_p149",
+            "ch10_p150",
+            "ch10_p151",
+            "ch10_p152",
+            "ch10_p153",
+            "ch10_p154",
+            "ch10_p155",
+            "ch10_p156"
+          ],
+          "vocab": {
+            "word": "wedding-dress",
+            "sentence": "He opened his bag as he spoke, and tumbled onto the floor a <b>wedding-dress</b> of watered silk, a pair of white satin shoes and a bride’s wreath and veil, all discoloured and soaked in water.",
+            "options": [
+              "A. A type of formal attire worn by a groom",
+              "B. A garment worn by a bride during a wedding ceremony",
+              "C. A casual outfit for a party"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/wedding_dress.png",
+            "definition": "A garment worn by a bride during a wedding ceremony"
+          },
+          "midBossQuiz": {
+            "q": "What items did Lestrade find in the Serpentine?",
+            "o": [
+              "A wedding ring and bouquet",
+              "A wedding-dress, shoes, and a bride's wreath",
+              "Only a pair of shoes"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Adventure Of The Noble Bachelor', the complexities of marriage and personal relationships are explored through the lens of Lord St. Simon's unusual marriage and its aftermath. Sherlock Holmes investigates the mysterious circumstances surrounding the disappearance of the bride, revealing the intricacies of human emotions and societal expectations. The narrative unfolds through conversations that highlight the tension between appearances and reality, ultimately questioning the nature of commitment and trust.",
+        "q": "What does the chapter suggest about the impact of societal expectations on personal relationships and individual happiness?",
+        "o": [
+          "A. Societal expectations always lead to happy marriages.",
+          "B. Personal happiness often conflicts with societal norms and expectations.",
+          "C. Individual desires are easily fulfilled in the context of marriage.",
+          "D. Trust and commitment are irrelevant in the face of societal pressure."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 11,
+      "chapter_id": "ch11",
+      "title": "The Adventure Of The Beryl Coronet",
+      "day": 11,
+      "passages": {
+        "A": {
+          "text": "“Holmes,” said I as I stood one morning in our bow-window looking down the street, “here is a madman coming along. It seems rather sad that his relatives should allow him to come out alone.” My friend rose lazily from his armchair and stood with his hands in the pockets of his dressing-gown, looking over my shoulder. It was a bright, crisp February morning, and the snow of the day before still lay deep upon the ground, shimmering brightly in the wintry sun. Down the centre of Baker Street it had been ploughed into a brown crumbly band by the traffic, but at either side and on the heaped-up edges of the footpaths it still lay as white as when it fell. The grey pavement had been cleaned and scraped, but was still dangerously slippery, so that there were fewer passengers than usual. Indeed, from the direction of the Metropolitan Station no one was coming save the single gentleman whose eccentric conduct had drawn my attention.",
+          "word_count": 166,
+          "source_ids": [
+            "ch11_p1",
+            "ch11_p2"
+          ],
+          "vocab": {
+            "word": "eccentric",
+            "sentence": "Indeed, from the direction of the Metropolitan Station no one was coming save the single gentleman whose <b>eccentric</b> conduct had drawn my attention.",
+            "options": [
+              "A. ordinary",
+              "B. unconventional",
+              "C. predictable"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/eccentric.png",
+            "definition": "unconventional"
+          },
+          "midBossQuiz": {
+            "q": "What was the condition of the snow in Baker Street?",
+            "o": [
+              "It was completely melted.",
+              "It was still lying deep upon the ground.",
+              "It was only on the road."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“‘You shall learn nothing from me,’ said he with a passion such as I should not have thought was in his nature. ‘If you choose to call the police, let the police find what they can.’ “By this time the whole house was astir, for I had raised my voice in my anger. Mary was the first to rush into my room, and, at the sight of the coronet and of Arthur’s face, she read the whole story and, with a scream, fell down senseless on the ground. I sent the housemaid for the police and put the investigation into their hands at once. When the inspector and a constable entered the house, Arthur, who had stood sullenly with his arms folded, asked me whether it was my intention to charge him with theft. I answered that it had ceased to be a private matter, but had become a public one, since the ruined coronet was national property. I was determined that the law should have its way in everything.",
+          "word_count": 170,
+          "source_ids": [
+            "ch11_p73",
+            "ch11_p74"
+          ],
+          "vocab": {
+            "word": "coronet",
+            "sentence": "Mary was the first to rush into my room, and, at the sight of the <b>coronet</b> and of Arthur’s face, she read the whole story and, with a scream, fell down senseless on the ground.",
+            "options": [
+              "A. A type of crown or headpiece",
+              "B. A type of necklace",
+              "C. A type of sword"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/coronet.png",
+            "definition": "A type of crown or headpiece"
+          },
+          "midBossQuiz": {
+            "q": "What did Arthur ask the narrator regarding the theft?",
+            "o": [
+              "If I had evidence against him",
+              "Whether it was my intention to charge him with theft",
+              "If I trusted him"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "The banker recoiled in horror. “I should not dream of trying,” said he. “Then I will.” Holmes suddenly bent his strength upon it, but without result. “I feel it give a little,” said he; “but, though I am exceptionally strong in the fingers, it would take me all my time to break it. An ordinary man could not do it. Now, what do you think would happen if I did break it, Mr. Holder? There would be a noise like a pistol shot. Do you tell me that all this happened within a few yards of your bed and that you heard nothing of it?” “I do not know what to think. It is all dark to me.” “But perhaps it may grow lighter as we go. What do you think, Miss Holder?” “I confess that I still share my uncle’s perplexity.” “Your son had no shoes or slippers on when you saw him?”",
+          "word_count": 154,
+          "source_ids": [
+            "ch11_p145",
+            "ch11_p146",
+            "ch11_p147",
+            "ch11_p148",
+            "ch11_p149",
+            "ch11_p150"
+          ],
+          "vocab": {
+            "word": "recoiled",
+            "sentence": "The banker <b>recoiled</b> in horror.",
+            "options": [
+              "A. moved forward",
+              "B. drew back",
+              "C. remained still"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/recoiled.png",
+            "definition": "drew back"
+          },
+          "midBossQuiz": {
+            "q": "What did Holmes attempt to do with the object?",
+            "o": [
+              "He tried to break it.",
+              "He inspected it closely.",
+              "He ignored it completely."
+            ],
+            "a": 0
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Adventure Of The Beryl Coronet', Sherlock Holmes investigates a theft involving a valuable coronet. The story unfolds through the reactions of those involved, revealing tensions and emotions among the characters. As Holmes delves into the mystery, he highlights the complexities of human behavior and the impact of circumstances on trust and guilt.",
+        "q": "What does the reaction of Arthur Holder to the theft reveal about his character and the broader themes of trust and betrayal in the story?",
+        "o": [
+          "A. Arthur is solely focused on his innocence and does not consider the implications of his actions.",
+          "B. Arthur's defensive attitude suggests deep-seated guilt and the strain on familial relationships.",
+          "C. Arthur is unconcerned about the coronet, showing that he does not value family heritage.",
+          "D. Arthur believes the police will clear his name without any further investigation."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 12,
+      "chapter_id": "ch12",
+      "title": "The Adventure Of The Copper Beeches",
+      "day": 12,
+      "passages": {
+        "A": {
+          "text": "“To the man who loves art for its own sake,” remarked Sherlock Holmes, tossing aside the advertisement sheet of _The Daily Telegraph_, “it is frequently in its least important and lowliest manifestations that the keenest pleasure is to be derived. It is pleasant to me to observe, Watson, that you have so far grasped this truth that in these little records of our cases which you have been good enough to draw up, and, I am bound to say, occasionally to embellish, you have given prominence not so much to the many _causes célèbres_ and sensational trials in which I have figured but rather to those incidents which may have been trivial in themselves, but which have given room for those faculties of deduction and of logical synthesis which I have made my special province.” “And yet,” said I, smiling, “I cannot quite hold myself absolved from the charge of sensationalism which has been urged against my records.”",
+          "word_count": 158,
+          "source_ids": [
+            "ch12_p1",
+            "ch12_p2"
+          ],
+          "vocab": {
+            "word": "sensationalism",
+            "sentence": "“And yet,” said I, smiling, “I cannot quite hold myself absolved from the charge of <b>sensationalism</b> which has been urged against my records.”",
+            "options": [
+              "A. The practice of exaggerating events for dramatic effect",
+              "B. The art of presenting information in a matter-of-fact way",
+              "C. A style of writing that avoids emotional appeal"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/sensationalism.png",
+            "definition": "The practice of exaggerating events for dramatic effect"
+          },
+          "midBossQuiz": {
+            "q": "What does Holmes appreciate about Watson's records of their cases?",
+            "o": [
+              "They focus solely on famous trials.",
+              "They highlight trivial incidents that showcase deduction.",
+              "They are purely sensational in nature."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "text": "“Well, there seems to me to be only one possible solution. Mr. Rucastle seemed to be a very kind, good-natured man. Is it not possible that his wife is a lunatic, that he desires to keep the matter quiet for fear she should be taken to an asylum, and that he humours her fancies in every way in order to prevent an outbreak?” “That is a possible solution—in fact, as matters stand, it is the most probable one. But in any case it does not seem to be a nice household for a young lady.” “But the money, Mr. Holmes, the money!” “Well, yes, of course the pay is good—too good. That is what makes me uneasy. Why should they give you £ 120 a year, when they could have their pick for £ 40? There must be some strong reason behind.” “I thought that if I told you the circumstances you would understand afterwards if I wanted your help. I should feel so much stronger if I felt that you were at the back of me.”",
+          "word_count": 177,
+          "source_ids": [
+            "ch12_p70",
+            "ch12_p71",
+            "ch12_p72",
+            "ch12_p73",
+            "ch12_p74"
+          ],
+          "vocab": {
+            "word": "lunatic",
+            "sentence": "Is it not possible that his wife is a <b>lunatic</b>, that he desires to keep the matter quiet for fear she should be taken to an asylum, and that he humours her fancies in every way in order to prevent an outbreak?",
+            "options": [
+              "A. a person of sound mind",
+              "B. a mentally ill person",
+              "C. a wise individual"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/lunatic.png",
+            "definition": "a mentally ill person"
+          },
+          "midBossQuiz": {
+            "q": "What does Mr. Holmes find unsettling about the offered salary?",
+            "o": [
+              "It is too low.",
+              "It is too high.",
+              "It is just right."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "text": "“‘Photography is one of my hobbies,’ said he. ‘I have made my dark room up there. But, dear me! what an observant young lady we have come upon. Who would have believed it? Who would have ever believed it?’ He spoke in a jesting tone, but there was no jest in his eyes as he looked at me. I read suspicion there and annoyance, but no jest. “Well, Mr. Holmes, from the moment that I understood that there was something about that suite of rooms which I was not to know, I was all on fire to go over them. It was not mere curiosity, though I have my share of that. It was more a feeling of duty—a feeling that some good might come from my penetrating to this place. They talk of woman’s instinct; perhaps it was woman’s instinct which gave me that feeling. At any rate, it was there, and I was keenly on the lookout for any chance to pass the forbidden door.",
+          "word_count": 167,
+          "source_ids": [
+            "ch12_p140",
+            "ch12_p141"
+          ],
+          "vocab": {
+            "word": "instinct",
+            "sentence": "At any rate, it was there, and I was keenly on the lookout for any chance to pass the forbidden door.",
+            "options": [
+              "A. A conscious decision made after thought",
+              "B. An innate, typically fixed pattern of behavior",
+              "C. A learned behavior from experience"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/sherlock/instinct.png",
+            "definition": "An innate, typically fixed pattern of behavior"
+          },
+          "midBossQuiz": {
+            "q": "What feeling motivated the young lady to want to explore the forbidden door?",
+            "o": [
+              "A mere curiosity about the rooms",
+              "A feeling of duty and instinct",
+              "A desire to disobey Mr. Holmes"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In 'The Adventure of the Copper Beeches,' Sherlock Holmes and Dr. Watson investigate a peculiar case involving a young woman seeking employment in a suspicious household. The narrative explores themes of perception versus reality, as the characters navigate the complexities of human behavior and hidden motives. As they delve deeper into the situation, the potential dangers and moral dilemmas of the household emerge, highlighting the tension between financial security and personal safety.",
+        "q": "What does the interaction between Holmes and Watson reveal about their differing perspectives on risk and morality in the pursuit of truth?",
+        "o": [
+          "A. Holmes prioritizes financial gain over personal safety.",
+          "B. Watson believes in the importance of understanding human motives beyond surface appearances.",
+          "C. Holmes is unconcerned with the implications of his investigations on others.",
+          "D. Watson is only interested in sensational stories for their entertainment value."
+        ],
+        "a": 1
+      }
+    }
+  ]
+}

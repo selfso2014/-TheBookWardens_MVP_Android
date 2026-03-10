@@ -117,7 +117,7 @@ export class BookSelectManager {
      * 4. Amplitude event
      * 5. Navigate to Word Forge
      */
-    selectBook(bookId, cardEl, btnEl) {
+    async selectBook(bookId, cardEl, btnEl) {
         if (this._locked) return;
         this._locked = true;
 
@@ -153,7 +153,21 @@ export class BookSelectManager {
         this.game.state.finalBossQuiz = book.finalBossQuiz;
 
         if (this.game.vocabManager) {
-            this.game.vocabManager.init(book.vocabList);
+            this.game.vocabManager.init(book.vocabList, book.id);
+        }
+
+        // [FIX] VocabImageManager: preloadBook을 await하여 이미지 URL 맵이
+        // 완전히 로드된 후 vocab 화면으로 전환. (기존: fire-and-forget → 이미지 미로드 상태에서 화면 전환)
+        if (window.VocabImageManager && window._firestoreDb) {
+            if (!window.VocabImageManager.isReady(book.id)) {
+                console.log(`[BookSelectManager] VocabImage preload 대기 중: ${book.id}`);
+                try {
+                    await window.VocabImageManager.preloadBook(book.id);
+                    console.log(`[BookSelectManager] VocabImage preload 완료: ${book.id}`);
+                } catch (e) {
+                    console.warn('[BookSelectManager] VocabImage preload 실패 (폴백 사용):', e);
+                }
+            }
         }
 
         // Amplitude

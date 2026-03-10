@@ -6,55 +6,78 @@ export class VocabManager {
         this.isProcessing = false;
     }
 
-    init(vocabList) {
+    init(vocabList, bookId) {
         this.vocabList = vocabList || [];
         this.currentIndex = 0;
+        this.bookId = bookId || 'aesop';   // Firebase URL fetch에 사용
     }
 
-    loadVocab(index) {
+    async loadVocab(index) {
         if (!this.vocabList || index >= this.vocabList.length) return;
 
         this.currentIndex = index;
         const data = this.vocabList[index];
 
-        // Update Title and Sentence
+        // ── 단어 제목 업데이트 ──────────────────────────────────
         const titleEl = document.getElementById("vocab-word");
         if (titleEl) titleEl.textContent = data.word;
 
-        // Update Image
+        // ── 이미지 로드 ──────────────────────────────────────────
+        // VocabImageManager v4: same-origin 로컬 이미지 → COEP/CORS 문제 없음
         const imgPlaceholder = document.querySelector(".word-image-placeholder");
         if (imgPlaceholder) {
-            imgPlaceholder.innerHTML = ""; // Clear text
-            if (data.image) {
+            imgPlaceholder.innerHTML = `<div style="
+                width:60px;height:60px;border-radius:50%;
+                border:4px solid rgba(255,215,0,0.3);
+                border-top-color:#ffd700;
+                animation:spin 0.8s linear infinite;
+            "></div>`;
+
+            let imageUrl = null;
+
+            if (window.VocabImageManager && window.VocabImageManager.isReady(this.bookId)) {
+                imageUrl = window.VocabImageManager.getImageUrlSync(this.bookId, data.word);
+            } else if (window.VocabImageManager) {
+                try {
+                    imageUrl = await window.VocabImageManager.getImageUrl(this.bookId, data.word);
+                } catch (e) {
+                    console.warn('[VocabManager] VocabImageManager 오류:', e);
+                }
+            }
+
+            if (imageUrl) {
                 const img = document.createElement("img");
-                img.src = data.image;
                 img.alt = data.word;
                 img.style.maxWidth = "100%";
                 img.style.maxHeight = "100%";
                 img.style.objectFit = "contain";
                 img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
+                img.onload = () => {
+                    imgPlaceholder.innerHTML = "";
+                    imgPlaceholder.appendChild(img);
+                };
                 img.onerror = () => {
-                    img.style.display = "none";
+                    console.warn(`[VocabManager] 이미지 로드 실패: ${imageUrl}`);
                     this.renderFallbackIcon(imgPlaceholder, data.word);
                 };
-                imgPlaceholder.appendChild(img);
+                img.src = imageUrl;
             } else {
                 this.renderFallbackIcon(imgPlaceholder, data.word);
             }
         }
 
-        // Update Sentence
+        // ── 예문 업데이트 ─────────────────────────────────────────
         const card = document.querySelector(".word-card");
         if (card) {
             const p = card.querySelector("p");
             if (p) p.innerHTML = data.sentence;
         }
 
-        // Update Counter
+        // ── 카운터 업데이트 ───────────────────────────────────────
         const counterDiv = document.querySelector("#screen-word > div:first-child");
         if (counterDiv) counterDiv.textContent = `WORD FORGE (${index + 1}/${this.vocabList.length})`;
 
-        // Update Options
+        // ── 선택지 업데이트 ───────────────────────────────────────
         const optionsDiv = document.getElementById("vocab-options");
         if (optionsDiv) {
             optionsDiv.innerHTML = "";
@@ -62,21 +85,55 @@ export class VocabManager {
                 const btn = document.createElement("button");
                 btn.className = "option-btn";
                 btn.textContent = optText;
-                // Use Game proxy or direct manager call if exposed
-                // Assuming Game.checkVocab proxies to this manager
                 btn.onclick = (e) => this.game.checkVocab(idx, e);
-
-                // [iOS Fix] Sticky-hover 방어:
-                // iOS WebKit은 터치 후 :hover 상태가 고착되어 연한 보라색이 잔류함.
-                // touchstart 직후 blur()를 호출하면 브라우저가 hover 상태를 해제함.
                 btn.addEventListener('touchstart', () => {
-                    // requestAnimationFrame 으로 클릭 이벤트가 먼저 처리된 뒤 blur 실행
                     requestAnimationFrame(() => btn.blur());
                 }, { passive: true });
-
                 optionsDiv.appendChild(btn);
             });
         }
+    }
+
+
+    /**
+     * _loadImageViaBlobUrl(url, container, word)
+     * [COEP Fix] fetch → blob URL 방식으로 cross-origin 이미지 로드.
+     *
+     * coi-serviceworker.js가 Cross-Origin-Embedder-Policy를 활성화하므로
+     * img.src = "https://storage.googleapis.com/..." 방식은 차단됨.
+     * fetch()로 이미지 바이트를 직접 가져와 로컬 blob URL을 생성하면
+     * same-origin으로 취급되어 COEP 제한이 적용되지 않음.
+     */
+    _loadImageViaBlobUrl(url, container, word) {
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.blob();
+            })
+            .then(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                const img = document.createElement("img");
+                img.alt = word;
+                img.style.maxWidth = "100%";
+                img.style.maxHeight = "100%";
+                img.style.objectFit = "contain";
+                img.style.filter = "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))";
+                img.onload = () => {
+                    container.innerHTML = "";
+                    container.appendChild(img);
+                    // blob URL은 img 로드 후 즉시 해제 (메모리 누수 방지)
+                    URL.revokeObjectURL(blobUrl);
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    this.renderFallbackIcon(container, word);
+                };
+                img.src = blobUrl;
+            })
+            .catch(err => {
+                console.warn(`[VocabManager] 이미지 fetch 실패 (${word}):`, err);
+                this.renderFallbackIcon(container, word);
+            });
     }
 
     renderFallbackIcon(container, word) {
