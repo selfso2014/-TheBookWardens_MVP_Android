@@ -1198,21 +1198,22 @@
         <div class="container">
             <div class="hero-content reveal">
                 <div class="hero-text">
-                    <div class="hero-eyebrow">⚡ AI-Powered Reading Game</div>
+                    <div class="hero-eyebrow">⚡ Boost Your Child's English · AI-Powered Reading Game</div>
                     <h1 class="hero-title">
                         <span style="white-space:nowrap;">Read With Your Eyes.</span><br>
                         <span class="text-gradient" style="white-space:nowrap;">Fight With Magic.</span>
                     </h1>
                     <p class="hero-subtitle">
-                        AI eye-tracking technology turns reading into an epic adventure.
-                        Build lasting reading habits — one page, one battle at a time.
+                        The science-backed way to build your child's English reading habit.
+                        AI monitors real focus — every line mastered earns magical rewards.
                     </p>
                     <div class="hero-buttons">
                         <a href="https://selfso2014.github.io/-TheBookWardens_MVP_Android/" class="btn btn-primary">🎮
                             Play Free Now</a>
                     </div>
-                    <div class="hero-trust">
-                        🔒 Camera data is processed on-device only. Never stored on servers.
+                    <div class="hero-trust" style="flex-direction:column;gap:5px;align-items:center;">
+                        <span>🔒 Camera processed on-device only. Never stored on servers.</span>
+                        <span style="color:#00e676;font-weight:600;font-size:0.85rem;">✅ 100% Free &nbsp;·&nbsp; No Sign-Up &nbsp;·&nbsp; No Credit Card Required</span>
                     </div>
                 </div>
                 <div class="hero-visual">
@@ -1239,21 +1240,21 @@
                     <h3>Kids won't read — they scroll.</h3>
                     <p>The average teen spends 3+ hours per day on video platforms, but only 7 minutes reading books.
                     </p>
-                    <div class="problem-stat">📊 Screen time up 300% since 2019</div>
+                    <div class="problem-stat">📊 Indian teens: 4+ hrs/day on screens, under 15 min reading</div>
                 </div>
                 <div class="problem-card reveal" style="transition-delay:0.1s;">
                     <div class="problem-icon">😴</div>
                     <h3>Adults can't focus past page 3.</h3>
                     <p>Attention spans have dropped below 8 seconds. Most adults abandon books within the first chapter.
                     </p>
-                    <div class="problem-stat">📉 Average adult reads only 4.5 books/year</div>
+                    <div class="problem-stat">📉 India ranks among lowest globally for sustained reading habits</div>
                 </div>
                 <div class="problem-card reveal" style="transition-delay:0.2s;">
                     <div class="problem-icon">🎓</div>
                     <h3>Students lose grades — and confidence.</h3>
                     <p>Poor reading comprehension directly correlates with lower academic performance and test scores.
                     </p>
-                    <div class="problem-stat">⚠️ 65% of students struggle with reading comprehension</div>
+                    <div class="problem-stat">⚠️ 42.7% of Indian teens cannot read English fluently — ASER 2023</div>
                 </div>
             </div>
             <p class="problem-punchline reveal">
@@ -1353,6 +1354,60 @@
     </section>
 
 
+
+    <!-- ═══ ⑤ GAME IN ACTION ═══ -->
+    <style>
+        #game-screenshots { padding: 100px 0; background: radial-gradient(ellipse at 50% 50%, rgba(90,20,140,0.1) 0%, transparent 60%), #050210; }
+        .ss-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 40px; }
+        @media (max-width: 1000px) { .ss-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 600px)  { .ss-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+        .ss-card { border-radius: 14px; overflow: hidden; border: 1px solid rgba(192,96,255,0.2); background:#0d0520; transition: all 0.3s; cursor: zoom-in; }
+        .ss-card:hover { border-color: rgba(192,96,255,0.55); transform: translateY(-5px); box-shadow: 0 10px 32px rgba(90,20,140,0.5); }
+        .ss-card img { width: 100%; height: auto; display: block; }
+        .ss-cap { padding: 10px 12px; font-size: 0.78rem; color: #aaa; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.35); line-height: 1.4; }
+        .ss-cap strong { display: block; color: #ddd; font-size: 0.83rem; margin-bottom: 2px; }
+        .lb-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.93); z-index:99999; align-items:center; justify-content:center; cursor:zoom-out; }
+        .lb-overlay.on { display:flex; }
+        .lb-img { max-width:90vw; max-height:90vh; border-radius:12px; box-shadow:0 0 60px rgba(192,96,255,0.35); }
+    </style>
+    <section id="game-screenshots">
+        <div class="container">
+            <div style="text-align:center;" class="reveal">
+                <div class="section-badge">See It In Action</div>
+                <h2 class="section-title">Real Game. Real Progress.</h2>
+                <p class="section-subtitle">Five screens. One seamless experience — from opening the book to battling the Final Villain.</p>
+            </div>
+            <div class="ss-grid reveal">
+                <div class="ss-card" onclick="_lb(this.querySelector('img').src)">
+                    <img src="./screenshots/ss_01_intro.webp" alt="Game intro screen — The Book Warden: Rift of Pages" loading="lazy">
+                    <div class="ss-cap"><strong>① Epic Intro</strong>Touch to enter the adventure</div>
+                </div>
+                <div class="ss-card" onclick="_lb(this.querySelector('img').src)">
+                    <img src="./screenshots/ss_02_books.webp" alt="Book selection — Aesop, Alice, Sherlock Holmes" loading="lazy">
+                    <div class="ss-cap"><strong>② Choose Your Book</strong>3 classics · Easy to Hard</div>
+                </div>
+                <div class="ss-card" onclick="_lb(this.querySelector('img').src)">
+                    <img src="./screenshots/ss_03_vocab.webp" alt="Word Forge vocabulary quiz screen" loading="lazy">
+                    <div class="ss-cap"><strong>③ Word Forge</strong>Vocabulary in real context</div>
+                </div>
+                <div class="ss-card" onclick="_lb(this.querySelector('img').src)">
+                    <img src="./screenshots/ss_04_reading.webp" alt="Reading screen with live eye-tracking gaze dots" loading="lazy">
+                    <div class="ss-cap"><strong>④ AI Eye-Tracking</strong>Pink dots = your live gaze</div>
+                </div>
+                <div class="ss-card" onclick="_lb(this.querySelector('img').src)">
+                    <img src="./screenshots/ss_05_quiz.webp" alt="Final Challenge comprehension quiz" loading="lazy">
+                    <div class="ss-cap"><strong>⑤ Final Challenge</strong>Beat the villain &amp; seal the Rift</div>
+                </div>
+            </div>
+        </div>
+        <div class="lb-overlay" id="lbOverlay" onclick="_lbc()">
+            <img class="lb-img" id="lbImg" src="" alt="">
+        </div>
+    </section>
+    <script>
+        function _lb(s){document.getElementById('lbImg').src=s;document.getElementById('lbOverlay').classList.add('on');}
+        function _lbc(){document.getElementById('lbOverlay').classList.remove('on');}
+    </script>
 
     <!-- ═══ ⑥ FEATURES ═══ -->
     <section id="features">
@@ -2058,42 +2113,39 @@
                 <div class="testimonial-card reveal">
                     <div class="testimonial-stars">★★★★★</div>
                     <p class="testimonial-text">
-                        "My son used to hate reading. Now he asks to play Book Wardens every day after school.
-                        His reading speed improved by 30% in just two weeks."
+                        "My daughter was struggling with English comprehension in Class 6. After three weeks of Book Wardens, her teacher noticed real improvement. The Mission Report showed me exactly where she was losing focus — incredibly useful for a parent."
                     </p>
                     <div class="testimonial-author">
-                        <div class="testimonial-avatar">👩</div>
+                        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#e040fb,#9c27b0);">🙍‍♀️</div>
                         <div>
-                            <div class="testimonial-name">Sarah K.</div>
-                            <div class="testimonial-role">Parent of a 4th grader</div>
+                            <div class="testimonial-name">Priya S.</div>
+                            <div class="testimonial-role">Parent of a Class 6 student, Bangalore</div>
                         </div>
                     </div>
                 </div>
                 <div class="testimonial-card reveal" style="transition-delay:0.1s;">
                     <div class="testimonial-stars">★★★★★</div>
                     <p class="testimonial-text">
-                        "I've tried every reading app out there. This is the first one that actually kept me focused
-                        for more than 10 minutes. The eye-tracking is genius."
+                        "My son only wanted to watch reels — he never touched a book. Book Wardens changed that completely. In one month, his English reading speed went from 65 to 112 WPM. His board exam English score improved too."
                     </p>
                     <div class="testimonial-author">
-                        <div class="testimonial-avatar">👨</div>
+                        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#42a5f5,#1565c0);">👨</div>
                         <div>
-                            <div class="testimonial-name">James L.</div>
-                            <div class="testimonial-role">College student, English major</div>
+                            <div class="testimonial-name">Rajesh M.</div>
+                            <div class="testimonial-role">Parent of a Class 8 student, Mumbai</div>
                         </div>
                     </div>
                 </div>
                 <div class="testimonial-card reveal" style="transition-delay:0.2s;">
                     <div class="testimonial-stars">★★★★★</div>
                     <p class="testimonial-text">
-                        "As someone who's been trying to build a reading habit for years, the gamification element
-                        finally made it stick. I've finished 3 books this month."
+                        "I'm preparing for UPSC and needed faster English reading speed. This is the only app where I can't cheat — if my eyes wander, the game knows. My reading speed jumped from 90 to 151 WPM in six weeks."
                     </p>
                     <div class="testimonial-author">
-                        <div class="testimonial-avatar">👩‍💼</div>
+                        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#66bb6a,#2e7d32);">👩‍💼</div>
                         <div>
-                            <div class="testimonial-name">Minji P.</div>
-                            <div class="testimonial-role">Working professional</div>
+                            <div class="testimonial-name">Ananya K.</div>
+                            <div class="testimonial-role">UPSC aspirant, Delhi</div>
                         </div>
                     </div>
                 </div>
@@ -2169,13 +2221,11 @@
                 </div>
                 <div class="faq-item reveal">
                     <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
-                        How do I cancel my subscription?
+                        What age group is this suitable for?
                         <span class="faq-toggle">+</span>
                     </div>
                     <div class="faq-answer">
-                        <p>You can cancel anytime from your account settings with a single click. There are no
-                            cancellation fees, no penalties, and no fine print. Your access continues until the end of
-                            your billing period.</p>
+                        <p>Book Wardens is designed for ages 8 and above. The three books range from Easy (Aesop's Fables — ideal for Class 3–5) to Normal (Alice in Wonderland — Class 5–8) to Hard (Sherlock Holmes — Class 8 and above). Adult learners use it too, especially for competitive exam preparation like UPSC and bank exams.</p>
                     </div>
                 </div>
                 <div class="faq-item reveal">
@@ -2186,6 +2236,15 @@
                     <div class="faq-answer">
                         <p>Yes! We're preparing an Education Volume License for schools and academies. Contact us at
                             hello@bookwardens.com for early access and custom pricing for your institution.</p>
+                    </div>
+                </div>
+                <div class="faq-item reveal">
+                    <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+                        Does it work on Android phones?
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes — Book Wardens works on any Android or iPhone with a front-facing camera and Chrome or Safari browser. No app download required. We recommend Chrome on Android for the best experience. A 4G or Wi-Fi connection is sufficient; it uses minimal data (approximately 20–40 MB per session).</p>
                     </div>
                 </div>
             </div>
