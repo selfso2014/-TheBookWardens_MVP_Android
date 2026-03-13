@@ -966,7 +966,7 @@ Game.typewriter = {
             if (container) {
                 // Apply layout styles JS-side just in case CSS missed something
                 container.style.position = "relative";
-                container.style.overflow = "auto"; // lockLayout() 완료 후 _applyTrainWindowHeight()에서 hidden으로 전환됨
+                container.style.overflow = "visible";
 
                 this.renderer = new TextRenderer("book-content", {
                     fontSize: window.innerWidth <= 768 ? "1.0rem" : "1.3rem",

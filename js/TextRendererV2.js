@@ -476,11 +476,6 @@ export class TextRenderer {
         if ((this.wpm || 0) >= 250) {
             this._rechunkByLineBreaks();
         }
-
-        // [Phase 1: Train Window] 컨테이너 높이를 4줄 기준으로 고정하고 초기 윈도우 설정
-        this._applyTrainWindowHeight();
-        this._trainTopLine = -1; // 강제 초기화 → 첫 setTrainWindow() 호출 시 DOM 갱신 보장
-        this.setTrainWindow(0);
     }
 
     /**
@@ -543,64 +538,37 @@ export class TextRenderer {
     // ─────────────────────────────────────────────────────────────────────────
     // [Phase 1: Train Window] 4줄 슬라이딩 윈도우
     // ─────────────────────────────────────────────────────────────────────────
+    // [Phase 1: Train Window] 4줄 트레인 — 줄 페이드아웃 방식
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * 컨테이너 높이를 정확히 4줄 높이로 고정한다.
-     * lockLayout() 완료 직후 1회 호출된다.
-     * lines[]가 4줄 미만이면 아무것도 하지 않는다.
+     * 새 줄(currentLineIndex)이 시작될 때 호출된다.
+     * 현재 줄 기준으로 4줄 이전의 줄 단어들을 페이드아웃하여
+     * 화면에는 항상 최근 4줄만 선명하게 보이도록 한다.
+     *
+     * 핵심 원칙:
+     *   - 텍스트는 절대 위치를 이동하지 않는다.
+     *   - 줄이 나타나면 그 자리에 고정된다.
+     *   - 5번째 이상 오래된 줄만 서서히 사라진다.
+     *
+     * @param {number} currentLineIndex - 방금 시작된 줄 번호
      */
-    _applyTrainWindowHeight() {
-        if (!this.container || !this.lines || this.lines.length < 2) return;
-        // [Phase 1] 컨테이너 높이는 기존 CSS 그대로 유지.
-        // height를 강제 설정하지 않고 overflow:hidden만 적용한다.
-        // 4줄 제한은 setTrainWindow()의 display:none 제어로 달성.
-        this.container.style.overflow = 'hidden';
-    }
-
-    /**
-     * 현재 출력 중인 줄(targetLineIndex)을 기준으로
-     * 화면에 보여줄 4줄 윈도우를 계산하고 DOM display를 갱신한다.
-     *
-     * 알고리즘:
-     *   trainTopLine = max(0, targetLineIndex - 3)
-     *   표시 줄: trainTopLine ~ min(trainTopLine+3, lastLine)
-     *   나머지 줄: display = 'none'
-     *
-     * 최적화: 이전 trainTopLine과 동일하면 DOM 조작을 스킵한다.
-     *
-     * @param {number} targetLineIndex - 현재 출력 중인 줄 번호
-     */
-    setTrainWindow(targetLineIndex) {
+    _fadeOutTrainTail(currentLineIndex) {
         if (!this.lines || this.lines.length === 0) return;
-        if (typeof targetLineIndex !== 'number') return;
 
-        // 표시 범위 계산
-        const trainTopLine = Math.max(0, targetLineIndex - 3);
-        const trainBotLine = Math.min(trainTopLine + 3, this.lines.length - 1);
+        // 페이드아웃 대상: 현재 줄에서 4줄 이전 (5번째 이상 오래된 줄)
+        const fadeTargetLine = currentLineIndex - 4;
+        if (fadeTargetLine < 0) return; // 아직 4줄 미만 — 페이드아웃 불필요
 
-        // 최적화: 동일 윈도우면 스킵
-        if (trainTopLine === this._trainTopLine) return;
-        this._trainTopLine = trainTopLine;
+        const lineObj = this.lines[fadeTargetLine];
+        if (!lineObj || !lineObj.wordIndices) return;
 
-        // 표시할 단어 인덱스 범위
-        const startWordIdx = this.lines[trainTopLine].startIndex;
-        const endWordIdx   = this.lines[trainBotLine].endIndex;
-
-        // 캐싱 (Phase 3 triggerColumnFlash에서 참조)
-        this._trainBounds  = { startWordIdx, endWordIdx };
-
-        // DOM 갱신: 전체 단어 순회해 display 전환
-        // 윈도우 밖 단어: display:none → 레이아웃 공간 차지 안 함
-        // 윈도우 안 단어: display:inline-block → 컨테이너 상단부터 자연 정렬
-        // ※ scrollTop 보정 불필요: display:none 단어들이 공간을 차지하지 않으므로
-        //   남은 단어들이 항상 컨테이너 상단부터 흐름
-        this.words.forEach(w => {
-            if (!w.element) return;
-            if (w.index >= startWordIdx && w.index <= endWordIdx) {
-                w.element.style.display = 'inline-block';
-            } else {
-                w.element.style.display = 'none';
-            }
+        // 해당 줄의 단어들을 부드럽게 페이드아웃 (위치는 변하지 않음)
+        lineObj.wordIndices.forEach(idx => {
+            const w = this.words[idx];
+            if (!w || !w.element) return;
+            w.element.style.transition = 'opacity 0.4s ease-out';
+            w.element.style.opacity = '0';
         });
     }
 
@@ -689,8 +657,8 @@ export class TextRenderer {
                                     lineY: this.lines[item.word.lineIndex].visualY
                                 });
                             }
-                            // [Phase 1: Train Window] 줄 전환 시 트레인 윈도우 이동
-                            this.setTrainWindow(item.word.lineIndex);
+                            // [Phase 1: Train Window] 새 줄 시작 → 4줄 전(currentLine - 4) 줄 페이드아웃
+                            this._fadeOutTrainTail(item.word.lineIndex);
                         }
                         item.cursorMoved = true;
                     }
