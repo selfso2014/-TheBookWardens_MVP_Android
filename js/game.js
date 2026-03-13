@@ -1152,11 +1152,11 @@ Game.typewriter = {
         // Reveal next chunk
         if (this.chunkIndex < this.renderer.chunks.length) {
 
-            // TEXT TRAIN EFFECT (Continuous Flow):
-            // Instead of fading out an old chunk manually here, we SCHEDULE the death of the NEW chunk.
-            // "I am born now, and I shall die in 4 seconds."
-            // This ensures a smooth, independent pipeline regardless of whether the cursor pauses.
-            this.renderer.scheduleFadeOut(this.chunkIndex, 3000); // 3 seconds lifetime
+            // [Phase 1: 4-line Train Window]
+            // 청크 단위 fadeOut은 _fadeOutTrainTail()이 줄 단위로 제어하므로
+            // scheduleFadeOut의 딜레이를 매우 크게 설정해 실질적으로 비활성화한다.
+            // (paragraph 종료 시 cancelAllAnimations()로 정리됨)
+            this.renderer.scheduleFadeOut(this.chunkIndex, 60000);
 
             // Wait for Animation to Finish (Promise-based) with Timeout Safety
             const chunkLen = this.renderer.chunks[this.chunkIndex].length;
