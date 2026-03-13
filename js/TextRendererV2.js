@@ -551,14 +551,9 @@ export class TextRenderer {
      */
     _applyTrainWindowHeight() {
         if (!this.container || !this.lines || this.lines.length < 2) return;
-
-        const refLines = Math.min(4, this.lines.length);
-        const topY    = this.lines[0].rect.top;
-        const botY    = this.lines[refLines - 1].rect.bottom;
-        const h       = botY - topY + 6; // 6px 여백
-
-        this._trainWindowHeight = h;
-        this.container.style.height   = h + 'px';
+        // [Phase 1] 컨테이너 높이는 기존 CSS 그대로 유지.
+        // height를 강제 설정하지 않고 overflow:hidden만 적용한다.
+        // 4줄 제한은 setTrainWindow()의 display:none 제어로 달성.
         this.container.style.overflow = 'hidden';
     }
 
@@ -595,6 +590,10 @@ export class TextRenderer {
         this._trainBounds  = { startWordIdx, endWordIdx };
 
         // DOM 갱신: 전체 단어 순회해 display 전환
+        // 윈도우 밖 단어: display:none → 레이아웃 공간 차지 안 함
+        // 윈도우 안 단어: display:inline-block → 컨테이너 상단부터 자연 정렬
+        // ※ scrollTop 보정 불필요: display:none 단어들이 공간을 차지하지 않으므로
+        //   남은 단어들이 항상 컨테이너 상단부터 흐름
         this.words.forEach(w => {
             if (!w.element) return;
             if (w.index >= startWordIdx && w.index <= endWordIdx) {
@@ -603,13 +602,6 @@ export class TextRenderer {
                 w.element.style.display = 'none';
             }
         });
-
-        // 컨테이너 스크롤을 trainTopLine의 실제 픽셀 위치로 동기화
-        // (overflow:hidden이지만 scrollTop으로 뷰포트 상단을 보정)
-        const containerRect = this.container.getBoundingClientRect();
-        const lineTopAbs    = this.lines[trainTopLine].rect.top;  // viewport 기준
-        const lineTopRel    = lineTopAbs - containerRect.top + this.container.scrollTop;
-        this.container.scrollTop = lineTopRel;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
