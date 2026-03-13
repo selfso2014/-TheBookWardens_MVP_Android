@@ -560,8 +560,6 @@ export class TextRenderer {
         this._trainWindowHeight = h;
         this.container.style.height   = h + 'px';
         this.container.style.overflow = 'hidden';
-
-        console.log(`[TrainWindow] Container height fixed to ${h.toFixed(1)}px (${refLines} lines).`);
     }
 
     /**
@@ -612,8 +610,6 @@ export class TextRenderer {
         const lineTopAbs    = this.lines[trainTopLine].rect.top;  // viewport 기준
         const lineTopRel    = lineTopAbs - containerRect.top + this.container.scrollTop;
         this.container.scrollTop = lineTopRel;
-
-        console.log(`[TrainWindow] Showing lines ${trainTopLine}~${trainBotLine} (words ${startWordIdx}~${endWordIdx})`);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
