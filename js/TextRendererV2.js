@@ -633,8 +633,12 @@ export class TextRenderer {
         // 기존 애니메이션 정리
         this.cancelAllAnimations();
 
-        const msPerWord      = 60000 / wpm;         // 단어당 표시 시간 (ms)
-        const lineBreakDelay = 350;                  // 줄 전환 추가 딜레이 (ms)
+        const msPerWord      = 60000 / wpm;
+        // [Fix1] lineBreakDelay를 WPM에 비례하여 스케일다운
+        // 300 WPM → min(100, 120) = 100ms
+        // 200 WPM → min(150, 120) = 120ms
+        // 150 WPM → min(200, 120) = 120ms
+        const lineBreakDelay = Math.min(Math.round(msPerWord * 0.5), 120);
 
         // ── 스케줄 빌드 ──────────────────────────────────────────────────────
         // 각 단어의 revealAt(ms) 을 미리 계산한다.
@@ -686,10 +690,11 @@ export class TextRenderer {
                     this.updateCursor(word, 'start');
                 }
 
-                // 단어 표시
-                word.element.style.opacity    = '1';
+                // [Fix2] 단어를 80ms ease-out으로 부드럽게 표시
+                // transition:none 즉시 표시 → 탁탁 끊기는 원인이었음
                 word.element.style.visibility = 'visible';
-                word.element.style.transition = 'none'; // 즉시 표시
+                word.element.style.transition = 'opacity 80ms ease-out';
+                word.element.style.opacity    = '1';
                 word.element.classList.add('revealed');
 
                 // 커서 끝 위치 갱신
