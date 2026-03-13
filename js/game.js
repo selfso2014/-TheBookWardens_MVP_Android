@@ -1136,153 +1136,22 @@ Game.typewriter = {
     tick() {
         if (this.isPaused) return;
 
-        // Prevent double-tick: clear previous if exists (though usually it fires once)
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
-
-        // [SAFETY] If chunks are not ready (length 0), wait and retry.
-        if (!this.renderer || !this.renderer.chunks || this.renderer.chunks.length === 0) {
-            console.warn("[Typewriter] Chunks not ready. Retrying in 500ms...");
+        // [SAFETY] renderer 또는 words가 준비되지 않았으면 재시도
+        if (!this.renderer || !this.renderer.words || this.renderer.words.length === 0) {
             this.timer = setTimeout(() => this.tick(), 500);
             return;
         }
 
-        // Reveal next chunk
-        if (this.chunkIndex < this.renderer.chunks.length) {
-
-            // [Phase 1: 4-line Train Window]
-            // 청크 단위 fadeOut은 _fadeOutTrainTail()이 줄 단위로 제어하므로
-            // scheduleFadeOut의 딜레이를 매우 크게 설정해 실질적으로 비활성화한다.
-            // (paragraph 종료 시 cancelAllAnimations()로 정리됨)
-            this.renderer.scheduleFadeOut(this.chunkIndex, 60000);
-
-            // Wait for Animation to Finish (Promise-based) with Timeout Safety
-            const chunkLen = this.renderer.chunks[this.chunkIndex].length;
-            const wpm = Game.wpm || 200;
-            const msPerWord = 60000 / wpm; // e.g. 200wpm -> 300ms
-
-            // The renderer's revealChunk animation takes (length * interval) ms.
-            // Game.wpmParams.interval is usually very fast (e.g. 50ms) for 'snappy' reveal.
-            // We need to wait for the visual reveal, THEN wait for the remaining time to match WPM.
-
-            const revealPromise = this.renderer.revealChunk(this.chunkIndex, Game.wpmParams.interval);
-
-            // Total time this chunk *should* occupy
-            // [TUNING] Dynamic Multiplier for "Reading/Pause" buffer.
-            let buffer = 1.2; // Default (200 WPM)
-            if (wpm <= 100) buffer = 1.15; // [100 WPM] Increased chunk size, so reduce buffer slightly.
-            else if (wpm >= 300) buffer = 1.05; // [300 WPM] Needs to be faster. Reduce gap.
-
-            const targetDuration = (msPerWord * chunkLen) * buffer;
-
-            // Safety timeout
-            const timeoutPromise = new Promise(resolve => setTimeout(resolve, targetDuration + 1000));
-
-            const startTime = Date.now();
-
-            Promise.race([revealPromise, timeoutPromise]).then(() => {
-                const elapsed = Date.now() - startTime;
-
-                // Calculate remaining wait time
-                // We want total time (reveal + pause) = targetDuration
-                let remainingWait = targetDuration - elapsed;
-
-                // If reveal was instant or fast, we wait longer.
-                // If reveal took long (e.g. line break pause inside renderer?), we wait less.
-
-                if (remainingWait < 0) remainingWait = 0;
-
-                // [WPM COMPENSATION LOGIC]
-                // 1. Check if the *current* chunk (this.chunkIndex) had a line break.
-                // The renderer adds +450ms internally if a word starts a new line.
-                // We must SUBTRACT this from our game loop delay to avoid double waiting.
-                let hadLineBreak = false;
-                if (this.renderer && this.renderer.chunks && this.renderer.lines) {
-                    const currentChunkIndices = this.renderer.chunks[this.chunkIndex];
-                    if (currentChunkIndices) {
-                        // [FIX-iOS] Use Set for O(1) lookup instead of O(N×M) nested some().
-                        // Old code: chunks.some(w => lines.some(l => l.startIndex === w))
-                        // = chunkSize × lineCount comparisons per tick.
-                        if (!this._lineStartSet) {
-                            this._lineStartSet = new Set(this.renderer.lines.map(l => l.startIndex));
-                        }
-                        hadLineBreak = currentChunkIndices.some(wordIdx =>
-                            wordIdx > 0 && this._lineStartSet.has(wordIdx)
-                        );
-                    }
-                }
-
-                this.chunkIndex++;
-
-                // Calculate Delay (Pause AFTER valid reading)
-                // We use the remainingWait calculated above to ensure WPM adherence.
-                let baseDelay = remainingWait;
-
-                // Apply Compensation
-                let finalDelay = baseDelay;
-                if (hadLineBreak) {
-                    // Renderer paused 450ms, so we pause 450ms less.
-                    finalDelay = Math.max(0, baseDelay - 450);
-                    // console.log(`[WPM Sync] Line Break Detected in Chunk ${this.chunkIndex-1}. Compensating: ${baseDelay} -> ${finalDelay}ms`);
-                }
-
-                this.timer = setTimeout(() => {
-                    this.timer = null;
-                    this.tick();
-                }, finalDelay);
-            });
-
-        } else {
-            console.log("Chunk Sequence Finished for current Page/Flow.");
-
-            // Check if there are more pages in this paragraph!
-            // [BUGFIX] If all chunks are shown, force finish regardless of 'pages'.
-            // The renderer's page count might include trailing empty pages or logic issues.
-            // Since chunkIndex >= chunks.length means *ALL* text is visible, we should proceed to end the paragraph.
-            /*
-            const renderer = this.renderer;
-            if (renderer && renderer.currentPageIndex < renderer.pages.length - 1) {
-                console.log("[Typewriter] Moving to Next Page...");
- 
-                // Fade out current page words? Or just switch?
-                // Let's just switch cleanly.
-                setTimeout(() => {
-                    const nextPage = renderer.currentPageIndex + 1;
-                    renderer.showPage(nextPage).then(() => {
-                        // Reset chunk index to the first chunk of the new page?
-                        // Actually, this.chunkIndex is global for the whole text. 
-                        // It continues naturally. We just need to ensure the words are visible.
-                        // Wait... The words ON the new page are currently opacity:0.
-                        // tick() will reveal them.
- 
-                        renderer.resetToStart(); // Move cursor to top of new page
-            }
-            */
-
-            console.log("Paragraph Fully Revealed (All Pages). Preparing for Replay...");
-
-            // [FIX] Do NOT fade out text here.
-            // We need the text to remain EXACTLY as it is for the Gaze Replay overlay.
-            // If we fade out and then force-show in replay, it causes layout shifts (jumps).
-            // The text will be hidden naturally when we switch to 'screen-boss' after replay.
-
-            // let cleanupDelay = 0;
-            // const startCleanupIdx = Math.max(0, this.chunkIndex - 3);
-            // for (let i = startCleanupIdx; i < this.renderer.chunks.length; i++) {
-            //    this.renderer.scheduleFadeOut(i, cleanupDelay + 600);
-            //    cleanupDelay += 600;
-            // }
-
-            // [CHANGED] Always trigger Mid-Boss Battle after ANY paragraph (including the last one).
-            // Logic: P1 -> Replay -> Mid -> P2 -> Replay -> Mid -> ...
+        // [Phase 2] WPM 기반 연속 스트리밍 — 청크 시스템 완전 대체
+        // startWordStream()이 단어당 정확히 (60000/wpm)ms 간격으로 표시하므로
+        // 어떤 WPM 값에서도 정확한 속도가 보장된다.
+        this.renderer.startWordStream(Game.wpm || 200, () => {
+            // 스트리밍 완료 → 기존 "Chunk Sequence Finished" 로직과 동일하게 처리
             setTimeout(async () => {
-                // Play Gaze Replay before Villain appears
                 await this.triggerGazeReplay();
                 this.triggerMidBossBattle();
-            }, 3000); // 3s initial delay
-        }
+            }, 3000);
+        });
     },
 
     // --- NEW: Gaze Replay ---

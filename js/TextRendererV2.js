@@ -611,6 +611,116 @@ export class TextRenderer {
         this.currentVisibleLineIndex = 0;
     }
 
+    // =========================================================================
+    // [Phase 2] startWordStream — WPM 기반 연속 스트리밍
+    // 청크 경계를 완전히 무시하고, words[] 전체를 일정 속도로 순서대로 표시한다.
+    // 어떤 WPM 값에서도 정확하게 동작한다.
+    // =========================================================================
+
+    /**
+     * words[] 전체를 wpm에 맞는 일정 속도로 순서대로 표시한다.
+     *
+     * @param {number}   wpm        - 분당 단어 수 (예: 150, 200, 300)
+     * @param {Function} onComplete - 마지막 단어 표시 완료 시 호출되는 콜백
+     */
+    startWordStream(wpm, onComplete) {
+        if (!this.isLayoutLocked) this.lockLayout();
+        if (!this.words || this.words.length === 0) {
+            if (onComplete) onComplete();
+            return;
+        }
+
+        // 기존 애니메이션 정리
+        this.cancelAllAnimations();
+
+        const msPerWord      = 60000 / wpm;         // 단어당 표시 시간 (ms)
+        const lineBreakDelay = 350;                  // 줄 전환 추가 딜레이 (ms)
+
+        // ── 스케줄 빌드 ──────────────────────────────────────────────────────
+        // 각 단어의 revealAt(ms) 을 미리 계산한다.
+        let cumulativeTime = 0;
+        let prevLineIndex  = -1;
+        const schedule = this.words.map(word => {
+            if (word.lineIndex !== prevLineIndex && prevLineIndex !== -1) {
+                cumulativeTime += lineBreakDelay; // 줄 전환 딜레이
+            }
+            const revealAt = cumulativeTime;
+            cumulativeTime += msPerWord;
+            prevLineIndex = word.lineIndex;
+            return { word, revealAt };
+        });
+
+        // ── RAF 루프 ──────────────────────────────────────────────────────────
+        const startTs      = performance.now();
+        let scheduleIdx    = 0;
+        let prevStreamLine = -1;
+        let rafId          = null;
+
+        const streamLoop = (now) => {
+            const elapsed = now - startTs;
+
+            // 이번 프레임에서 revealAt이 지난 단어들을 모두 처리
+            while (scheduleIdx < schedule.length &&
+                   elapsed >= schedule[scheduleIdx].revealAt) {
+
+                const { word } = schedule[scheduleIdx];
+
+                // 줄 전환 감지
+                if (word.lineIndex !== prevStreamLine) {
+                    prevStreamLine = word.lineIndex;
+                    this.currentVisibleLineIndex = word.lineIndex;
+
+                    // gaze context 갱신 (팡 판정 기준선) — 기존 revealChunk와 동일 타이밍
+                    const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
+                    if (gm?.setContext && this.lines[word.lineIndex]) {
+                        gm.setContext({
+                            lineIndex: word.lineIndex,
+                            lineY:     this.lines[word.lineIndex].visualY
+                        });
+                    }
+
+                    // [Phase 1] 4줄 트레인 유지: 5번째 이전 줄 페이드아웃
+                    this._fadeOutTrainTail(word.lineIndex);
+
+                    // 커서를 새 줄 첫 단어 위치로 이동
+                    this.updateCursor(word, 'start');
+                }
+
+                // 단어 표시
+                word.element.style.opacity    = '1';
+                word.element.style.visibility = 'visible';
+                word.element.style.transition = 'none'; // 즉시 표시
+                word.element.classList.add('revealed');
+
+                // 커서 끝 위치 갱신
+                this.updateCursor(word, 'end');
+
+                scheduleIdx++;
+            }
+
+            if (scheduleIdx < schedule.length) {
+                // 다음 프레임 예약
+                rafId = requestAnimationFrame(streamLoop);
+                // 이전 슬롯 제거 후 새 ID 등록 (activeRAFs 과증가 방지)
+                const prevIdx = this.activeRAFs.indexOf(rafId);
+                if (prevIdx !== -1) this.activeRAFs.splice(prevIdx, 1);
+                this.activeRAFs.push(rafId);
+            } else {
+                // 완료
+                rafId = null;
+                if (onComplete) {
+                    const tid = setTimeout(onComplete, 100);
+                    this.activeAnimations.push(tid);
+                }
+            }
+        };
+
+        rafId = requestAnimationFrame(streamLoop);
+        this.activeRAFs.push(rafId);
+    }
+
+    // =========================================================================
+
     revealChunk(chunkIndex, interval = 150) {
         if (!this.isLayoutLocked) this.lockLayout();
         if (chunkIndex < 0 || chunkIndex >= this.chunks.length) return Promise.resolve();
