@@ -531,7 +531,7 @@ body {
   height: auto;
   z-index: 200;
   /* scaleX(-1) 제거: 원본 이미지의 왼쪽 방향 그대로 */
-  opacity: 0.88;
+  opacity: 1.0;          /* 완전 불투명 — 선명하게 */
   filter: drop-shadow(0 0 18px rgba(124,58,237,0.85));
   pointer-events: none;
   animation: bossFloat 3.2s ease-in-out infinite;
@@ -604,10 +604,10 @@ body {
   border-radius: 10px;
   color: #ffcccc;
   font-family: 'Outfit', monospace;
-  font-size: clamp(13px, 3.2vw, 16px);   /* 크게 */
+  font-size: clamp(26px, 6.4vw, 32px);   /* 200% 확대 */
   font-weight: 800;
   letter-spacing: 0.5px;
-  padding: 8px 16px;
+  padding: 12px 24px;
   white-space: nowrap;
   pointer-events: none;
   z-index: 510;
