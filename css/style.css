@@ -523,17 +523,17 @@ body {
 
 /* ── 읽기 화면 빌런 오버레이 ─────────────────────────────── */
 #read-boss-overlay {
-  display: none;                      /* 기본 숨김 */
+  display: none;
   position: fixed;
-  right: 6px;
-  bottom: 28px;
-  width: 78px;
+  right: 4px;
+  bottom: -20px;               /* 하반신 일부 화면 밖 → 상체만 보임 */
+  width: 130px;                /* 78→130px: 형체가 한 눈에 들어오는 크기 */
   height: auto;
-  z-index: 200;                       /* 텍스트 위, 팡마커(999999) 아래 */
-  transform: scaleX(-1);              /* 좌우반전: 빌런이 텍스트를 바라봄 */
-  opacity: 0.82;
-  filter: drop-shadow(0 0 14px rgba(124, 58, 237, 0.75));
-  pointer-events: none;               /* 클릭 이벤트 차단 */
+  z-index: 200;
+  /* scaleX(-1) 제거: 원본 이미지의 왼쪽 방향 그대로 */
+  opacity: 0.88;
+  filter: drop-shadow(0 0 16px rgba(124, 58, 237, 0.8));
+  pointer-events: none;
   animation: bossFloat 3.2s ease-in-out infinite;
   will-change: transform;
 }
@@ -545,22 +545,21 @@ body {
 
 /* 빌런 숨쉬기 떠다니기 */
 @keyframes bossFloat {
-  0%, 100% { transform: scaleX(-1) translateY(0px); }
-  50%       { transform: scaleX(-1) translateY(-7px); }
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
 }
 
-/* 팡 이벤트 시 흔들기 
-   (index.html의 bossShake는 scaleX 없음 → 여기서 재정의) */
+/* 팡 이벤트 시 흔들기 */
 #read-boss-overlay.pang-shake {
-  animation: bossShakeMirrored 0.42s ease;
+  animation: bossShakeBoss 0.42s ease;
 }
 
-@keyframes bossShakeMirrored {
-  0%, 100% { transform: scaleX(-1) translateX(0); }
-  15%      { transform: scaleX(-1) translateX(5px); }
-  35%      { transform: scaleX(-1) translateX(-5px); }
-  55%      { transform: scaleX(-1) translateX(4px); }
-  75%      { transform: scaleX(-1) translateX(-3px); }
+@keyframes bossShakeBoss {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-6px); }
+  35%      { transform: translateX(6px); }
+  55%      { transform: translateX(-4px); }
+  75%      { transform: translateX(3px); }
 }
 
 .book-container {
