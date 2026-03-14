@@ -13,6 +13,10 @@ import { GameLogic } from './core/GameLogic.js?v=20260224-FQ';
 import { DOMManager } from './core/DOMManager.js?v=20260224-FQ';
 import { FinalQuizManager } from './managers/FinalQuizManager.js?v=20260224-FQ';
 import { BookSelectManager } from './managers/BookSelectManager.js?v=20260226-BS3';
+import { BossMiniBattle } from './BossMiniBattle.js';
+
+// 소형 빌런 배틀 전역 인스턴스
+window.bossMiniBattle = new BossMiniBattle();
 
 // ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
@@ -1048,6 +1052,13 @@ Game.typewriter = {
         window.scrollTo(0, 0);
         const screenRead = document.getElementById('screen-read');
         if (screenRead) screenRead.scrollTop = 0;
+
+        // 소형 빌런 HP 바 실시 + 리셋
+        if (window.bossMiniBattle) {
+            window.bossMiniBattle.reset();
+            // HP 바는 첩 프레임 후 표시 (DOM render 완료 대기)
+            setTimeout(() => window.bossMiniBattle.showHPBar(), 400);
+        }
 
         // [CRITICAL FIX] Reset Pang Event Logic / First Content Time for new paragraph
         console.log(`[Typewriter] Pre-Check: Resetting Triggers for Para ${this.currentParaIndex}...`);

@@ -1152,6 +1152,9 @@ export class TextRenderer {
             }));
         }
 
+        // HP -3% 업데이트
+        if (window.bossMiniBattle) window.bossMiniBattle.onPang();
+
         return true;
     }
 
@@ -1592,9 +1595,15 @@ export class TextRenderer {
                     setTimeout(() => {
                         canvas.remove();
                         // ─────────────────────────────────────
-                        // PHASE 3: Wire Discharge
+                        // PHASE 2.5: Mini Boss Battle
                         // ─────────────────────────────────────
-                        this._runWireDischarge(chargedNodesMap, litLines, visualLines, onComplete);
+                        const runWire = () =>
+                            this._runWireDischarge(chargedNodesMap, litLines, visualLines, onComplete);
+                        if (window.bossMiniBattle) {
+                            window.bossMiniBattle.triggerAfterReplay(runWire);
+                        } else {
+                            runWire();
+                        }
                     }, 500);
                     return;
                 }
