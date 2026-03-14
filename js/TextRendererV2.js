@@ -1112,22 +1112,22 @@ export class TextRenderer {
             impact.style.opacity = "0";
         }));
 
-        // ── [Pang Flash] 텍스트 박스 보라색 플래시 ──────────────────────────
-        // 마젠타 원(0.2s)과 완전 동기화: 켜짐(0.05s) → 꺼짐(0.2s)
+        // ── [Pang Flash] 텍스트 박스 내측 보라색 글로우 (배경색 변경 없이 테두리 내측만) ──
+        // 마쩔타 원(0.2s)과 완전 동기화: 켜집(0.05s) → 켜집(0.2s)
         if (this.container) {
             const box = this.container;
 
             // 1. 빠르게 켜기 (0.05s ease-in)
-            box.style.transition = 'background-color 0.05s ease-in';
+            box.style.transition = 'box-shadow 0.05s ease-in';
             box.classList.add('pang-flash');
 
-            // 2. 50ms 후 → 서서히 꺼지기 (0.2s ease-out, 원과 동일 속도)
+            // 2. 50ms 후 → 서서히 켼지기 (0.2s ease-out, 원과 동일 속도)
             const t1 = setTimeout(() => {
-                box.style.transition = 'background-color 0.2s ease-out';
+                box.style.transition = 'box-shadow 0.2s ease-out';
                 box.classList.remove('pang-flash');
             }, 50);
 
-            // 3. 250ms 후 → transition 인라인 스타일 제거 (CSS 기본값 복원)
+            // 3. 280ms 후 → transition 인라인 스타일 제거 (CSS 기본값 복원)
             const t2 = setTimeout(() => {
                 box.style.transition = '';
             }, 280);
