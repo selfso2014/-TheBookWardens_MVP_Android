@@ -120,14 +120,31 @@ export class BossMiniBattle {
             boss.style.left       = tgtLeft + 'px';
             boss.style.top        = tgtTop  + 'px';
             boss.style.width      = '185px';
-            boss.style.transform  = 'scaleX(-1)';  // 오른쪽(텍스트) 방향
+            boss.style.transform  = 'scaleX(-1)';
             boss.style.zIndex     = '500';
-            boss.style.filter     = 'brightness(3.5) drop-shadow(0 0 28px rgba(124,58,237,1))';
+            boss.style.filter     = 'drop-shadow(0 0 4px rgba(0,0,0,1)) brightness(3.5) drop-shadow(0 0 28px rgba(124,58,237,1))';
             boss.style.opacity    = '1';
+
+            // 어두운 원형 후광 (보스 후면, z-index 빈 아래)
+            document.getElementById('boss-dark-halo')?.remove();
+            const halo = document.createElement('div');
+            halo.id = 'boss-dark-halo';
+            halo.style.cssText = [
+                'position:fixed',
+                `left:${tgtLeft - 25}px`,
+                `top:${tgtTop - 25}px`,
+                'width:235px',
+                'height:235px',
+                'background:radial-gradient(ellipse, rgba(4,0,18,0.88) 30%, transparent 72%)',
+                'pointer-events:none',
+                'z-index:499',
+                'border-radius:50%',
+            ].join(';');
+            document.body.appendChild(halo);
 
             const t2 = setTimeout(() => {
                 boss.style.transition = 'filter 0.5s';
-                boss.style.filter     = 'drop-shadow(0 0 18px rgba(124,58,237,0.85))';
+                boss.style.filter     = 'drop-shadow(0 0 4px rgba(0,0,0,1)) drop-shadow(0 0 18px rgba(124,58,237,0.85))';
                 if (onDone) onDone();
             }, 250);
             this.timeouts.push(t2);
@@ -140,6 +157,9 @@ export class BossMiniBattle {
     // ─────────────────────────────────────────────────────────────
     startRiftAttack(onComplete) {
         const T = (ms, fn) => { const id = setTimeout(fn, ms); this.timeouts.push(id); };
+
+        // 경고 배너 표시
+        this._showRiftWarning();
 
         // 에너지 차징 글로우
         T(200,  () => this._chargeGlow(true));
@@ -173,8 +193,11 @@ export class BossMiniBattle {
         // 공격 완료 포즈 유지 (6~7초)
         T(6000, () => this._chargeGlow(false));
 
-        // 빌런 퇴각
-        T(7000, () => this._bossRetreat());
+        // 빌런 퇴각 + 경고 배너 숨김
+        T(7000, () => {
+            this._bossRetreat();
+            this._hideRiftWarning();
+        });
 
         // Wire Discharge 진행
         T(8500, () => {
@@ -321,7 +344,37 @@ export class BossMiniBattle {
     // CLEANUP & RESET
     // ─────────────────────────────────────────────────────────────
     _cleanupBattleVisuals() {
+        document.getElementById('boss-dark-halo')?.remove();
+        document.getElementById('rift-warning-banner')?.remove();
         document.querySelectorAll('.battle-lightning-svg, .battle-laser-svg').forEach(el => el.remove());
+    }
+
+    /** RIFT DETECTED 경고 배너 표시 */
+    _showRiftWarning() {
+        document.getElementById('rift-warning-banner')?.remove();
+        const card = document.getElementById('book-content');
+        const banner = document.createElement('div');
+        banner.id = 'rift-warning-banner';
+        banner.textContent = '⚠ RIFT DETECTED — Text under attack!';
+        if (card) {
+            const cr = card.getBoundingClientRect();
+            banner.style.top = (cr.top) + 'px';
+        } else {
+            banner.style.top = '20%';
+        }
+        document.body.appendChild(banner);
+        // fade in
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => { banner.style.opacity = '1'; });
+        });
+    }
+
+    /** RIFT DETECTED 경고 배너 숨김 */
+    _hideRiftWarning() {
+        const banner = document.getElementById('rift-warning-banner');
+        if (!banner) return;
+        banner.style.opacity = '0';
+        setTimeout(() => { try { banner.remove(); } catch (_) {} }, 400);
     }
 
     _cleanup() {

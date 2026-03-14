@@ -532,7 +532,7 @@ body {
   z-index: 200;
   /* scaleX(-1) 제거: 원본 이미지의 왼쪽 방향 그대로 */
   opacity: 0.88;
-  filter: drop-shadow(0 0 16px rgba(124, 58, 237, 0.8));
+  filter: drop-shadow(0 0 3px rgba(0,0,0,1)) drop-shadow(0 0 16px rgba(124,58,237,0.8));
   pointer-events: none;
   animation: bossFloat 3.2s ease-in-out infinite;
   will-change: transform;
@@ -606,12 +606,14 @@ body {
   75%      { transform: skewX(2.5deg)  translateX(1px); }
 }
 .rift-corrupted {
-  animation: riftWave 0.35s ease infinite;
-  color: #661100 !important;
-  text-shadow: 1px 0 #ff0000, -1px 0 #000 !important;
-  opacity: 0.55;
-  filter: blur(0.6px);
-  display: inline-block;  /* skew requires block context */
+  animation: riftWave 0.4s ease infinite;
+  /* 잊크 스모그: 글자 형태 숨기고 검은 얼룩으로 가림 */
+  color: transparent !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  text-shadow: 0 0 10px rgba(10,0,20,0.95), 0 0 18px rgba(50,0,80,0.6) !important;
+  border-radius: 2px;
+  padding: 0 2px;
+  display: inline-block;
 }
 .rift-restored {
   color: #cc88ff !important;
@@ -632,6 +634,27 @@ body {
   opacity: 0.06 !important;
   display: inline-block;
   transition: opacity 0.4s;
+}
+
+/* ─── RIFT 경고 배너 ─────────────────────────────────────── */
+#rift-warning-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, rgba(90,0,20,0.94), rgba(60,0,80,0.94));
+  color: #ffaaaa;
+  font-family: 'Outfit', 'Cinzel', monospace;
+  font-size: clamp(10px, 2.6vw, 13px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 80, 80, 0.55);
+  pointer-events: none;
+  z-index: 501;
+  opacity: 0;
+  transition: opacity 0.35s;
+  text-shadow: 0 0 8px rgba(255, 80, 80, 0.7);
 }
 
 /* ─── Ink Splatter Particle ──────────────────────────────── */
