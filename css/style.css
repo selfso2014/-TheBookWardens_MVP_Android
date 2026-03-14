@@ -533,6 +533,13 @@ body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* [Pang Flash] background-color 트랜지션 (JS에서 인라인 transition으로 override) */
+  transition: background-color 0.2s ease-out;
+}
+
+/* 팡 이벤트 발생 시 텍스트 박스 보라색 플래시 */
+.pang-flash {
+  background-color: rgba(124, 58, 237, 0.22) !important;
 }
 
 .rift-text {

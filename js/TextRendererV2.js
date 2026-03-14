@@ -1112,6 +1112,30 @@ export class TextRenderer {
             impact.style.opacity = "0";
         }));
 
+        // ── [Pang Flash] 텍스트 박스 보라색 플래시 ──────────────────────────
+        // 마젠타 원(0.2s)과 완전 동기화: 켜짐(0.05s) → 꺼짐(0.2s)
+        if (this.container) {
+            const box = this.container;
+
+            // 1. 빠르게 켜기 (0.05s ease-in)
+            box.style.transition = 'background-color 0.05s ease-in';
+            box.classList.add('pang-flash');
+
+            // 2. 50ms 후 → 서서히 꺼지기 (0.2s ease-out, 원과 동일 속도)
+            const t1 = setTimeout(() => {
+                box.style.transition = 'background-color 0.2s ease-out';
+                box.classList.remove('pang-flash');
+            }, 50);
+
+            // 3. 250ms 후 → transition 인라인 스타일 제거 (CSS 기본값 복원)
+            const t2 = setTimeout(() => {
+                box.style.transition = '';
+            }, 280);
+
+            // cancelAllAnimations() 시 타이머 함께 정리
+            this.activeAnimations.push(t1, t2);
+        }
+
         if (this.validatedLines && typeof lineIndex === 'number' && lineIndex >= 0) {
             this.validatedLines.add(lineIndex);
         }
