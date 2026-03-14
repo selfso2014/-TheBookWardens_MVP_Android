@@ -788,22 +788,22 @@ body {
 /* --- TextRenderer Specialized Styles --- */
 .tr-word {
   opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* [Phase 2 Fix] transform: translateY 제거
+     bounce 애니메이션이 고WPM에서 단어들이 겹쳐 올라오며 끊겨 보이는 원인이었음.
+     transition은 JS(startWordStream)에서 WPM 비례로 동적 설정됨. */
+  transition: opacity 0.4s ease-out;
   display: inline-block;
   white-space: pre-wrap;
   color: #fff;
-  /* Unified White */
   /* [FIX] Prevent mobile browser dictionary/translate popup on typewriter text */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* Revealed State (Fade In + Slide Up) */
+/* Revealed State (opacity 1 — transform 제거됨) */
 .tr-word.revealed {
   opacity: 1 !important;
-  transform: translateY(0);
 }
 
 /* Read State (Gaze Hit) - Minimal Feedback Only */

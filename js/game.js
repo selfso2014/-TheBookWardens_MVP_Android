@@ -1092,42 +1092,32 @@ Game.typewriter = {
             Game.sceneManager.setCursorReference(this.renderer.cursor);
         }
 
-        // 2. Lock Layout (Next Frame to allow DOM render)
+        // 2. Lock Layout — Stream Mode (showPage 우회)
+        // [Phase 2 Fix] prepareDynamic()이 모든 단어를 display:inline-block, opacity:0으로 생성.
+        // showPage(0)을 호출하면 page 1+ 단어가 display:none → 스트림에서 영구 제외됨.
+        // 해결: showPage() 없이 lockLayout() 1회만 실행 → 전체 단어 좌표·lineIndex 확보.
         requestAnimationFrame(() => {
             this.renderer.lockLayout();
             const debugEl = document.getElementById('line-detect-result');
             if (debugEl) debugEl.textContent = `Lines Cached: ${this.renderer.lines.length}`;
 
-            // Resume Game Loop safely after layout is ready
             this.isPaused = false;
-
-            // [CRITICAL FIX] Re-enable Tracking!
-            // Tracking is disabled in 'confrontVillain' (Mid-Boss).
-            // We must re-enable it here for the next paragraph.
             Game.state.isTracking = true;
             console.log("[Typewriter] Tracking Re-enabled for new paragraph.");
 
-            // 3. Start Reading Flow
-            // UX IMPROVEMENT: Hide cursor initially. 
-            // The screen 'fadeIn' animation shifts the text container. 
-            // If we show the cursor immediately, it looks like it's floating/misaligned.
             if (this.renderer.cursor) this.renderer.cursor.style.opacity = "0";
 
-            // Wait for measurement and pagination
+            // DOM reflow 안정화 대기 후 스트리밍 시작
             setTimeout(() => {
                 if (this.renderer) {
-                    // Start from Page 0
-                    this.renderer.showPage(0).then(() => {
-                        this.renderer.resetToStart(); // Aligns correctly
-                        if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
-                        console.log("[Typewriter] Page 0 Ready.");
+                    this.renderer.resetToStart();
+                    if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
+                    console.log("[Typewriter] Stream Mode Ready — all words in DOM, lockLayout complete.");
 
-                        // Start Text after full delay
-                        setTimeout(() => {
-                            this.startTime = Date.now();
-                            this.tick();
-                        }, 1000); // Reduced from 3000 to 1000 for snappier page loads
-                    });
+                    setTimeout(() => {
+                        this.startTime = Date.now();
+                        this.tick();
+                    }, 1000);
                 }
             }, 600);
         });

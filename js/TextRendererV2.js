@@ -633,24 +633,18 @@ export class TextRenderer {
         // 기존 애니메이션 정리
         this.cancelAllAnimations();
 
-        const msPerWord      = 60000 / wpm;
-        // [Fix1] lineBreakDelay를 WPM에 비례하여 스케일다운
-        // 300 WPM → min(100, 120) = 100ms
-        // 200 WPM → min(150, 120) = 120ms
-        // 150 WPM → min(200, 120) = 120ms
-        const lineBreakDelay = Math.min(Math.round(msPerWord * 0.5), 120);
+        const msPerWord = 60000 / wpm;
+        // [Phase 2 Fix] lineBreakDelay 완전 제거
+        // 줄 전환마다 100~120ms 공백이 "딱딱 끊기는" 느낌의 직접 원인 + WPM 손실 원인.
+        // 단어를 균일한 msPerWord 간격으로만 표시 → 연속 흐름 + WPM 100% 정확도.
+        const transitionMs = Math.round(msPerWord * 0.5); // 단어 표시 시간의 절반
 
         // ── 스케줄 빌드 ──────────────────────────────────────────────────────
-        // 각 단어의 revealAt(ms) 을 미리 계산한다.
+        // 각 단어의 revealAt(ms) 을 미리 계산한다. 줄 전환 딜레이 없음.
         let cumulativeTime = 0;
-        let prevLineIndex  = -1;
         const schedule = this.words.map(word => {
-            if (word.lineIndex !== prevLineIndex && prevLineIndex !== -1) {
-                cumulativeTime += lineBreakDelay; // 줄 전환 딜레이
-            }
             const revealAt = cumulativeTime;
             cumulativeTime += msPerWord;
-            prevLineIndex = word.lineIndex;
             return { word, revealAt };
         });
 
@@ -690,10 +684,9 @@ export class TextRenderer {
                     this.updateCursor(word, 'start');
                 }
 
-                // [Fix2] 단어를 80ms ease-out으로 부드럽게 표시
-                // transition:none 즉시 표시 → 탁탁 끊기는 원인이었음
+                // transition을 WPM 비례로 설정: msPerWord 절반 시간 내에 완전히 등장
                 word.element.style.visibility = 'visible';
-                word.element.style.transition = 'opacity 80ms ease-out';
+                word.element.style.transition = `opacity ${transitionMs}ms ease-out`;
                 word.element.style.opacity    = '1';
                 word.element.classList.add('revealed');
 
