@@ -788,9 +788,8 @@ body {
 
 /* --- TextRenderer Specialized Styles --- */
 .tr-word {
-  opacity: 0;
-  /* [Phase 2 Fix] transition: none — JS(startWordStream)에서 WPM 비례로 inline 설정.
-     CSS transition 완전 제거: #book-content span의 1.0s와 충돌 차단. */
+  /* [Char-level] opacity는 내부 .tr-char가 제어. word span 자체는 하상 visible.
+     _fadeOutTrainTail이 inline style로 opacity:0을 직접 설정하면 모든 tr-char가 함께 숨겨짘. */
   transition: none;
   display: inline-block;
   white-space: pre-wrap;
@@ -800,9 +799,16 @@ body {
   -webkit-touch-callout: none;
 }
 
-/* Revealed State (opacity 1 — transform 제거됨) */
+/* [Char-level] 글자 단위 술루프 요소 */
+.tr-char {
+  opacity: 0;          /* JS startWordStream이 글자별로 fade-in 제어 */
+  transition: none;    /* JS inline style이 override — CSS는 none */
+  display: inline;     /* word span 안에서 자연스럳게 프로우 */
+}
+
+/* Revealed State */
 .tr-word.revealed {
-  opacity: 1 !important;
+  opacity: 1;
 }
 
 /* Read State (Gaze Hit) - Minimal Feedback Only */

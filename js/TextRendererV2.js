@@ -178,14 +178,25 @@ export class TextRenderer {
                     // span.style.fontWeight = "bold"; // Example default
                 }
 
-                span.style.color = "#ffffff"; // Default
-                span.style.opacity = "0";
+                span.style.color = "#ffffff";
+                // [Char-level] word span 자체는 opacity 제어 안 함
+                // 대신 각 글자에 .tr-char span을 래핑 → 글자 단위로 opacity 제어
+                // word span 너비는 선언 시점에 확정됨 → 이후 reflow 없음
                 span.style.marginRight = this.options.wordSpacing;
                 span.style.display = "inline-block";
                 span.style.lineHeight = "1.2";
                 span.style.verticalAlign = "middle";
                 span.dataset.index = globalWordIndex;
-                span.textContent = tokenObj.t;
+
+                // 종수 이유: textContent 직접 설정 시 word span의 너비가 자동 결정됨
+                // Array.from: Unicode 코드포인트(이모지 등) 안전 분리
+                Array.from(tokenObj.t).forEach(ch => {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'tr-char';
+                    charSpan.textContent = ch;
+                    // opacity:0, transition:none 은 CSS .tr-char에서 설정됨
+                    span.appendChild(charSpan);
+                });
 
                 this.container.appendChild(span);
 
@@ -630,24 +641,52 @@ export class TextRenderer {
             return;
         }
 
-        // 기존 애니메이션 정리
         this.cancelAllAnimations();
 
         const msPerWord = 60000 / wpm;
-        // [Phase 2] transitionMs: msPerWord의 40% → 단어가 빠르게 나타나고 나머지 60%는 완전히 보임
-        // CSS transition: none 상태이므로 JS inline이 욌일하게 적용됨.
-        const transitionMs = Math.round(msPerWord * 0.4);
 
-        // ── 스케줄 빌드 ──────────────────────────────────────────────────────
-        // 각 단어의 revealAt(ms) 을 미리 계산한다. 줄 전환 딜레이 없음.
+        // ── 글자 단위 스케줄 빌드 ───────────────────────────────────────────────
+        // 단어 경계 = msPerWord 배수 → WPM 정확도 보장.
+        // 단어 내 글자 간격 = msPerWord ÷ 글자수 → 부드러운 흐름.
         let cumulativeTime = 0;
-        const schedule = this.words.map(word => {
-            const revealAt = cumulativeTime;
-            cumulativeTime += msPerWord;
-            return { word, revealAt };
+        const schedule = [];
+
+        this.words.forEach(word => {
+            const charSpans = word.element.querySelectorAll('.tr-char');
+
+            if (charSpans.length === 0) {
+                // fallback: 레거시 prepare() 경로 — tr-char 없음 → 단어 전체를 1 단위로
+                schedule.push({
+                    charSpan: word.element,
+                    word,
+                    revealAt: cumulativeTime,
+                    charTransitionMs: Math.round(msPerWord * 0.4),
+                    isFirstChar: true,
+                    isLastChar:  true
+                });
+                cumulativeTime += msPerWord;
+                return;
+            }
+
+            const charCount        = charSpans.length;
+            const charInterval     = msPerWord / charCount;
+            const charTransitionMs = Math.max(15, Math.round(charInterval * 0.8));
+
+            charSpans.forEach((charSpan, idx) => {
+                schedule.push({
+                    charSpan,
+                    word,
+                    revealAt:      cumulativeTime + idx * charInterval,
+                    charTransitionMs,
+                    isFirstChar:   idx === 0,
+                    isLastChar:    idx === charCount - 1
+                });
+            });
+
+            cumulativeTime += msPerWord; // 다음 단어는 항상 msPerWord 배수에서 시작
         });
 
-        // ── RAF 루프 ──────────────────────────────────────────────────────────
+        // ── RAF 루프 ────────────────────────────────────────────────────────────
         const startTs      = performance.now();
         let scheduleIdx    = 0;
         let prevStreamLine = -1;
@@ -656,18 +695,17 @@ export class TextRenderer {
         const streamLoop = (now) => {
             const elapsed = now - startTs;
 
-            // 이번 프레임에서 revealAt이 지난 단어들을 모두 처리
             while (scheduleIdx < schedule.length &&
                    elapsed >= schedule[scheduleIdx].revealAt) {
 
-                const { word } = schedule[scheduleIdx];
+                const { charSpan, word, isFirstChar, isLastChar, charTransitionMs } = schedule[scheduleIdx];
 
-                // 줄 전환 감지
-                if (word.lineIndex !== prevStreamLine) {
+                // 줄 전환 감지 — 단어의 첫 글자일 때만 실행
+                if (isFirstChar && word.lineIndex !== prevStreamLine) {
                     prevStreamLine = word.lineIndex;
                     this.currentVisibleLineIndex = word.lineIndex;
 
-                    // gaze context 갱신 (팡 판정 기준선) — 기존 revealChunk와 동일 타이밍
+                    // gaze context 갱신
                     const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
                     if (gm?.setContext && this.lines[word.lineIndex]) {
                         gm.setContext({
@@ -676,40 +714,37 @@ export class TextRenderer {
                         });
                     }
 
-                    // [Phase 1] 4줄 트레인 유지: 5번째 이전 줄 페이드아웃
+                    // [Phase 1] 4줄 트레인 유지
                     this._fadeOutTrainTail(word.lineIndex);
 
-                    // 커서를 새 줄 첫 단어 위치로 이동
+                    // 커서를 새 줄 첫 단어로
                     this.updateCursor(word, 'start');
                 }
 
-                // [Phase 1+2] display:none 단어(page1+)는 inline-block으로 전환 후 reveal
-                // showPage()가 page0 외 단어를 display:none 처리했으므로
-                // 스트림이 도달하면 여기서 전환 → container가 자연스럽게 한 줄씩 확장됨
-                if (word.element.style.display === 'none') {
+                // [Phase 1+2] display:none 단어(page1+) → 첫 글자일 때 inline-block 전환
+                if (isFirstChar && word.element.style.display === 'none') {
                     word.element.style.display = 'inline-block';
                 }
-                // CSS transition: none이므로 JS inline이 온전히 적용됨
-                word.element.style.visibility = 'visible';
-                word.element.style.transition = `opacity ${transitionMs}ms ease-out`;
-                word.element.style.opacity    = '1';
-                word.element.classList.add('revealed');
 
-                // 커서 끝 위치 갱신
-                this.updateCursor(word, 'end');
+                // 글자 fade-in (CSS transition:none → JS inline이 우선 적용)
+                charSpan.style.transition = `opacity ${charTransitionMs}ms ease-out`;
+                charSpan.style.opacity    = '1';
+
+                // 단어의 마지막 글자 → 단어 완료 처리
+                if (isLastChar) {
+                    word.element.classList.add('revealed');
+                    this.updateCursor(word, 'end');
+                }
 
                 scheduleIdx++;
             }
 
             if (scheduleIdx < schedule.length) {
-                // 다음 프레임 예약
                 rafId = requestAnimationFrame(streamLoop);
-                // 이전 슬롯 제거 후 새 ID 등록 (activeRAFs 과증가 방지)
                 const prevIdx = this.activeRAFs.indexOf(rafId);
                 if (prevIdx !== -1) this.activeRAFs.splice(prevIdx, 1);
                 this.activeRAFs.push(rafId);
             } else {
-                // 완료
                 rafId = null;
                 if (onComplete) {
                     const tid = setTimeout(onComplete, 100);
@@ -721,6 +756,7 @@ export class TextRenderer {
         rafId = requestAnimationFrame(streamLoop);
         this.activeRAFs.push(rafId);
     }
+
 
     // =========================================================================
 
