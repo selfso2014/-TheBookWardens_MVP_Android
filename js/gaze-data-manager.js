@@ -29,8 +29,10 @@ export class GazeDataManager {
 
         // NEW: Gaze-Based WPM State
         this.wpm = 0;              // Real-time WPM
-        this.validWordSum = 0;     // Cumulative words from valid lines
-        this.validTimeSum = 0;     // Cumulative time from valid lines (ms)
+        this.lineWPMs = [];        // [NEW] Per-line WPM values for arithmetic mean
+        // Legacy cumulative fields kept for backward compat (Firebase schema)
+        this.validWordSum = 0;
+        this.validTimeSum = 0;
         this.lastRSTime = 0;       // Timestamp of last valid Return Sweep
         this.lastRSLine = -1;      // Line Index of last valid Return Sweep
 
@@ -317,8 +319,9 @@ export class GazeDataManager {
         this.wpmData = [];            // Per-line WPM log
         this.pangLog = [];            // Pang event log
         this.wpm = 0;                 // Real-time WPM
-        this.validWordSum = 0;        // Cumulative word count
-        this.validTimeSum = 0;        // Cumulative time (ms)
+        this.lineWPMs = [];           // [NEW] Per-line WPM array
+        this.validWordSum = 0;        // Legacy (kept for compat)
+        this.validTimeSum = 0;        // Legacy (kept for compat)
         this.lastRSTime = 0;
         this.lastRSLine = -1;
         this.lastPreprocessIndex = 0; // Reset preprocessing cursor
@@ -347,12 +350,12 @@ export class GazeDataManager {
         // Without this reset, all past paragraphs' line entries accumulate in the object.
         this.lineMetadata = {};
 
-        // Reset WPM State (Partially)
-        // [FIX] Do NOT reset cumulative WPM stats (wpm, validWordSum, validTimeSum)
-        // This ensures WPM is averaged across the entire session, not per paragraph.
-        // this.wpm = 0; 
-        // this.validWordSum = 0;
-        // this.validTimeSum = 0;
+        // [NEW] per-line WPM 배열은 문단마다 초기화
+        // resetTriggers()는 새 문단 시작마다 호출 → 문단 단위 WPM 측정
+        this.lineWPMs = [];
+        this.wpm = 0;
+        this.validWordSum = 0;
+        this.validTimeSum = 0;
 
         this.lastRSTime = 0;
         this.lastRSLine = -1;
@@ -1096,14 +1099,11 @@ export class GazeDataManager {
         const wordCount = (lineObj && lineObj.wordIndices) ? lineObj.wordIndices.length : 0;
         if (wordCount === 0) return;
 
-        // Time calculation — use lastRSTime chain when possible (O(1)), otherwise O(N) scan
+        // ■ duration: 이전 팡 → 현재 팡 간격 (O(1) 우선)
         let duration = 0;
-        if (this.lastRSLine === targetLine - 1 && this.lastRSTime > 0 &&
-            // Ensure lastRSTime is from THIS deferred call's now, not the stored one
-            this._prevRSTime && this._prevRSTime > 0) {
+        if (this._prevRSTime && this._prevRSTime > 0) {
             duration = now - this._prevRSTime;
         } else {
-            // Backward scan — cap at 800 entries (was 1500)
             const limit = Math.max(this.searchStartIndex || 0, this.data.length - 800);
             let startTime = now;
             for (let i = this.data.length - 1; i >= limit; i--) {
@@ -1118,28 +1118,37 @@ export class GazeDataManager {
         }
         this._prevRSTime = now;
 
-        if (duration < 100 || wordCount === 0) return;
-        if (this.pangCountInPara <= 1) return; // skip first pang (warm-up)
-        if (targetLine === 0) return;           // skip line 0
+        // ■ 필터: 비정상 측정값 제외
+        if (duration < 500)   return; // 너무 빠름
+        if (duration > 10000) return; // 읽기 정지 등 이상치
+        if (wordCount < 4)    return; // 짧은 줄 노이즈 제외
+        if (this.pangCountInPara <= 1) return; // 첫 팡 워밍업 스킵
+        if (targetLine === 0) return;
 
-        this.validTimeSum += duration;
-        this.validWordSum += wordCount;
+        // ■ 줄별 WPM 산술 평균
+        const lineWPM = Math.round(wordCount / (duration / 60000));
+        if (lineWPM > 800) return; // 비현실적 상한
 
-        const minutes = this.validTimeSum / 60000;
-        if (minutes > 0 && this.validWordSum > 0) {
-            this.wpm = Math.round(this.validWordSum / minutes);
-            if (!this.wpmData) this.wpmData = [];
-            this.wpmData.push({
-                paraIndex: (this.context && this.context.pIdx !== undefined) ? this.context.pIdx : (this.context.paraIndex || -1),
-                line: targetLine,
-                duration,
-                words: wordCount,
-                wpm: this.wpm
-            });
-            // Update HUD (best-effort)
-            if (window.Game && window.Game.typewriter && typeof window.Game.typewriter.updateWPM === 'function') {
-                window.Game.typewriter.updateWPM();
-            }
+        if (!this.lineWPMs) this.lineWPMs = [];
+        this.lineWPMs.push(lineWPM);
+        this.wpm = Math.round(
+            this.lineWPMs.reduce((sum, v) => sum + v, 0) / this.lineWPMs.length
+        );
+
+        if (!this.wpmData) this.wpmData = [];
+        this.wpmData.push({
+            paraIndex: (this.context && this.context.pIdx !== undefined)
+                ? this.context.pIdx : (this.context.paraIndex || -1),
+            line: targetLine,
+            duration,
+            words: wordCount,
+            lineWPM,
+            wpm: this.wpm
+        });
+
+        if (window.Game && window.Game.typewriter &&
+            typeof window.Game.typewriter.updateWPM === 'function') {
+            window.Game.typewriter.updateWPM();
         }
     }
 }

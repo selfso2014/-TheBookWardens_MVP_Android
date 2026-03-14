@@ -55,7 +55,7 @@ export class ScoreManager {
 
     // WPM Smoothing Logic
     updateWPM(targetWPM) {
-        const alpha = 0.1; // Smoothing factor
+        const alpha = 0.4; // [FIX] 0.1→0.4: 수렴 속도 개선 (3~4회 업데이트 후 95% 수렴)
         // If difference is huge (e.g. init), jump directly
         if (Math.abs(targetWPM - this.wpmDisplay) > 50 && this.wpmDisplay === 0) {
             this.wpmDisplay = targetWPM;
