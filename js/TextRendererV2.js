@@ -1444,7 +1444,12 @@ export class TextRenderer {
                         // Place below text box (this.container) bottom border
                         const contRect = this.container ? this.container.getBoundingClientRect() : br;
                         label.style.top = (contRect.bottom + 6) + 'px';
-                        label.style.left = (contRect.left + contRect.width / 2) + 'px';
+                        // 빌런 너비를 제외한 영역의 중앙에 배치 (우측 갬침 방지)
+                        const bossEl2 = document.getElementById('read-boss-overlay');
+                        const bossW2  = (bossEl2 && bossEl2.offsetWidth) ? bossEl2.offsetWidth : 170;
+                        const availW  = contRect.width - bossW2;
+                        const centerX = contRect.left + availW / 2;
+                        label.style.left = centerX + 'px';
                         label.style.transform = 'translateX(-50%)';
                     } else {
                         label.style.top = '88%';
