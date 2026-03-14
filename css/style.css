@@ -521,6 +521,48 @@ body {
   /* Reduced from 40px to start text higher */
 }
 
+/* ── 읽기 화면 빌런 오버레이 ─────────────────────────────── */
+#read-boss-overlay {
+  display: none;                      /* 기본 숨김 */
+  position: fixed;
+  right: 6px;
+  bottom: 28px;
+  width: 78px;
+  height: auto;
+  z-index: 200;                       /* 텍스트 위, 팡마커(999999) 아래 */
+  transform: scaleX(-1);              /* 좌우반전: 빌런이 텍스트를 바라봄 */
+  opacity: 0.82;
+  filter: drop-shadow(0 0 14px rgba(124, 58, 237, 0.75));
+  pointer-events: none;               /* 클릭 이벤트 차단 */
+  animation: bossFloat 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* 읽기 화면 활성 시에만 보임 */
+#screen-read.active #read-boss-overlay {
+  display: block;
+}
+
+/* 빌런 숨쉬기 떠다니기 */
+@keyframes bossFloat {
+  0%, 100% { transform: scaleX(-1) translateY(0px); }
+  50%       { transform: scaleX(-1) translateY(-7px); }
+}
+
+/* 팡 이벤트 시 흔들기 
+   (index.html의 bossShake는 scaleX 없음 → 여기서 재정의) */
+#read-boss-overlay.pang-shake {
+  animation: bossShakeMirrored 0.42s ease;
+}
+
+@keyframes bossShakeMirrored {
+  0%, 100% { transform: scaleX(-1) translateX(0); }
+  15%      { transform: scaleX(-1) translateX(5px); }
+  35%      { transform: scaleX(-1) translateX(-5px); }
+  55%      { transform: scaleX(-1) translateX(4px); }
+  75%      { transform: scaleX(-1) translateX(-3px); }
+}
+
 .book-container {
   max-width: 600px;
   line-height: 2.7;

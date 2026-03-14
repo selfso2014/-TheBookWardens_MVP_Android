@@ -1140,6 +1140,18 @@ export class TextRenderer {
             this.validatedLines.add(lineIndex);
         }
 
+        // ── [읽기 화면 빌런] 팡 발생 시 흔들기 ─────────────────────────────
+        const bossEl = document.getElementById('read-boss-overlay');
+        if (bossEl) {
+            bossEl.classList.remove('pang-shake');
+            // 강제 reflow 없이 classList 재추가 — 다음 RAF에서 처리
+            this.trackRAF(requestAnimationFrame(() => {
+                bossEl.classList.add('pang-shake');
+                const t = setTimeout(() => bossEl.classList.remove('pang-shake'), 450);
+                this.activeAnimations.push(t);
+            }));
+        }
+
         return true;
     }
 
