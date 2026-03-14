@@ -1140,19 +1140,7 @@ export class TextRenderer {
             this.validatedLines.add(lineIndex);
         }
 
-        // ── [읽기 화면 빌런] 팡 발생 시 흔들기 ─────────────────────────────
-        const bossEl = document.getElementById('read-boss-overlay');
-        if (bossEl) {
-            bossEl.classList.remove('pang-shake');
-            // 강제 reflow 없이 classList 재추가 — 다음 RAF에서 처리
-            this.trackRAF(requestAnimationFrame(() => {
-                bossEl.classList.add('pang-shake');
-                const t = setTimeout(() => bossEl.classList.remove('pang-shake'), 450);
-                this.activeAnimations.push(t);
-            }));
-        }
-
-        // HP -3% 업데이트
+        // HP -3% 업데이트 (조용히, 애니메이션 없음)
         if (window.bossMiniBattle) window.bossMiniBattle.onPang();
 
         return true;
@@ -1807,6 +1795,8 @@ export class TextRenderer {
             // Immediately reset container styles (no lag into next screen)
             this._replayContainerReset();
             try { dischargeCanvas.remove(); } catch (e) { }
+            // Rift 정화: Wire Discharge 완료 시 오염 단어 복원
+            if (window.bossMiniBattle) window.bossMiniBattle.restoreAllRift();
             this._restoreTextWave(litLines, visualLines, isSealed, onDone);
         };
 
