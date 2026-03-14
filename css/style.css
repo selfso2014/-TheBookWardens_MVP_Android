@@ -773,8 +773,9 @@ body {
 
 /* --- Chunk Fade Out Effect --- */
 #book-content span {
-  transition: opacity 1.0s ease-out;
-  /* Smooth fade */
+  /* [Phase 2 Fix] transition을 JS(startWordStream)에서 WPM 비례로 제어.
+     CSS에서 1.0s를 지정하면 JS inline보다 ID specificity가 높아 override됨 → 제거. */
+  transition: none;
 }
 
 .chunk-fade-out {
@@ -788,14 +789,12 @@ body {
 /* --- TextRenderer Specialized Styles --- */
 .tr-word {
   opacity: 0;
-  /* [Phase 2 Fix] transform: translateY 제거
-     bounce 애니메이션이 고WPM에서 단어들이 겹쳐 올라오며 끊겨 보이는 원인이었음.
-     transition은 JS(startWordStream)에서 WPM 비례로 동적 설정됨. */
-  transition: opacity 0.4s ease-out;
+  /* [Phase 2 Fix] transition: none — JS(startWordStream)에서 WPM 비례로 inline 설정.
+     CSS transition 완전 제거: #book-content span의 1.0s와 충돌 차단. */
+  transition: none;
   display: inline-block;
   white-space: pre-wrap;
   color: #fff;
-  /* [FIX] Prevent mobile browser dictionary/translate popup on typewriter text */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;

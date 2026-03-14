@@ -634,10 +634,9 @@ export class TextRenderer {
         this.cancelAllAnimations();
 
         const msPerWord = 60000 / wpm;
-        // [Phase 2 Fix] lineBreakDelay 완전 제거
-        // 줄 전환마다 100~120ms 공백이 "딱딱 끊기는" 느낌의 직접 원인 + WPM 손실 원인.
-        // 단어를 균일한 msPerWord 간격으로만 표시 → 연속 흐름 + WPM 100% 정확도.
-        const transitionMs = Math.round(msPerWord * 0.5); // 단어 표시 시간의 절반
+        // [Phase 2] transitionMs: msPerWord의 40% → 단어가 빠르게 나타나고 나머지 60%는 완전히 보임
+        // CSS transition: none 상태이므로 JS inline이 욌일하게 적용됨.
+        const transitionMs = Math.round(msPerWord * 0.4);
 
         // ── 스케줄 빌드 ──────────────────────────────────────────────────────
         // 각 단어의 revealAt(ms) 을 미리 계산한다. 줄 전환 딜레이 없음.
@@ -684,7 +683,13 @@ export class TextRenderer {
                     this.updateCursor(word, 'start');
                 }
 
-                // transition을 WPM 비례로 설정: msPerWord 절반 시간 내에 완전히 등장
+                // [Phase 1+2] display:none 단어(page1+)는 inline-block으로 전환 후 reveal
+                // showPage()가 page0 외 단어를 display:none 처리했으므로
+                // 스트림이 도달하면 여기서 전환 → container가 자연스럽게 한 줄씩 확장됨
+                if (word.element.style.display === 'none') {
+                    word.element.style.display = 'inline-block';
+                }
+                // CSS transition: none이므로 JS inline이 온전히 적용됨
                 word.element.style.visibility = 'visible';
                 word.element.style.transition = `opacity ${transitionMs}ms ease-out`;
                 word.element.style.opacity    = '1';

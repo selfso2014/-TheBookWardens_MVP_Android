@@ -1092,14 +1092,24 @@ Game.typewriter = {
             Game.sceneManager.setCursorReference(this.renderer.cursor);
         }
 
-        // 2. Lock Layout — Stream Mode (showPage 우회)
-        // [Phase 2 Fix] prepareDynamic()이 모든 단어를 display:inline-block, opacity:0으로 생성.
-        // showPage(0)을 호출하면 page 1+ 단어가 display:none → 스트림에서 영구 제외됨.
-        // 해결: showPage() 없이 lockLayout() 1회만 실행 → 전체 단어 좌표·lineIndex 확보.
+        // 2. Lock Layout — 1회만 실행 (모든 단어 display:inline-block 상태)
+        // [Phase 1+2] lockLayout은 전체 단어가 보이는 상태에서 1회만 실행한다.
+        // showPage(0) 내부에서 lockLayout()을 재호출하면 page1+ 단어의 lineIndex가
+        // 초기화되므로 showPage 대신 page0 단어를 직접 display 제어한다.
         requestAnimationFrame(() => {
-            this.renderer.lockLayout();
+            this.renderer.lockLayout(); // 전체 단어 lineIndex 확보 (1회)
             const debugEl = document.getElementById('line-detect-result');
             if (debugEl) debugEl.textContent = `Lines Cached: ${this.renderer.lines.length}`;
+
+            // [Phase 1] container를 page0 크기로 제한:
+            // page0 단어 → display:inline-block, page1+ 단어 → display:none
+            // (startWordStream이 page1+ 단어에 도달하면 그 자리에서 inline-block으로 전환)
+            if (this.renderer.pages && this.renderer.pages.length > 0) {
+                const page0Set = new Set(this.renderer.pages[0].map(w => w.index));
+                this.renderer.words.forEach(w => {
+                    w.element.style.display = page0Set.has(w.index) ? 'inline-block' : 'none';
+                });
+            }
 
             this.isPaused = false;
             Game.state.isTracking = true;
@@ -1107,12 +1117,11 @@ Game.typewriter = {
 
             if (this.renderer.cursor) this.renderer.cursor.style.opacity = "0";
 
-            // DOM reflow 안정화 대기 후 스트리밍 시작
             setTimeout(() => {
                 if (this.renderer) {
                     this.renderer.resetToStart();
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
-                    console.log("[Typewriter] Stream Mode Ready — all words in DOM, lockLayout complete.");
+                    console.log("[Typewriter] Ready: page0 bounded, full lineIndex cached.");
 
                     setTimeout(() => {
                         this.startTime = Date.now();
