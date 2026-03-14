@@ -1795,12 +1795,14 @@ export class TextRenderer {
             // Immediately reset container styles (no lag into next screen)
             this._replayContainerReset();
             try { dischargeCanvas.remove(); } catch (e) { }
-            // Rift 정화: Wire Discharge 완료 시 오염 단어 복원
-            if (window.bossMiniBattle) window.bossMiniBattle.restoreAllRift();
-            this._restoreTextWave(litLines, visualLines, isSealed, onDone);
+            // Rift 정화 Phase: 오염 단어 시각 복원 후 restoreTextWave 진행
+            const riftWords = window.bossMiniBattle?.getSortedRiftWords() ?? [];
+            this._riftPurificationPhase(riftWords, () => {
+                this._restoreTextWave(litLines, visualLines, isSealed, onDone);
+            });
         };
 
-        const hardTimeout = setTimeout(finish, 10000);
+        const hardTimeout = setTimeout(finish, 18000);
 
         // Container geometry
         const cRect = this.container ? this.container.getBoundingClientRect() : null;
@@ -2614,6 +2616,197 @@ export class TextRenderer {
     _showMiniScore() { }
     _animateScoreToHud() { }
     _spawnReplayPulse() { }
+
+    // ─────────────────────────────────────────────────────────────────
+    // [Rift Purification Phase]
+    // Wire Discharge 완료 후, 오염 단어를 극적으로 복원하는 4초 시퀀스
+    // ─────────────────────────────────────────────────────────────────
+    _riftPurificationPhase(words, onDone) {
+        const TOTAL_MS = 4000;
+        const card = this.container;
+
+        // rift 단어 없으면 즉시 통과
+        if (!words || words.length === 0) {
+            if (onDone) onDone();
+            return;
+        }
+
+        const cardRect = card ? card.getBoundingClientRect() : null;
+        if (!cardRect) { if (onDone) onDone(); return; }
+
+        // ── Stage 1: 스캔 바 하강 + 카드 pulse (0 ~ 500ms) ─────────
+        const scanBar = document.createElement('div');
+        scanBar.id = 'rift-scan-bar';
+        scanBar.style.cssText = [
+            `position:fixed`,
+            `left:${cardRect.left}px`,
+            `top:${cardRect.top}px`,
+            `width:${cardRect.width}px`,
+            `height:4px`,
+            `background:linear-gradient(90deg,transparent,rgba(180,80,255,0.95),transparent)`,
+            `box-shadow:0 0 14px rgba(180,80,255,0.9)`,
+            `pointer-events:none`,
+            `z-index:9000`,
+            `transition:top 0.5s linear`,
+        ].join(';');
+        document.body.appendChild(scanBar);
+
+        // 텍스트 카드 pulse
+        if (card) {
+            card.style.transition = 'box-shadow 0.3s ease-in';
+            card.style.boxShadow = 'inset 0 0 45px rgba(180,80,255,0.5)';
+        }
+
+        // 스캔 바 하강
+        requestAnimationFrame(() => {
+            scanBar.style.top = (cardRect.top + cardRect.height) + 'px';
+        });
+
+        // ── Stage 2: 줄별 순차 복원 (500ms ~ 3500ms) ──────────────
+        // 단어를 Y 좌표 기준으로 줄 버킷에 그룹화 (±20px)
+        const lineMap = new Map();
+        words.forEach(({ el, cls }) => {
+            if (!el || !el.isConnected) return;
+            const r   = el.getBoundingClientRect();
+            const key = Math.round(r.top / 28) * 28;   // 28px 버킷
+            if (!lineMap.has(key)) lineMap.set(key, []);
+            lineMap.get(key).push({ el, cls });
+        });
+        const lineGroups = [...lineMap.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([lineY, ws]) => ({ lineY, words: ws }));
+
+        let lineDelay = 500;
+        lineGroups.forEach(group => {
+            const ls = lineDelay;
+
+            // 줄 플래시
+            setTimeout(() => this._riftLineFlash(group.lineY, cardRect), ls);
+
+            // 줄 내 단어 복원
+            group.words.forEach(({ el, cls }, i) => {
+                setTimeout(() => this._restoreRiftWord(el, cls), ls + 160 + i * 75);
+            });
+
+            lineDelay += 320 + group.words.length * 75;
+        });
+
+        // ── Stage 3: 전체 클렌즈 + 종료 (3500ms ~ 4000ms) ─────────
+        const stage3 = Math.min(Math.max(lineDelay, 2200), 3500);
+        setTimeout(() => {
+            // 스캔 바 퇴장
+            scanBar.style.transition = 'opacity 0.5s';
+            scanBar.style.opacity = '0';
+            setTimeout(() => { try { scanBar.remove(); } catch (_) {} }, 550);
+
+            // 카드 최종 클렌즈 글로우
+            if (card) {
+                card.style.boxShadow = 'inset 0 0 60px rgba(180,80,255,0.8)';
+                setTimeout(() => {
+                    card.style.transition = 'box-shadow 0.8s ease-out';
+                    card.style.boxShadow = '';
+                }, 200);
+            }
+
+            // 남은 rift 클래스 강제 정리
+            document.querySelectorAll('.rift-corrupted,.rift-blur,.rift-dark')
+                .forEach(el => el.classList.remove('rift-corrupted', 'rift-blur', 'rift-dark'));
+        }, stage3);
+
+        // 완료 콜백
+        setTimeout(() => { if (onDone) onDone(); }, TOTAL_MS);
+    }
+
+    /** 줄 단위 보라색 가로 플래시 */
+    _riftLineFlash(lineY, cardRect) {
+        const flash = document.createElement('div');
+        flash.style.cssText = [
+            `position:fixed`,
+            `left:${cardRect.left}px`,
+            `top:${lineY - 4}px`,
+            `width:${cardRect.width}px`,
+            `height:26px`,
+            `background:rgba(180,80,255,0.22)`,
+            `pointer-events:none`,
+            `z-index:8999`,
+            `border-radius:2px`,
+        ].join(';');
+        document.body.appendChild(flash);
+        flash.style.transition = 'opacity 0.4s ease-out';
+        requestAnimationFrame(() => {
+            flash.style.opacity = '0';
+            setTimeout(() => { try { flash.remove(); } catch (_) {} }, 450);
+        });
+    }
+
+    /** 단어 타입별 복원 애니메이션 */
+    _restoreRiftWord(el, cls) {
+        if (!el || !el.isConnected) return;
+
+        const done = () => {
+            el.classList.add('rift-restored');
+            setTimeout(() => el.classList.remove('rift-restored'), 550);
+            this._spawnRestoreParticle(el);
+        };
+
+        if (cls === 'rift-blur') {
+            el.style.transition = 'filter 0.35s ease-out';
+            el.style.filter = 'blur(0px)';
+            setTimeout(() => {
+                el.classList.remove('rift-blur');
+                el.style.filter = '';
+                el.style.transition = '';
+                done();
+            }, 380);
+
+        } else if (cls === 'rift-dark') {
+            el.style.transition = 'opacity 0.35s ease-out';
+            el.style.opacity = '1';
+            setTimeout(() => {
+                el.classList.remove('rift-dark');
+                el.style.opacity = '';
+                el.style.transition = '';
+                done();
+            }, 380);
+
+        } else {  // rift-corrupted
+            el.style.animation = 'none';
+            el.style.color = '#ffffff';
+            el.style.textShadow = '0 0 8px rgba(180,80,255,1)';
+            setTimeout(() => {
+                el.classList.remove('rift-corrupted');
+                el.style.color = '';
+                el.style.textShadow = '';
+                el.style.animation = '';
+                done();
+            }, 230);
+        }
+    }
+
+    /** 복원 완료 시 위로 올라가는 미니 보라 파티클 */
+    _spawnRestoreParticle(el) {
+        if (!el || !el.getBoundingClientRect) return;
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width * 0.5;
+        const cy = r.top;
+        for (let i = 0; i < 2; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'rift-restore-particle';
+            dot.style.left = (cx + (Math.random() - 0.5) * 18) + 'px';
+            dot.style.top  = cy + 'px';
+            document.body.appendChild(dot);
+            let life = 1, ty = 0;
+            const vy = -(1.4 + Math.random() * 0.8);
+            const tick = () => {
+                life -= 0.042; ty += vy;
+                dot.style.opacity = life;
+                dot.style.transform = `translateY(${ty}px)`;
+                if (life > 0) requestAnimationFrame(tick);
+                else { try { dot.remove(); } catch (_) {} }
+            };
+            requestAnimationFrame(tick);
+        }
+    }
 }
 window.TextRenderer = TextRenderer;
 

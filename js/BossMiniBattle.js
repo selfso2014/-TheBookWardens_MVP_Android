@@ -236,7 +236,11 @@ export class BossMiniBattle {
             // 단어별로 살짝 딜레이 (파동 느낌)
             const t = setTimeout(() => {
                 w.classList.add(riftClass);
-                this.riftedWords.push({ el: w, cls: riftClass });
+                this.riftedWords.push({
+                    el: w,
+                    cls: riftClass,
+                    top: w.getBoundingClientRect().top  // Y충 정렬용
+                });
             }, i * 30);
             this.timeouts.push(t);
         });
@@ -288,10 +292,19 @@ export class BossMiniBattle {
     // ─────────────────────────────────────────────────────────────
     // RIFT PURIFICATION — called by Wire Discharge finish()
     // ─────────────────────────────────────────────────────────────
+    /** TextRendererV2._riftPurificationPhase에 전달: Y충 오름차순 정렬 */
+    getSortedRiftWords() {
+        const items = [...this.riftedWords];
+        this.riftedWords = [];
+        return items
+            .filter(({ el }) => el && el.isConnected)
+            .sort((a, b) => (a.top || 0) - (b.top || 0));
+    }
+
+    /** Wire Discharge 완료 시 안전망 일괄 정리 (getSortedRiftWords 미호출 시) */
     restoreAllRift() {
         const items = [...this.riftedWords];
         this.riftedWords = [];
-
         items.forEach(({ el, cls }, i) => {
             const t = setTimeout(() => {
                 if (!el) return;

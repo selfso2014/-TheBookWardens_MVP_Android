@@ -645,6 +645,18 @@ body {
   z-index: 499;
 }
 
+/* Rift 복원 완료 시 위로 올라가는 보라 파티클 */
+.rift-restore-particle {
+  position: fixed;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(180, 80, 255, 0.9);
+  box-shadow: 0 0 6px rgba(180, 80, 255, 0.8);
+  pointer-events: none;
+  z-index: 9001;
+}
+
 .book-container {
   max-width: 600px;
   line-height: 2.7;
