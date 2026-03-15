@@ -720,12 +720,23 @@ export class TextRenderer {
                     // 커서를 새 줄 첫 단어로
                     this.updateCursor(word, 'start');
 
-                    // ── 매직프레임 위치 업데이트 ──────────────────────────────────
+                    // ── 매직프레임 + 리프트 베일 위치 업데이트 ──────────────
                     if (this._magicFrameEl && this.lines[word.lineIndex]) {
-                        const lineY = this.lines[word.lineIndex].visualY;
-                        const lineH = this._magicFrameLineH || 22;
-                        this._magicFrameEl.style.top = (lineY - lineH * 0.5) + 'px';
+                        const lineH     = this._magicFrameLineH || 22;
+                        const topIdx    = Math.max(0, word.lineIndex - 3);
+                        const frameTop  = this.lines[topIdx].visualY - lineH * 0.5;
+                        const frameBot  = this.lines[word.lineIndex].visualY + lineH * 0.5;
+                        const frameH    = frameBot - frameTop;
+
+                        this._magicFrameEl.style.top    = frameTop + 'px';
+                        this._magicFrameEl.style.height = frameH   + 'px';
+
+                        // Sync veil mask hole
+                        if (this._magicFrameCR) {
+                            this._updateVeilMask(this._magicFrameCR, frameTop, frameBot);
+                        }
                     }
+
                 }
 
 
@@ -768,8 +779,7 @@ export class TextRenderer {
 
     // ─────────────────────────────────────────────────────────────
     // MAGIC FRAME — 4-line protective window that suppresses rift
-    // Uses backdrop-filter to visually mute rift effects inside.
-    // Position is updated in startWordStream on each line change.
+    // CSS mask-gradient on rift-veil creates a "hole" at frame zone.
     // ─────────────────────────────────────────────────────────────
     startMagicFrame() {
         this.stopMagicFrame();
@@ -777,8 +787,13 @@ export class TextRenderer {
 
         const cr    = this.container.getBoundingClientRect();
         const lineH = this.lines[0]?.rect?.height || 22;
-        const frameH = lineH * 4.5;
-        const initY  = (this.lines[0]?.visualY ?? cr.top) - lineH * 0.5;
+
+        // Initial 4-line frame: lines[0]→lines[min(3,last)]
+        const topIdx  = 0;
+        const botIdx  = Math.min(3, this.lines.length - 1);
+        const frameTop = (this.lines[topIdx]?.visualY ?? cr.top) - lineH * 0.5;
+        const frameBot = (this.lines[botIdx]?.visualY ?? cr.top + lineH * 4) + lineH * 0.5;
+        const frameH   = frameBot - frameTop;
 
         const el = document.createElement('div');
         el.id        = 'magic-frame';
@@ -788,29 +803,64 @@ export class TextRenderer {
             left:          cr.left + 'px',
             width:         cr.width + 'px',
             height:        frameH  + 'px',
-            top:           initY   + 'px',
+            top:           frameTop + 'px',
             zIndex:        '150',
             pointerEvents: 'none',
             opacity:       '0',
-            transition:    'top 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.4s',
+            transition:    'top 0.38s cubic-bezier(0.4,0,0.2,1), height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.4s',
         });
         document.body.appendChild(el);
         this._magicFrameEl    = el;
         this._magicFrameLineH = lineH;
+        this._magicFrameCR    = cr;       // store container rect
 
-        // Fade in after a short delay
+        // Punch hole in rift-veil using CSS mask
+        this._updateVeilMask(cr, frameTop, frameBot);
+
+        // Fade in magic frame
         requestAnimationFrame(() => requestAnimationFrame(() => {
             el.style.opacity = '1';
         }));
     }
 
+    // Update CSS mask on rift-veil-full to create transparent hole at frame zone
+    _updateVeilMask(cr, frameTop, frameBot) {
+        const veil = document.getElementById('rift-veil-full');
+        if (!veil) return;
+        const relTop = Math.max(0, frameTop - cr.top);
+        const relBot = Math.min(cr.height, frameBot - cr.top);
+        const h      = cr.height;
+        // Gradient: black (opaque) above/below hole, transparent inside hole
+        const grad = `linear-gradient(to bottom,` +
+            `black 0px,` +
+            `black ${relTop - 1}px,` +
+            `transparent ${relTop}px,` +
+            `transparent ${relBot}px,` +
+            `black ${relBot + 1}px,` +
+            `black ${h}px)`;
+        veil.style.maskImage = grad;
+        veil.style.webkitMaskImage = grad;
+        veil.style.maskRepeat = 'no-repeat';
+        veil.style.webkitMaskRepeat = 'no-repeat';
+    }
+
     stopMagicFrame() {
         const el = this._magicFrameEl;
-        if (!el) return;
-        el.style.opacity = '0';
-        setTimeout(() => { try { el.remove(); } catch (_) {} }, 500);
-        this._magicFrameEl    = null;
-        this._magicFrameLineH = null;
+        if (el) {
+            el.style.opacity = '0';
+            setTimeout(() => { try { el.remove(); } catch (_) {} }, 500);
+            this._magicFrameEl    = null;
+            this._magicFrameLineH = null;
+            this._magicFrameCR    = null;
+        }
+        // Remove/fade rift darkness veils
+        ['rift-veil-full', 'rift-veil-top', 'rift-veil-bottom'].forEach(id => {
+            const v = document.getElementById(id);
+            if (!v) return;
+            v.style.transition = 'opacity 0.5s';
+            v.style.opacity    = '0';
+            setTimeout(() => { try { v.remove(); } catch (_) {} }, 600);
+        });
     }
 
     // =========================================================================
