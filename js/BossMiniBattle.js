@@ -388,4 +388,144 @@ export class BossMiniBattle {
         this._cleanup();
         this.hideHPBar();
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // VILLAIN ENTRANCE — dramatic appearance before reading starts
+    // ─────────────────────────────────────────────────────────────
+    triggerEntrance(onDone) {
+        const T = (ms, fn) => { const id = setTimeout(fn, ms); this.timeouts.push(id); return id; };
+        const boss = document.getElementById('read-boss-overlay');
+        if (!boss) { if (onDone) onDone(); return; }
+
+        const W    = window.innerWidth;
+        const H    = window.innerHeight;
+        const SIZE = Math.min(W * 0.55, 260);
+        const cx   = W / 2 - SIZE / 2;
+        const cy   = H * 0.28;
+
+        const TAUNTS = [
+            "I'll corrupt these words!",
+            "You can't read fast enough!",
+            "The Rift spreads through every line!",
+            "This passage belongs to the Shadow!",
+        ];
+        const taunt = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
+
+        // Override inline styles: large, centered, invisible initially
+        boss.setAttribute('style', [
+            'display:block',
+            `left:${cx}px`,
+            `top:${cy}px`,
+            'right:auto',
+            'bottom:auto',
+            `width:${SIZE}px`,
+            'transform:scale(0.1)',
+            'opacity:0',
+            'z-index:9999',
+            'filter:brightness(8) drop-shadow(0 0 80px rgba(200,60,255,1))',
+            'animation:none',
+            'pointer-events:none',
+            'position:fixed',
+            'transition:opacity 0.2s, transform 0.45s cubic-bezier(0.22,1,0.36,1), filter 0.35s',
+        ].join(';'));
+
+        // Radial flash on entry
+        this._entranceFlash();
+
+        // Boss bursts in (scale up)
+        T(80, () => {
+            boss.style.opacity   = '1';
+            boss.style.transform = 'scale(1.25)';
+        });
+
+        // Settle to normal scale
+        T(520, () => {
+            boss.style.transition = 'transform 0.3s ease, filter 0.4s ease';
+            boss.style.transform  = 'scale(1.0)';
+            boss.style.filter     = 'drop-shadow(0 0 28px rgba(124,58,237,0.9))';
+        });
+
+        // Show provocative speech bubble
+        T(750, () => this._showEntranceBubble(taunt));
+
+        // Retreat after taunt
+        T(3100, () => {
+            this._hideEntranceBubble();
+            T(200, () => this._retreatToCorner(onDone));
+        });
+    }
+
+    _entranceFlash() {
+        const fl = document.createElement('div');
+        fl.setAttribute('style', [
+            'position:fixed', 'inset:0', 'pointer-events:none', 'z-index:9998',
+            'opacity:1', 'transition:opacity 0.55s',
+            'background:radial-gradient(circle,rgba(130,20,255,0.45) 0%,rgba(50,0,100,0.2) 60%,transparent 100%)',
+        ].join(';'));
+        document.body.appendChild(fl);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            fl.style.opacity = '0';
+            setTimeout(() => fl.remove(), 700);
+        }));
+    }
+
+    _showEntranceBubble(msg) {
+        document.getElementById('boss-entrance-bubble')?.remove();
+        const boss   = document.getElementById('read-boss-overlay');
+        const bubble = document.createElement('div');
+        bubble.id        = 'boss-entrance-bubble';
+        bubble.className = 'boss-speech-bubble';
+        bubble.textContent = msg;
+        document.body.appendChild(bubble);
+
+        if (boss) {
+            const r = boss.getBoundingClientRect();
+            bubble.style.left = Math.max(8,  r.left + r.width * 0.1) + 'px';
+            bubble.style.top  = Math.max(10, r.top  - 75)            + 'px';
+        }
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            bubble.style.opacity = '1';
+        }));
+    }
+
+    _hideEntranceBubble() {
+        const b = document.getElementById('boss-entrance-bubble');
+        if (!b) return;
+        b.style.opacity = '0';
+        setTimeout(() => { try { b.remove(); } catch (_) {} }, 400);
+    }
+
+    _retreatToCorner(onDone) {
+        const T    = (ms, fn) => { const id = setTimeout(fn, ms); this.timeouts.push(id); return id; };
+        const boss = document.getElementById('read-boss-overlay');
+        if (!boss) { if (onDone) onDone(); return; }
+
+        const W  = window.innerWidth;
+        const H  = window.innerHeight;
+        const NW = 170;  // matches CSS width
+
+        // CSS natural pos: right:4 → left = W-NW-4; bottom:-20 → top = H-NW+20
+        const tLeft = W - NW - 4;
+        const tTop  = H - NW + 20;
+
+        boss.style.transition = [
+            'left   0.70s cubic-bezier(0.4,0,0.2,1)',
+            'top    0.70s cubic-bezier(0.4,0,0.2,1)',
+            'width  0.55s cubic-bezier(0.4,0,0.2,1)',
+            'filter 0.55s',
+            'transform 0.55s',
+        ].join(',');
+        boss.style.left      = tLeft + 'px';
+        boss.style.top       = tTop  + 'px';
+        boss.style.width     = NW    + 'px';
+        boss.style.transform = 'scale(1.0)';
+        boss.style.filter    = 'drop-shadow(0 0 18px rgba(124,58,237,0.85))';
+
+        // Animation done: hand back to CSS
+        T(900, () => {
+            boss.removeAttribute('style');
+            if (onDone) onDone();
+        });
+    }
 }
+

@@ -1135,9 +1135,19 @@ Game.typewriter = {
                     console.log("[Typewriter] Ready: page0 bounded, full lineIndex cached.");
 
                     setTimeout(() => {
-                        this.startTime = Date.now();
-                        this.tick();
-                    }, 1000);
+                        const _startReading = () => {
+                            this.startTime = Date.now();
+                            this.tick();
+                        };
+                        // Villain dramatic entrance before reading starts
+                        if (window.bossMiniBattle &&
+                            typeof window.bossMiniBattle.triggerEntrance === 'function') {
+                            window.bossMiniBattle.triggerEntrance(_startReading);
+                        } else {
+                            setTimeout(_startReading, 800);
+                        }
+                    }, 400);
+
                 }
             }, 600);
         });
