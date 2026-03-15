@@ -639,7 +639,18 @@ body {
 }
 
 /* ─── Magic Frame ─────────────────────────────────────────── */
+
+/* Entrance bubble: 60% font, wrappable text (prevents cutoff) */
+#boss-entrance-bubble {
+  font-size: clamp(12px, 2.9vw, 15px) !important;
+  white-space: normal !important;
+  max-width: 220px;
+  line-height: 1.4;
+  z-index: 10000;
+}
+
 .magic-frame {
+
   border: 2px solid rgba(160, 90, 255, 0.75);
   border-radius: 6px;
   background: rgba(80, 20, 180, 0.04);
