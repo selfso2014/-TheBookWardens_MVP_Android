@@ -318,9 +318,10 @@ export class BossMiniBattle {
 
         if (boss) {
             const r = boss.getBoundingClientRect();
-            // 빌런 오른쪽 + 상단(-10px)
-            bubble.style.left = (r.right + 12) + 'px';
-            bubble.style.top  = (r.top - 10) + 'px';
+            // 빌런 머리 위쪽 + 약간 오른쪽
+            const rawTop = r.top - 70;          // 위쪽
+            bubble.style.left = (r.left + 30) + 'px';   // 빌런 왼쪽에서 30px 오른쪽
+            bubble.style.top  = Math.max(rawTop, 60) + 'px';  // HUD 아래 최소 60px
         }
         requestAnimationFrame(() => { requestAnimationFrame(() => { bubble.style.opacity = '1'; }); });
     }
