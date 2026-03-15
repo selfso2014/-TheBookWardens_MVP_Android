@@ -1341,7 +1341,7 @@ export class TextRenderer {
                         segYValues.reduce((s, v) => s + (v - yMean) ** 2, 0) / segYValues.length
                     );
                     const lineH    = targetLineObj.rect?.height || 20;
-                    const MAX_DEV  = lineH * 0.5;              // ±half line-height
+                    const MAX_DEV  = lineH * 0.3;              // ±30% line-height (60% of previous 0.5)
                     yScale = segYStd > 2 ? Math.min(MAX_DEV / segYStd, 2.5) : 0;
                 }
                 let prevSmoothedDev = 0; // EMA state, reset per segment
@@ -1362,7 +1362,7 @@ export class TextRenderer {
                     let scaledY = fixedY;
                     if (yScale > 0 && typeof d.y === 'number' && d.y > 0) {
                         const lineH   = targetLineObj.rect?.height || 20;
-                        const MAX_DEV = lineH * 0.5;
+                        const MAX_DEV = lineH * 0.3;
                         const rawDev  = (d.y - segYMedian) * yScale;
                         prevSmoothedDev = 0.3 * rawDev + 0.7 * prevSmoothedDev;
                         const clampedDev = Math.max(-MAX_DEV, Math.min(MAX_DEV, prevSmoothedDev));
