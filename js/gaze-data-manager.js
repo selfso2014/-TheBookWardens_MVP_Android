@@ -29,8 +29,10 @@ export class GazeDataManager {
 
         // NEW: Gaze-Based WPM State
         this.wpm = 0;              // Real-time WPM
-        this.validWordSum = 0;     // Cumulative words from valid lines
-        this.validTimeSum = 0;     // Cumulative time from valid lines (ms)
+        this.lineWPMs = [];        // [NEW] Per-line WPM values for arithmetic mean
+        // Legacy cumulative fields kept for backward compat (Firebase schema)
+        this.validWordSum = 0;
+        this.validTimeSum = 0;
         this.lastRSTime = 0;       // Timestamp of last valid Return Sweep
         this.lastRSLine = -1;      // Line Index of last valid Return Sweep
 
@@ -317,8 +319,9 @@ export class GazeDataManager {
         this.wpmData = [];            // Per-line WPM log
         this.pangLog = [];            // Pang event log
         this.wpm = 0;                 // Real-time WPM
-        this.validWordSum = 0;        // Cumulative word count
-        this.validTimeSum = 0;        // Cumulative time (ms)
+        this.lineWPMs = [];           // [NEW] Per-line WPM array
+        this.validWordSum = 0;        // Legacy (kept for compat)
+        this.validTimeSum = 0;        // Legacy (kept for compat)
         this.lastRSTime = 0;
         this.lastRSLine = -1;
         this.lastPreprocessIndex = 0; // Reset preprocessing cursor
@@ -347,12 +350,12 @@ export class GazeDataManager {
         // Without this reset, all past paragraphs' line entries accumulate in the object.
         this.lineMetadata = {};
 
-        // Reset WPM State (Partially)
-        // [FIX] Do NOT reset cumulative WPM stats (wpm, validWordSum, validTimeSum)
-        // This ensures WPM is averaged across the entire session, not per paragraph.
-        // this.wpm = 0; 
-        // this.validWordSum = 0;
-        // this.validTimeSum = 0;
+        // [NEW] per-line WPM 배열은 문단마다 초기화
+        // resetTriggers()는 새 문단 시작마다 호출 → 문단 단위 WPM 측정
+        this.lineWPMs = [];
+        this.wpm = 0;
+        this.validWordSum = 0;
+        this.validTimeSum = 0;
 
         this.lastRSTime = 0;
         this.lastRSLine = -1;
@@ -368,6 +371,31 @@ export class GazeDataManager {
         this.currentLineMinX = 99999;
         this.isCollectingLineStart = true;
         setTimeout(() => this.isCollectingLineStart = false, 200);
+    }
+
+    // [NEW] Upload pangLog for a specific paragraph to Firebase.
+    // Called by game.js BEFORE clearGazeData(), at mid-boss entry.
+    // Stores at: sessions/{id}/pangLogs/{paraIndex}  (array of {t, line, type, vx})
+    async uploadPangLog(sessionId, paraIndex) {
+        if (!window.firebase || !window.FIREBASE_CONFIG) return;
+        if (!this.pangLog || this.pangLog.length === 0) return;
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            const db = firebase.database();
+            db.goOnline();
+
+            // Sanitize
+            const payload = JSON.parse(JSON.stringify(this.pangLog, (key, value) => {
+                if (typeof value === 'number' && isNaN(value)) return null;
+                return value;
+            }));
+
+            await db.ref(`sessions/${sessionId}/pangLogs/${paraIndex}`).set(payload);
+            console.log(`[PangLog] Para ${paraIndex}: ${payload.length} pangs uploaded.`);
+        } catch (e) {
+            console.warn('[PangLog] Upload failed:', e);
+        }
     }
 
     // [FIX-iOS] Free the accumulated gaze data array AFTER replay has consumed it.
@@ -393,17 +421,113 @@ export class GazeDataManager {
     //   that compounds with SeeSo WASM (100-190MB) to push past iOS OOM threshold.
     clearGazeData() {
         const prev = this.data ? this.data.length : 0;
+
+        // [NEW] 데이터가 있으면 clear 전에 자동 업로드 — game.js 호출에 의존하지 않음
+        if (prev > 0) {
+            const G = window.Game;
+            const sid = G?.firebaseSessionId || G?.sessionId;
+            if (sid) {
+                console.log(`[GazeDataManager] Auto-upload before clear: ${prev} samples → session [${sid}]`);
+                // 데이터 스냅샷 저장 (clear 후에도 upload 가능하도록)
+                const snapshot = this.data.slice();
+                const snapshotMeta = {
+                    lineMetadata: this.lineMetadata,
+                    firstContentTime: this.firstContentTime,
+                    wpmData: this.wpmData ? [...this.wpmData] : [],
+                    pangLog: this.pangLog ? [...this.pangLog] : []
+                };
+                // fire-and-forget 업로드 (snapshot 사용)
+                this._uploadSnapshot(sid, snapshot, snapshotMeta).catch(e =>
+                    console.warn('[GazeDataManager] Auto-upload failed:', e)
+                );
+            } else {
+                console.warn('[GazeDataManager] clearGazeData: no sessionId, skip auto-upload');
+            }
+        }
+
         this.data = [];
         this.buffer = [];
-        // NOTE: firstTimestamp intentionally NOT reset — see comment above.
         this.lastPreprocessIndex = 0;
         this.lastUploadedIndex = 0;
-        // [FIX-iOS] Release replayData reference. Firebase upload has already consumed it
-        // (uploadToCloud runs at replay START, clearGazeData runs at replay END).
-        // Without this, the old gaze array (9000 entries ~0.5MB) lives in replayData
-        // indefinitely, preventing GC across all paragraphs.
         this.replayData = null;
-        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries + replayData. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
+        console.log(`[GazeDataManager] clearGazeData: freed ${prev} entries. Timeline continues from t=${Date.now() - (this.firstTimestamp || Date.now())}ms.`);
+    }
+
+    // [NEW] Upload a snapshot of gaze data (independent of this.data state)
+    async _uploadSnapshot(sessionId, dataSnapshot, metaInfo) {
+        // ── Firebase SDK 동적 로드 (게임 중에는 로드되지 않음) ──────────
+        if (typeof firebase === 'undefined') {
+            console.log('[GazeDataManager] Firebase SDK not loaded — loading now...');
+            try {
+                await this._loadFirebaseSDK();
+            } catch (e) {
+                console.error('[GazeDataManager] Firebase SDK load failed:', e);
+                return;
+            }
+        }
+        if (!window.FIREBASE_CONFIG) {
+            console.error('[GazeDataManager] FIREBASE_CONFIG missing');
+            return;
+        }
+
+        try {
+            if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            const db = firebase.database();
+            db.goOnline();
+
+            const metaData = {
+                timestamp: Date.now(),
+                userAgent: navigator.userAgent,
+                lineMetadata: metaInfo.lineMetadata || {},
+                totalSamples: dataSnapshot.length,
+                firstContentTime: metaInfo.firstContentTime,
+                wpmData: metaInfo.wpmData,
+                pangLog: metaInfo.pangLog
+            };
+
+            await db.ref('sessions/' + sessionId + '/meta').set(metaData);
+            await db.ref('session_list/' + sessionId).set(metaData);
+
+            if (dataSnapshot.length > 0) {
+                const payload = JSON.parse(JSON.stringify(dataSnapshot, (k, v) =>
+                    typeof v === 'number' && isNaN(v) ? null : v
+                ));
+                await db.ref('sessions/' + sessionId + '/chunks').push(payload);
+                console.log(`[GazeDataManager] _uploadSnapshot OK: ${dataSnapshot.length} samples → [${sessionId}]`);
+            }
+
+            // ★ replaySegments 업로드 (uploadToCloud와 달리 이 함수는 실제 실행됨)
+            if (this.replaySegments && this.replaySegments.length > 0) {
+                const sanitized = JSON.parse(JSON.stringify(this.replaySegments,
+                    (k, v) => (typeof v === 'number' && !isFinite(v)) ? null : v));
+                await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitized);
+                console.log(`[GazeDataManager] replaySegments ✅ ${sanitized.length}개 업로드`);
+            }
+        } catch (e) {
+            console.error('[GazeDataManager] _uploadSnapshot error:', e);
+        }
+    }
+
+    // Firebase SDK 동적 로드 (game.js의 loadFirebaseSDK와 동일)
+    _loadFirebaseSDK() {
+        if (typeof firebase !== 'undefined') return Promise.resolve();
+        if (this._fbLoading) return this._fbLoading;
+
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error('Failed: ' + src));
+            document.head.appendChild(s);
+        });
+
+        this._fbLoading = loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js')
+            .then(() => loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'))
+            .then(() => loadScript('./js/firebase-config.js'))
+            .then(() => console.log('[GazeDataManager] Firebase SDK loaded successfully'))
+            .catch(e => { this._fbLoading = null; throw e; });
+
+        return this._fbLoading;
     }
 
 
@@ -534,7 +658,8 @@ export class GazeDataManager {
                 lineMetadata: this.lineMetadata,
                 totalSamples: this.data.length,
                 firstContentTime: this.firstContentTime,
-                wpmData: this.wpmData || []
+                wpmData: this.wpmData || [],
+                pangLog: this.pangLog || []  // [NEW] For GazeGraph.html analysis
             };
 
             // A. Full Session Path
@@ -566,18 +691,48 @@ export class GazeDataManager {
                 await db.ref('sessions/' + sessionId + '/replayData').set(this.replayData);
             }
 
+            // 5. Upload Replay Segments (try-catch 내부 버전 — 여기서도 시도하되 외부에서 재시도)
+            if (this.replaySegments && this.replaySegments.length > 0) {
+                try {
+                    const sanitizedSegs = JSON.parse(JSON.stringify(
+                        this.replaySegments,
+                        (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
+                    ));
+                    await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitizedSegs);
+                    console.log(`[Firebase] ✅ replaySegments (inner): ${sanitizedSegs.length} segments`);
+                } catch (segErr) {
+                    console.warn(`[Firebase] replaySegments inner failed (will retry outside): ${segErr.message}`);
+                }
+            }
+
         } catch (e) {
             console.error("[Firebase] Upload Failed", e);
-            // [FIX-v32] goOffline()은 실패 시에만 호출.
-            // LSN 폭발 원인은 "실패한 재연결 루프"이지 "성공한 연결"이 아님.
-            // 성공 시 연결을 끊으면 다음 uploadToCloud() 호출 시 매번 재연결 필요.
-            // 실패 시에만 goOffline()으로 재연결 루프를 차단한다.
-            if (db) {
-                try { db.goOffline(); } catch (_) { }
-            }
+            // goOffline은 replaySegments 업로드 후에 호출 (아래 참조)
         }
-        // [FIX-v32] finally 블록에서 goOffline() 제거:
-        //   성공한 연결은 계속 유지 → 디버그 버튼이 어느 화면에서든 즉시 동작
+
+        // ★ replaySegments 업로드: meta/chunks 실패와 무관하게 항상 시도
+        // db.goOffline()을 catch에서 바로 호출하지 않는 이유:
+        //   → goOffline() 후 db가 OFFLINE 상태가 되어 여기서도 실패하기 때문
+        if (db && this.replaySegments && this.replaySegments.length > 0) {
+            try {
+                db.goOnline(); // 혹시 offline 상태라면 복구
+                const sanitizedSegs = JSON.parse(JSON.stringify(
+                    this.replaySegments,
+                    (key, val) => (typeof val === 'number' && !isFinite(val)) ? null : val
+                ));
+                await db.ref('sessions/' + sessionId + '/replaySegments').set(sanitizedSegs);
+                console.log(`[Firebase] ✅ replaySegments: ${sanitizedSegs.length} segments uploaded`);
+            } catch (segErr) {
+                console.error(`[Firebase] ❌ replaySegments FAILED: ${segErr.message || segErr}`);
+            }
+        } else {
+            console.warn(`[Firebase] replaySegments skip: db=${!!db}, segs=${this.replaySegments ? this.replaySegments.length : 'null'}`);
+        }
+
+        // 모든 업로드 시도 후 Firebase 연결 종료
+        if (db) {
+            try { db.goOffline(); } catch (_) { }
+        }
     }
 
     async exportChartImage(deviceType, startTime = 0, endTime = Infinity) {
@@ -806,6 +961,56 @@ export class GazeDataManager {
                     return true;
                 }
             }
+
+            // ─── 마지막 줄 감시 로직 ───
+            // watchLastLine=true이면: n번째 줄에서 valley 후 gx 30px 이상 증가 시 팡 발동
+            if (this.watchLastLine) {
+                const watchN = this.watchLastLineN;
+                const gx0 = d0.gx || d0.x;
+                const gx1 = d1.gx || d1.x;
+
+                if (now - this.watchStartTime > 3000) {
+                    this.watchLastLine = false;
+                    console.log('[Pang] 마지막 줄 감시 타임아웃');
+                } else if (d0.line === watchN) {
+                    if (this.lastLineValley === null) {
+                        // valley 후보 갱신
+                        if (gx0 < this.lastLineValleyCandidateGx) {
+                            this.lastLineValleyCandidateGx = gx0;
+                            this.lastLineValleyCandidateT = now;
+                        }
+                        // gx가 다시 증가하기 시작하면 valley 확정
+                        if (gx0 > gx1 && this.lastLineValleyCandidateGx < Infinity) {
+                            this.lastLineValley = { gx: this.lastLineValleyCandidateGx, t: this.lastLineValleyCandidateT };
+                            console.log(`[Pang] L${watchN} 극소값 확정: gx=${Math.round(this.lastLineValley.gx)}`);
+                        }
+                    } else {
+                        // 극소값 이후 rawX 증대 체크
+                        const elapsed = now - this.lastLineValley.t;
+                        const growth = gx0 - this.lastLineValley.gx;
+                        if (growth >= 30 && elapsed <= 1500) {
+                            this.watchLastLine = false;
+                            if (this.pangLog) {
+                                this.pangLog.push({ t: now, line: watchN, type: 'LastLine', vx: v0 });
+                            }
+                            this.maxLineIndexReached = watchN + 1; // 재발동 방지
+                            this.lastTriggerTime = now;
+                            this.pangCountInPara++;
+                            if (window.Game && window.Game.typewriter && window.Game.typewriter.renderer &&
+                                typeof window.Game.typewriter.renderer.triggerReturnEffect === 'function') {
+                                const rs = document.getElementById('screen-read');
+                                if (rs && rs.classList.contains('active')) {
+                                    window.Game.typewriter.renderer.triggerReturnEffect(watchN);
+                                }
+                            }
+                            console.log(`[Pang] ★ 마지막 줄 L${watchN} 팡! growth=${Math.round(growth)}px elapsed=${elapsed}ms`);
+                            setTimeout(() => { this._calcWPMForLine(watchN, now); }, 100);
+                            return true;
+                        }
+                    }
+                }
+            }
+
             return false;
         } catch (e) {
             console.error(e);
@@ -866,6 +1071,19 @@ export class GazeDataManager {
         this.lastRSLine = targetLine;
         this.pangCountInPara++;
         setTimeout(() => { this._calcWPMForLine(targetLine, d0.t); }, 100);
+
+        // ─── 마지막 줄 감시 시작 (n-1 팡 발생 시) ───
+        const _renderer = window.Game && window.Game.typewriter && window.Game.typewriter.renderer;
+        const _totalLines = _renderer && _renderer.lines ? _renderer.lines.length : 0;
+        if (_totalLines > 1 && targetLine === _totalLines - 2) {
+            this.watchLastLine = true;
+            this.watchStartTime = d0.t;
+            this.watchLastLineN = _totalLines - 1;
+            this.lastLineValley = null;
+            this.lastLineValleyCandidateGx = Infinity;
+            this.lastLineValleyCandidateT = 0;
+            console.log(`[Pang] 마지막 줄 L${_totalLines - 1} 감시 시작`);
+        }
     }
 
 
@@ -881,14 +1099,11 @@ export class GazeDataManager {
         const wordCount = (lineObj && lineObj.wordIndices) ? lineObj.wordIndices.length : 0;
         if (wordCount === 0) return;
 
-        // Time calculation — use lastRSTime chain when possible (O(1)), otherwise O(N) scan
+        // ■ duration: 이전 팡 → 현재 팡 간격 (O(1) 우선)
         let duration = 0;
-        if (this.lastRSLine === targetLine - 1 && this.lastRSTime > 0 &&
-            // Ensure lastRSTime is from THIS deferred call's now, not the stored one
-            this._prevRSTime && this._prevRSTime > 0) {
+        if (this._prevRSTime && this._prevRSTime > 0) {
             duration = now - this._prevRSTime;
         } else {
-            // Backward scan — cap at 800 entries (was 1500)
             const limit = Math.max(this.searchStartIndex || 0, this.data.length - 800);
             let startTime = now;
             for (let i = this.data.length - 1; i >= limit; i--) {
@@ -903,28 +1118,37 @@ export class GazeDataManager {
         }
         this._prevRSTime = now;
 
-        if (duration < 100 || wordCount === 0) return;
-        if (this.pangCountInPara <= 1) return; // skip first pang (warm-up)
-        if (targetLine === 0) return;           // skip line 0
+        // ■ 필터: 비정상 측정값 제외
+        if (duration < 500)   return; // 너무 빠름
+        if (duration > 10000) return; // 읽기 정지 등 이상치
+        if (wordCount < 4)    return; // 짧은 줄 노이즈 제외
+        if (this.pangCountInPara <= 1) return; // 첫 팡 워밍업 스킵
+        if (targetLine === 0) return;
 
-        this.validTimeSum += duration;
-        this.validWordSum += wordCount;
+        // ■ 줄별 WPM 산술 평균
+        const lineWPM = Math.round(wordCount / (duration / 60000));
+        if (lineWPM > 800) return; // 비현실적 상한
 
-        const minutes = this.validTimeSum / 60000;
-        if (minutes > 0 && this.validWordSum > 0) {
-            this.wpm = Math.round(this.validWordSum / minutes);
-            if (!this.wpmData) this.wpmData = [];
-            this.wpmData.push({
-                paraIndex: (this.context && this.context.pIdx !== undefined) ? this.context.pIdx : (this.context.paraIndex || -1),
-                line: targetLine,
-                duration,
-                words: wordCount,
-                wpm: this.wpm
-            });
-            // Update HUD (best-effort)
-            if (window.Game && window.Game.typewriter && typeof window.Game.typewriter.updateWPM === 'function') {
-                window.Game.typewriter.updateWPM();
-            }
+        if (!this.lineWPMs) this.lineWPMs = [];
+        this.lineWPMs.push(lineWPM);
+        this.wpm = Math.round(
+            this.lineWPMs.reduce((sum, v) => sum + v, 0) / this.lineWPMs.length
+        );
+
+        if (!this.wpmData) this.wpmData = [];
+        this.wpmData.push({
+            paraIndex: (this.context && this.context.pIdx !== undefined)
+                ? this.context.pIdx : (this.context.paraIndex || -1),
+            line: targetLine,
+            duration,
+            words: wordCount,
+            lineWPM,
+            wpm: this.wpm
+        });
+
+        if (window.Game && window.Game.typewriter &&
+            typeof window.Game.typewriter.updateWPM === 'function') {
+            window.Game.typewriter.updateWPM();
         }
     }
 }

@@ -1,0 +1,1140 @@
+{
+  "book_id": "aesop",
+  "title": "Aesop's Fables",
+  "author": "Aesop (trans. George Fyler Townsend)",
+  "total_days": 10,
+  "chapters": [
+    {
+      "chapter_num": 1,
+      "chapter_id": "day1",
+      "title": "The Lion And The Mouse / The Wolf And The Lamb / The Ass And The Grasshopper",
+      "passages": {
+        "A": {
+          "fable_id": "fable1",
+          "fable_title": "The Lion And The Mouse",
+          "text": "A LION was awakened from sleep by a Mouse running over his face. Rising up angrily, he caught him and was about to kill him, when the Mouse piteously entreated, saying: “If you would only spare my life, I would be sure to repay your kindness.” The Lion laughed and let him go. It happened shortly after this that the Lion was caught by some hunters, who bound him by strong ropes to the ground. The Mouse, recognizing his roar, came and gnawed the rope with his teeth, and set him free, exclaiming: “You ridiculed the idea of my ever being able to help you, not expecting to receive from me any repayment of your favour; now you know that it is possible for even a Mouse to confer benefits on a Lion.”",
+          "word_count": 133,
+          "source_ids": [
+            "fable1_p1",
+            "fable1_p2",
+            "fable1_p3"
+          ],
+          "vocab": {
+            "word": "kindness",
+            "sentence": "If you would only spare my life, I would be sure to repay your <b>kindness</b>.",
+            "options": [
+              "A. cruelty",
+              "B. generosity",
+              "C. anger"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/kindness.png",
+            "definition": "generosity"
+          },
+          "midBossQuiz": {
+            "q": "What did the Mouse do to help the Lion?",
+            "o": [
+              "The Mouse ran away.",
+              "The Mouse gnawed the rope.",
+              "The Mouse laughed at the Lion."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable2",
+          "fable_title": "The Wolf And The Lamb",
+          "text": "WOLF, meeting with a Lamb astray from the fold, resolved not to lay violent hands on him, but to find some plea to justify to the Lamb the Wolf’s right to eat him. He thus addressed him: “Sirrah, last year you grossly insulted me.” “Indeed,” bleated the Lamb in a mournful tone of voice, “I was not then born.” Then said the Wolf, “You feed in my pasture.” “No, good sir,” replied the Lamb, “I have not yet tasted grass.” Again said the Wolf, “You drink of my well.” “No,” exclaimed the Lamb, “I never yet drank water, for as yet my mother’s milk is both food and drink to me.” Upon which the Wolf seized him and ate him up, saying, “Well! I won’t remain supperless, even though you refute every one of my imputations.” The tyrant will always find a pretext for his tyranny.",
+          "word_count": 146,
+          "source_ids": [
+            "fable2_p1",
+            "fable2_p2"
+          ],
+          "vocab": {
+            "word": "Lamb",
+            "sentence": "Indeed,” bleated the <b>Lamb</b> in a mournful tone of voice, “I was not then born.”",
+            "options": [
+              "A. A type of wolf",
+              "B. A young sheep",
+              "C. A type of grass"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/lamb.png",
+            "definition": "A young sheep"
+          },
+          "midBossQuiz": {
+            "q": "What does the Wolf accuse the Lamb of?",
+            "o": [
+              "Insulting him last year",
+              "Eating his grass",
+              "Drinking too much water"
+            ],
+            "a": 0
+          }
+        },
+        "C": {
+          "fable_id": "fable3",
+          "fable_title": "The Ass And The Grasshopper",
+          "text": "AN ASS having heard some Grasshoppers chirping, was highly enchanted; and, desiring to possess the same charms of melody, demanded what sort of food they lived on to give them such beautiful voices. They replied, “The dew.” The Ass resolved that he would live only upon dew, and in a short time died of hunger.",
+          "word_count": 55,
+          "source_ids": [
+            "fable3_p1",
+            "fable3_p2"
+          ],
+          "vocab": {
+            "word": "dew",
+            "sentence": "They replied, “The <b>dew</b>.”",
+            "options": [
+              "A. A type of flower",
+              "B. Water that forms on cool surfaces at night",
+              "C. A kind of fruit"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/dew.png",
+            "definition": "Water that forms on cool surfaces at night"
+          },
+          "midBossQuiz": {
+            "q": "What did the Ass decide to eat to have a beautiful voice?",
+            "o": [
+              "Grass",
+              "Dew",
+              "Hay"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In this chapter, three fables illustrate the themes of kindness, injustice, and the consequences of envy. The Lion learns that even the smallest creature can be of help, the Wolf represents tyranny and deceit, while the Ass discovers that trying to be something one is not can lead to dire consequences. Each story teaches a valuable lesson about humility and the importance of understanding one's own nature.",
+        "q": "What overarching lesson can be drawn from the interactions between the characters in all three fables?",
+        "o": [
+          "A. Great strength ensures victory over the weak.",
+          "B. One should always respect and appreciate the abilities of others, regardless of their size or status.",
+          "C. Trying to imitate others leads to personal downfall.",
+          "D. Deceit is a valid strategy for survival."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 2,
+      "chapter_id": "day2",
+      "title": "The Wolf and the Crane / The Father And His Sons / The Bat And The Weasels",
+      "passages": {
+        "A": {
+          "fable_id": "fable4",
+          "fable_title": "The Wolf and the Crane",
+          "text": "A WOLF who had a bone stuck in his throat hired a Crane, for a large sum, to put her head into his mouth and draw out the bone. When the Crane had extracted the bone and demanded the promised payment, the Wolf, grinning and grinding his teeth, exclaimed: “Why, you have surely already had a sufficient recompense, in having been permitted to draw out your head in safety from the mouth and jaws of a wolf.” In serving the wicked, expect no reward, and be thankful if you escape injury for your pains.",
+          "word_count": 94,
+          "source_ids": [
+            "fable4_p1",
+            "fable4_p2",
+            "fable4_p3"
+          ],
+          "vocab": {
+            "word": "bone",
+            "sentence": "A WOLF who had a <b>bone</b> stuck in his throat hired a Crane, for a large sum, to put her head into his mouth and draw out the bone.",
+            "options": [
+              "A. A type of meat",
+              "B. A hard part inside a body",
+              "C. A piece of jewelry"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/bone.png",
+            "definition": "A hard part inside a body"
+          },
+          "midBossQuiz": {
+            "q": "What did the Wolf say to the Crane after she helped him?",
+            "o": [
+              "He thanked her for her help.",
+              "He said she should be thankful for escaping.",
+              "He promised to pay her immediately."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable5",
+          "fable_title": "The Father And His Sons",
+          "text": "A FATHER had a family of sons who were perpetually quarreling among themselves. When he failed to heal their disputes by his exhortations, he determined to give them a practical illustration of the evils of disunion; and for this purpose he one day told them to bring him a bundle of sticks. When they had done so, he placed the faggot into the hands of each of them in succession, and ordered them to break it in pieces. They tried with all their strength, and were not able to do it. He next opened the faggot, took the sticks separately, one by one, and again put them into his sons’ hands, upon which they broke them easily. He then addressed them in these words: “My sons, if you are of one mind, and unite to assist each other, you will be as this faggot, uninjured by all the attempts of your enemies; but if you are divided among yourselves, you will be broken as easily as these sticks.”",
+          "word_count": 168,
+          "source_ids": [
+            "fable5_p1",
+            "fable5_p2"
+          ],
+          "vocab": {
+            "word": "faggot",
+            "sentence": "He next opened the <b>faggot</b>, took the sticks separately, one by one, and again put them into his sons’ hands, upon which they broke them easily.",
+            "options": [
+              "A. A type of food",
+              "B. A bundle of sticks",
+              "C. A kind of animal"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/faggot.png",
+            "definition": "A bundle of sticks"
+          },
+          "midBossQuiz": {
+            "q": "What did the father want to teach his sons?",
+            "o": [
+              "To always argue with each other",
+              "To work together and help each other",
+              "To break things easily"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable6",
+          "fable_title": "The Bat And The Weasels",
+          "text": "A BAT who fell upon the ground and was caught by a Weasel pleaded to be spared his life. The Weasel refused, saying that he was by nature the enemy of all birds. The Bat assured him that he was not a bird, but a mouse, and thus was set free. Shortly afterwards the Bat again fell to the ground and was caught by another Weasel, whom he likewise entreated not to eat him. The Weasel said that he had a special hostility to mice. The Bat assured him that he was not a mouse, but a bat, and thus a second time escaped. It is wise to turn circumstances to good account.",
+          "word_count": 113,
+          "source_ids": [
+            "fable6_p1",
+            "fable6_p2",
+            "fable6_p3"
+          ],
+          "vocab": {
+            "word": "Weasel",
+            "sentence": "The Weasel refused, saying that he was by nature the enemy of all birds.",
+            "options": [
+              "A. A type of bird",
+              "B. A small, carnivorous mammal",
+              "C. A kind of fruit"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/weasel.png",
+            "definition": "A small, carnivorous mammal"
+          },
+          "midBossQuiz": {
+            "q": "What did the Bat claim to be to escape from the first Weasel?",
+            "o": [
+              "A bird",
+              "A mouse",
+              "A cat"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "This chapter presents three fables that teach important life lessons. The Wolf and the Crane highlights the dangers of helping those who are untrustworthy. The Father and His Sons illustrates the strength found in unity and cooperation among family. Finally, The Bat and the Weasels shows the importance of adaptability and cleverness in difficult situations.",
+        "q": "What common lesson about relationships and survival can be derived from the three fables in this chapter?",
+        "o": [
+          "A. Helping others always guarantees a reward.",
+          "B. Unity and adaptability are essential for overcoming challenges.",
+          "C. Being dishonest is sometimes beneficial.",
+          "D. One should never trust any animals."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 3,
+      "chapter_id": "day3",
+      "title": "The Cock and the Jewel / The Swallow and the Crow / The Kingdom of the Lion",
+      "passages": {
+        "A": {
+          "fable_id": "fable7",
+          "fable_title": "The Cock and the Jewel",
+          "text": "A COCK, scratching for food for himself and his hens, found a precious stone and exclaimed: “If your owner had found thee, and not I, he would have taken thee up, and have set thee in thy first estate; but I have found thee for no purpose. I would rather have one barleycorn than all the jewels in the world.”",
+          "word_count": 60,
+          "source_ids": [
+            "fable7_p1",
+            "fable7_p2"
+          ],
+          "vocab": {
+            "word": "jewel",
+            "sentence": "If your owner had found thee, and not I, he would have taken thee up, and have set thee in thy first estate; but I have found thee for no purpose. I would rather have one barleycorn than all the <b>jewels</b> in the world.",
+            "options": [
+              "A. A type of flower",
+              "B. A precious stone or ornament",
+              "C. A kind of bird"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/jewel.png",
+            "definition": "A precious stone or ornament"
+          },
+          "midBossQuiz": {
+            "q": "What does the Cock prefer over jewels?",
+            "o": [
+              "Gold coins",
+              "One barleycorn",
+              "A shiny necklace"
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable8",
+          "fable_title": "The Swallow and the Crow",
+          "text": "THE SWALLOW and the Crow had a contention about their plumage. The Crow put an end to the dispute by saying, “Your feathers are all very well in the spring, but mine protect me against the winter.” Fair weather friends are not worth much.",
+          "word_count": 44,
+          "source_ids": [
+            "fable8_p1",
+            "fable8_p2",
+            "fable8_p3"
+          ],
+          "vocab": {
+            "word": "plumage",
+            "sentence": "THE SWALLOW and the Crow had a contention about their <b>plumage</b>.",
+            "options": [
+              "A. a type of food",
+              "B. feathers",
+              "C. a kind of bird"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/plumage.png",
+            "definition": "feathers"
+          },
+          "midBossQuiz": {
+            "q": "What did the Crow say about its feathers?",
+            "o": [
+              "They are colorful in spring.",
+              "They protect against winter.",
+              "They are better than the Swallow's."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable9",
+          "fable_title": "The Kingdom of the Lion",
+          "text": "THE BEASTS of the field and forest had a Lion as their king. He was neither wrathful, cruel, nor tyrannical, but just and gentle as a king could be. During his reign he made a royal proclamation for a general assembly of all the birds and beasts, and drew up conditions for a universal league, in which the Wolf and the Lamb, the Panther and the Kid, the Tiger and the Stag, the Dog and the Hare, should live together in perfect peace and amity. The Hare said, “Oh, how I have longed to see this day, in which the weak shall take their place with impunity by the side of the strong.” And after the Hare said this, he ran for his life.",
+          "word_count": 124,
+          "source_ids": [
+            "fable9_p1",
+            "fable9_p2"
+          ],
+          "vocab": {
+            "word": "king",
+            "sentence": "He was neither wrathful, cruel, nor tyrannical, but just and gentle as a <b>king</b> could be.",
+            "options": [
+              "A. A ruler of a country or territory.",
+              "B. A type of animal.",
+              "C. A person who plays games."
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/king.png",
+            "definition": "A ruler of a country or territory."
+          },
+          "midBossQuiz": {
+            "q": "What did the Hare express a desire for?",
+            "o": [
+              "To see weak animals suffer.",
+              "To see the weak live with the strong peacefully.",
+              "To see the Lion become cruel."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In this chapter, three fables illustrate valuable lessons about worth, friendship, and the nature of leadership. The Cock finds a jewel but values food more, the Swallow learns that beauty is not enough for survival, and the Lion shows that a good ruler promotes harmony among all creatures. Each story emphasizes the importance of practicality over superficiality and the need for true strength in society.",
+        "q": "What common theme is expressed through the characters' experiences in the three fables?",
+        "o": [
+          "A. True beauty lies only in physical appearance.",
+          "B. Practicality and true strength are more valuable than superficial attributes.",
+          "C. Friendship is only important during good times.",
+          "D. Kings must always be cruel to maintain control."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 4,
+      "chapter_id": "day4",
+      "title": "The Traveler and His Dog / The Ants and the Grasshopper / The Hare and the Tortoise",
+      "passages": {
+        "A": {
+          "fable_id": "fable10",
+          "fable_title": "The Traveler and His Dog",
+          "text": "A TRAVELER about to set out on a journey saw his Dog stand at the door stretching himself. He asked him sharply: “Why do you stand there gaping? Everything is ready but you, so come with me instantly.” The Dog, wagging his tail, replied: “O, master! I am quite ready; it is you for whom I am waiting.” The loiterer often blames delay on his more active friend.",
+          "word_count": 68,
+          "source_ids": [
+            "fable10_p1",
+            "fable10_p2",
+            "fable10_p3"
+          ],
+          "vocab": {
+            "word": "ready",
+            "sentence": "The Dog, wagging his tail, replied: “O, master! I am quite <b>ready</b>; it is you for whom I am waiting.”",
+            "options": [
+              "A. prepared to do something",
+              "B. not prepared to do something",
+              "C. excited to go"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/ready.png",
+            "definition": "prepared to do something"
+          },
+          "midBossQuiz": {
+            "q": "Who is waiting in the passage?",
+            "o": [
+              "The Traveler",
+              "The Dog",
+              "A stranger"
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable11",
+          "fable_title": "The Ants and the Grasshopper",
+          "text": "THE ANTS were spending a fine winter’s day drying grain collected in the summertime. A Grasshopper, perishing with famine, passed by and earnestly begged for a little food. The Ants inquired of him, “Why did you not treasure up food during the summer?” He replied, “I had not leisure enough. I passed the days in singing.” They then said in derision: “If you were foolish enough to sing all the summer, you must dance supperless to bed in the winter.”",
+          "word_count": 80,
+          "source_ids": [
+            "fable11_p1",
+            "fable11_p2"
+          ],
+          "vocab": {
+            "word": "famine",
+            "sentence": "A Grasshopper, perishing with <b>famine</b>, passed by and earnestly begged for a little food.",
+            "options": [
+              "A. a large amount of food",
+              "B. a severe shortage of food",
+              "C. a celebration with food"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/famine.png",
+            "definition": "a severe shortage of food"
+          },
+          "midBossQuiz": {
+            "q": "What did the Ants ask the Grasshopper?",
+            "o": [
+              "If he wanted to join them in singing",
+              "Why did you not treasure up food during the summer?",
+              "If he could help them collect grain"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable12",
+          "fable_title": "The Hare and the Tortoise",
+          "text": "A HARE one day ridiculed the short feet and slow pace of the Tortoise, who replied, laughing: “Though you be swift as the wind, I will beat you in a race.” The Hare, believing her assertion to be simply impossible, assented to the proposal; and they agreed that the Fox should choose the course and fix the goal. On the day appointed for the race the two started together. The Tortoise never for a moment stopped, but went on with a slow but steady pace straight to the end of the course. The Hare, lying down by the wayside, fell fast asleep. At last waking up, and moving as fast as he could, he saw the Tortoise had reached the goal, and was comfortably dozing after her fatigue. Slow but steady wins the race.",
+          "word_count": 134,
+          "source_ids": [
+            "fable12_p1",
+            "fable12_p2",
+            "fable12_p3"
+          ],
+          "vocab": {
+            "word": "Tortoise",
+            "sentence": "The <b>Tortoise</b> never for a moment stopped, but went on with a slow but steady pace straight to the end of the course.",
+            "options": [
+              "A. A type of bird",
+              "B. A slow-moving reptile",
+              "C. A fast mammal"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/tortoise.png",
+            "definition": "A slow-moving reptile"
+          },
+          "midBossQuiz": {
+            "q": "Who won the race?",
+            "o": [
+              "The Hare",
+              "The Tortoise",
+              "The Fox"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In this chapter, three fables teach important lessons about preparation, hard work, and perseverance. The Traveler learns that his Dog is ready, while the Grasshopper realizes the consequences of not preparing for winter like the Ants. Finally, the Tortoise proves that steady effort can triumph over speed when she wins the race against the Hare.",
+        "q": "What do the stories in this chapter suggest about the importance of preparation and persistence in achieving goals?",
+        "o": [
+          "A. It is better to be fast than to be prepared.",
+          "B. Hard work and planning lead to success regardless of one's natural abilities.",
+          "C. Singing and having fun are more important than working hard.",
+          "D. Only those who are naturally talented can succeed."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 5,
+      "chapter_id": "day5",
+      "title": "The Charcoal-Burner And The Fuller / The Boy Hunting Locusts / The Fisherman Piping",
+      "passages": {
+        "A": {
+          "fable_id": "fable13",
+          "fable_title": "The Charcoal-Burner And The Fuller",
+          "text": "A CHARCOAL-BURNER carried on his trade in his own house. One day he met a friend, a Fuller, and entreated him to come and live with him, saying that they should be far better neighbors and that their housekeeping expenses would be lessened. The Fuller replied, “The arrangement is impossible as far as I am concerned, for whatever I should whiten, you would immediately blacken again with your charcoal.” Like will draw like.",
+          "word_count": 73,
+          "source_ids": [
+            "fable13_p1",
+            "fable13_p2",
+            "fable13_p3"
+          ],
+          "vocab": {
+            "word": "blacken",
+            "sentence": "The Fuller replied, “The arrangement is impossible as far as I am concerned, for whatever I should whiten, you would immediately <b>blacken</b> again with your charcoal.”",
+            "options": [
+              "A. to make something dark",
+              "B. to make something light",
+              "C. to color something red"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/blacken.png",
+            "definition": "to make something dark"
+          },
+          "midBossQuiz": {
+            "q": "Why did the Fuller think living together was impossible?",
+            "o": [
+              "They had different jobs that would conflict.",
+              "They would save money on expenses.",
+              "They were childhood friends."
+            ],
+            "a": 0
+          }
+        },
+        "B": {
+          "fable_id": "fable14",
+          "fable_title": "The Boy Hunting Locusts",
+          "text": "A BOY was hunting for locusts. He had caught a goodly number, when he saw a Scorpion, and mistaking him for a locust, reached out his hand to take him. The Scorpion, showing his sting, said: “If you had but touched me, my friend, you would have lost me, and all your locusts too!”",
+          "word_count": 54,
+          "source_ids": [
+            "fable14_p1",
+            "fable14_p2"
+          ],
+          "vocab": {
+            "word": "Scorpion",
+            "sentence": "The <b>Scorpion</b>, showing his sting, said: “If you had but touched me, my friend, you would have lost me, and all your locusts too!”",
+            "options": [
+              "A. A type of bird",
+              "B. A poisonous arachnid",
+              "C. A kind of insect"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/scorpion.png",
+            "definition": "A poisonous arachnid"
+          },
+          "midBossQuiz": {
+            "q": "What did the Scorpion say would happen if the boy touched him?",
+            "o": [
+              "He would catch more locusts.",
+              "He would lose the Scorpion and all his locusts.",
+              "He would become a great hunter."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable15",
+          "fable_title": "The Fisherman Piping",
+          "text": "A FISHERMAN skilled in music took his flute and his nets to the seashore. Standing on a projecting rock, he played several tunes in the hope that the fish, attracted by his melody, would of their own accord dance into his net, which he had placed below. At last, having long waited in vain, he laid aside his flute, and casting his net into the sea, made an excellent haul of fish. When he saw them leaping about in the net upon the rock he said: “O you most perverse creatures, when I piped you would not dance, but now that I have ceased you do so merrily.”",
+          "word_count": 108,
+          "source_ids": [
+            "fable15_p1",
+            "fable15_p2"
+          ],
+          "vocab": {
+            "word": "flute",
+            "sentence": "Standing on a projecting rock, he played several tunes in the hope that the fish, attracted by his melody, would of their own accord dance into his net, which he had placed below. At last, having long waited in vain, he laid aside his <b>flute</b>, and casting his net into the sea, made an excellent haul of fish.",
+            "options": [
+              "A. A type of fish",
+              "B. A musical instrument",
+              "C. A fishing net"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/flute.png",
+            "definition": "A musical instrument"
+          },
+          "midBossQuiz": {
+            "q": "What did the fisherman do to try to catch fish at first?",
+            "o": [
+              "He threw his net without playing music.",
+              "He played music on his flute.",
+              "He used a fishing rod."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In this chapter, three stories illustrate the importance of understanding one's surroundings and the consequences of actions. The Charcoal-Burner and the Fuller highlight the conflict that arises from incompatible professions. The Boy Hunting Locusts warns about mistaken identity and danger, while the Fisherman's experience shows that effort does not always yield immediate results, as sometimes the unexpected happens. Together, these fables teach lessons about compatibility, caution, and patience.",
+        "q": "What do the three passages collectively suggest about the nature of relationships and the outcomes of our actions?",
+        "o": [
+          "A. Relationships are always beneficial regardless of circumstances.",
+          "B. Understanding and compatibility are crucial for successful interactions.",
+          "C. Efforts in life always lead to immediate rewards.",
+          "D. Mistakes are never a part of learning."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 6,
+      "chapter_id": "day6",
+      "title": "The Dog and the Shadow / The Mole and His Mother / The Herdsman and the Lost Bull",
+      "passages": {
+        "A": {
+          "fable_id": "fable16",
+          "fable_title": "The Dog and the Shadow",
+          "text": "A DOG, crossing a bridge over a stream with a piece of flesh in his mouth, saw his own shadow in the water and took it for that of another Dog, with a piece of meat double his own in size. He immediately let go of his own, and fiercely attacked the other Dog to get his larger piece from him. He thus lost both: that which he grasped at in the water, because it was a shadow; and his own, because the stream swept it away. Hercules and the Wagoner A CARTER was driving a wagon along a country lane, when the wheels sank down deep into a rut. The rustic driver, stupefied and aghast, stood looking at the wagon, and did nothing but utter loud cries to Hercules to come and help him. Hercules, it is said, appeared and thus addressed him: “Put your shoulders to the wheels, my man. Goad on your bullocks, and never more pray to me for help, until you have done your best to help yourself, or depend upon it you will henceforth pray in vain.” Self-help is the best help.",
+          "word_count": 188,
+          "source_ids": [
+            "fable16_p1",
+            "fable16_p2",
+            "fable16_p3",
+            "fable16_p4",
+            "fable16_p5"
+          ],
+          "vocab": {
+            "word": "shadow",
+            "sentence": "The Dog, crossing a bridge over a stream with a piece of flesh in his mouth, saw his own <b>shadow</b> in the water and took it for that of another Dog, with a piece of meat double his own in size.",
+            "options": [
+              "A. A reflection or dark shape made by an object blocking light.",
+              "B. A loud noise.",
+              "C. A type of dog."
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/shadow.png",
+            "definition": "A reflection or dark shape made by an object blocking light."
+          },
+          "midBossQuiz": {
+            "q": "What did the Dog lose when he attacked the shadow?",
+            "o": [
+              "His piece of flesh.",
+              "Both his own piece of flesh and the shadow.",
+              "His collar."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable17",
+          "fable_title": "The Mole and His Mother",
+          "text": "A MOLE, a creature blind from birth, once said to his Mother: “I am sure than I can see, Mother!” In the desire to prove to him his mistake, his Mother placed before him a few grains of frankincense, and asked, “What is it?” The young Mole said, “It is a pebble.” His Mother exclaimed: “My son, I am afraid that you are not only blind, but that you have lost your sense of smell.”",
+          "word_count": 75,
+          "source_ids": [
+            "fable17_p1",
+            "fable17_p2"
+          ],
+          "vocab": {
+            "word": "Mother",
+            "sentence": "The young Mole said, “It is a pebble.” His <b>Mother</b> exclaimed: “My son, I am afraid that you are not only blind, but that you have lost your sense of smell.”",
+            "options": [
+              "A. A type of animal",
+              "B. A female parent",
+              "C. A place where children play"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/mother.png",
+            "definition": "A female parent"
+          },
+          "midBossQuiz": {
+            "q": "What did the Mole think he could do?",
+            "o": [
+              "He thought he could hear.",
+              "He thought he could see.",
+              "He thought he could smell."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable18",
+          "fable_title": "The Herdsman and the Lost Bull",
+          "text": "A HERDSMAN tending his flock in a forest lost a Bull-calf from the fold. After a long and fruitless search, he made a vow that, if he could only discover the thief who had stolen the Calf, he would offer a lamb in sacrifice to Hermes, Pan, and the Guardian Deities of the forest. Not long afterwards, as he ascended a small hillock, he saw at its foot a Lion feeding on the Calf. Terrified at the sight, he lifted his eyes and his hands to heaven, and said: “Just now I vowed to offer a lamb to the Guardian Deities of the forest if I could only find out who had robbed me; but now that I have discovered the thief, I would willingly add a full-grown Bull to the Calf I have lost, if I may only secure my own escape from him in safety.”",
+          "word_count": 147,
+          "source_ids": [
+            "fable18_p1",
+            "fable18_p2"
+          ],
+          "vocab": {
+            "word": "thief",
+            "sentence": "Not long afterwards, as he ascended a small hillock, he saw at its foot a Lion feeding on the Calf. Terrified at the sight, he lifted his eyes and his hands to heaven, and said: “Just now I vowed to offer a lamb to the Guardian Deities of the forest if I could only find out who had robbed me; but now that I have discovered the <b>thief</b>, I would willingly add a full-grown Bull to the Calf I have lost, if I may only secure my own escape from him in safety.”",
+            "options": [
+              "A. A person who steals",
+              "B. A person who helps others",
+              "C. A person who sells things"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/thief.png",
+            "definition": "A person who steals"
+          },
+          "midBossQuiz": {
+            "q": "What did the Herdsman see at the foot of the hillock?",
+            "o": [
+              "A lion eating the calf",
+              "A deer drinking water",
+              "A bear sleeping"
+            ],
+            "a": 0
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "This chapter features three fables that teach valuable lessons about perception, self-reliance, and the consequences of one's actions. In 'The Dog and the Shadow', a dog loses his meal due to his greed and misunderstanding. 'The Mole and His Mother' illustrates that blind confidence can lead to misunderstanding one's abilities. Finally, 'The Herdsman and the Lost Bull' shows the desperation that can arise when faced with loss and danger, emphasizing the importance of recognizing the true nature of threats.",
+        "q": "What common theme is shared by the characters in all three stories regarding their desires and perceptions?",
+        "o": [
+          "A. They all achieve their goals without any consequences.",
+          "B. Their desires often lead to misinterpretations and unintended losses.",
+          "C. They all find immediate solutions to their problems.",
+          "D. Each character learns to ignore their instincts for better outcomes."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 7,
+      "chapter_id": "day7",
+      "title": "The Fawn and His Mother / The Ass, the Fox, and the Lion / The Flies and the Honey-Pot",
+      "passages": {
+        "A": {
+          "fable_id": "fable19",
+          "fable_title": "The Fawn and His Mother",
+          "text": "A YOUNG FAWN once said to his Mother, “You are larger than a dog, and swifter, and more used to running, and you have your horns as a defense; why, then, O Mother! do the hounds frighten you so?” She smiled, and said: “I know full well, my son, that all you say is true. I have the advantages you mention, but when I hear even the bark of a single dog I feel ready to faint, and fly away as fast as I can.” No arguments will give courage to the coward.",
+          "word_count": 93,
+          "source_ids": [
+            "fable19_p1",
+            "fable19_p2",
+            "fable19_p3"
+          ],
+          "vocab": {
+            "word": "coward",
+            "sentence": "No arguments will give courage to the <b>coward</b>.",
+            "options": [
+              "A. A brave person",
+              "B. A person who is afraid",
+              "C. A strong animal"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/coward.png",
+            "definition": "A person who is afraid"
+          },
+          "midBossQuiz": {
+            "q": "Why does the mother fawn feel frightened by the hounds?",
+            "o": [
+              "She is larger than them.",
+              "She feels ready to faint when she hears them.",
+              "She has no experience with dogs."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable20",
+          "fable_title": "The Ass, the Fox, and the Lion",
+          "text": "THE ASS and the Fox, having entered into partnership together for their mutual protection, went out into the forest to hunt. They had not proceeded far when they met a Lion. The Fox, seeing imminent danger, approached the Lion and promised to contrive for him the capture of the Ass if the Lion would pledge his word not to harm the Fox. Then, upon assuring the Ass that he would not be injured, the Fox led him to a deep pit and arranged that he should fall into it. The Lion, seeing that the Ass was secured, immediately clutched the Fox, and attacked the Ass at his leisure.",
+          "word_count": 108,
+          "source_ids": [
+            "fable20_p1",
+            "fable20_p2"
+          ],
+          "vocab": {
+            "word": "Lion",
+            "sentence": "They had not proceeded far when they met a <b>Lion</b>.",
+            "options": [
+              "A. A type of tree",
+              "B. A large wild cat",
+              "C. A kind of insect"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/lion.png",
+            "definition": "A large wild cat"
+          },
+          "midBossQuiz": {
+            "q": "What did the Fox promise to the Lion?",
+            "o": [
+              "To help him catch a deer",
+              "To contrive for him the capture of the Ass",
+              "To lead him to a safe place"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable21",
+          "fable_title": "The Flies and the Honey-Pot",
+          "text": "A NUMBER of Flies were attracted to a jar of honey which had been overturned in a housekeeper’s room, and placing their feet in it, ate greedily. Their feet, however, became so smeared with the honey that they could not use their wings, nor release themselves, and were suffocated. Just as they were expiring, they exclaimed, “O foolish creatures that we are, for the sake of a little pleasure we have destroyed ourselves.” Pleasure bought with pains, hurts. A CONTROVERSY prevailed among the beasts of the field as to which of the animals deserved the most credit for producing the greatest number of whelps at a birth. They rushed clamorously into the presence of the Lioness and demanded of her the settlement of the dispute. “And you,” they said, “how many sons have you at a birth?” The Lioness laughed at them, and said: “Why! I have only one; but that one is altogether a thoroughbred Lion.” The value is in the worth, not in the number.",
+          "word_count": 167,
+          "source_ids": [
+            "fable21_p1",
+            "fable21_p2",
+            "fable21_p3",
+            "fable21_p4",
+            "fable21_p5",
+            "fable21_p6"
+          ],
+          "vocab": {
+            "word": "pleasure",
+            "sentence": "O foolish creatures that we are, for the sake of a little <b>pleasure</b> we have destroyed ourselves.",
+            "options": [
+              "A. happiness or enjoyment",
+              "B. pain or suffering",
+              "C. work or effort"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/pleasure.png",
+            "definition": "happiness or enjoyment"
+          },
+          "midBossQuiz": {
+            "q": "What did the Flies realize about their greed?",
+            "o": [
+              "They enjoyed the honey.",
+              "They destroyed themselves for a little pleasure.",
+              "They became stronger."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "This chapter includes three fables that illustrate important lessons about courage, betrayal, and the consequences of seeking pleasure without considering the risks. The Fawn learns that despite his advantages, fear can still overpower him. The Fox betrays the Ass to save himself, showing the dangers of treachery. Lastly, the Flies discover that indulging in sweet pleasures can lead to their downfall, emphasizing the importance of caution in pursuit of enjoyment.",
+        "q": "What common theme is reflected in the outcomes of the characters in these fables regarding their choices and actions?",
+        "o": [
+          "A. The importance of friendship and loyalty above all else.",
+          "B. The consequences of fear, betrayal, and indulgence in pleasure.",
+          "C. The belief that size and strength guarantee safety in all situations.",
+          "D. The idea that all creatures should pursue pleasure without caution."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 8,
+      "chapter_id": "day8",
+      "title": "The Farmer and the Snake / The Man and the Lion / The Pomegranate, Apple-Tree, and Bramble",
+      "passages": {
+        "A": {
+          "fable_id": "fable22",
+          "fable_title": "The Farmer and the Snake",
+          "text": "ONE WINTER a Farmer found a Snake stiff and frozen with cold. He had compassion on it, and taking it up, placed it in his bosom. The Snake was quickly revived by the warmth, and resuming its natural instincts, bit its benefactor, inflicting on him a mortal wound. “Oh,” cried the Farmer with his last breath, “I am rightly served for pitying a scoundrel.” The greatest kindness will not bind the ungrateful.",
+          "word_count": 72,
+          "source_ids": [
+            "fable22_p1",
+            "fable22_p2",
+            "fable22_p3"
+          ],
+          "vocab": {
+            "word": "compassion",
+            "sentence": "He had <b>compassion</b> on it, and taking it up, placed it in his bosom.",
+            "options": [
+              "A. a feeling of anger",
+              "B. a feeling of sympathy",
+              "C. a feeling of fear"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/compassion.png",
+            "definition": "a feeling of sympathy"
+          },
+          "midBossQuiz": {
+            "q": "What happened to the Farmer after he helped the Snake?",
+            "o": [
+              "He became friends with the Snake.",
+              "He was bitten by the Snake.",
+              "He found a treasure."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable23",
+          "fable_title": "The Man and the Lion",
+          "text": "A MAN and a Lion traveled together through the forest. They soon began to boast of their respective superiority to each other in strength and prowess. As they were disputing, they passed a statue carved in stone, which represented “a Lion strangled by a Man.” The traveler pointed to it and said: “See there! How strong we are, and how we prevail over even the king of beasts.” The Lion replied: “This statue was made by one of you men. If we Lions knew how to erect statues, you would see the Man placed under the paw of the Lion.” One story is good, till another is told.",
+          "word_count": 108,
+          "source_ids": [
+            "fable23_p1",
+            "fable23_p2",
+            "fable23_p3"
+          ],
+          "vocab": {
+            "word": "Lion",
+            "sentence": "As they were disputing, they passed a statue carved in stone, which represented “a <b>Lion</b> strangled by a Man.”",
+            "options": [
+              "A. A type of bird",
+              "B. A large wild cat",
+              "C. A kind of tree"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/lion.png",
+            "definition": "A large wild cat"
+          },
+          "midBossQuiz": {
+            "q": "What does the Lion suggest about the statue they see?",
+            "o": [
+              "It shows a lion defeating a man.",
+              "It was made by men.",
+              "It is very old."
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable24",
+          "fable_title": "The Pomegranate, Apple-Tree, and Bramble",
+          "text": "THE POMEGRANATE and Apple-Tree disputed as to which was the most beautiful. When their strife was at its height, a Bramble from the neighboring hedge lifted up its voice, and said in a boastful tone: “Pray, my dear friends, in my presence at least cease from such vain disputings.”",
+          "word_count": 49,
+          "source_ids": [
+            "fable24_p1",
+            "fable24_p2"
+          ],
+          "vocab": {
+            "word": "disputed",
+            "sentence": "When their strife was at its height, a Bramble from the neighboring hedge lifted up its voice, and said in a boastful tone: “Pray, my dear friends, in my presence at least cease from such vain <b>disputings</b>.”",
+            "options": [
+              "A. to agree",
+              "B. to argue or fight over something",
+              "C. to observe quietly"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/disputed.png",
+            "definition": "to argue or fight over something"
+          },
+          "midBossQuiz": {
+            "q": "What were the Pomegranate and Apple-Tree arguing about?",
+            "o": [
+              "Which tree was taller",
+              "Which was the most beautiful",
+              "Which tree had more fruit"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "In this chapter, three fables teach lessons about kindness, pride, and humility. The Farmer helps a Snake but is bitten for his compassion, showing that some are ungrateful. A Man boasts about superiority over a Lion, but the Lion points out that the truth can be different depending on who tells the story. Finally, a Bramble interrupts a debate between a Pomegranate and an Apple-Tree about beauty, highlighting the folly of vain disputes.",
+        "q": "What common theme do all three stories illustrate about human nature and interactions?",
+        "o": [
+          "A. People should always help others without expecting anything in return.",
+          "B. Pride and boasting can lead to misunderstandings and conflict.",
+          "C. Disputes about beauty are the most important conversations.",
+          "D. Kindness is always rewarded, no matter the circumstances."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 9,
+      "chapter_id": "day9",
+      "title": "The Farmer and the Stork / The Mountain in Labor / The Bear and the Fox",
+      "passages": {
+        "A": {
+          "fable_id": "fable25",
+          "fable_title": "The Farmer and the Stork",
+          "text": "A FARMER placed nets on his newly-sown plowlands and caught a number of Cranes, which came to pick up his seed. With them he trapped a Stork that had fractured his leg in the net and was earnestly beseeching the Farmer to spare his life. “Pray save me, Master,” he said, “and let me go free this once. My broken limb should excite your pity. Besides, I am no Crane, I am a Stork, a bird of excellent character; and see how I love and slave for my father and mother. Look too, at my feathers—they are not the least like those of a Crane.” The Farmer laughed aloud and said, “It may be all as you say, I only know this: I have taken you with these robbers, the Cranes, and you must die in their company.” Birds of a feather flock together.",
+          "word_count": 144,
+          "source_ids": [
+            "fable25_p1",
+            "fable25_p2",
+            "fable25_p3"
+          ],
+          "vocab": {
+            "word": "Cranes",
+            "sentence": "A FARMER placed nets on his newly-sown plowlands and caught a number of <b>Cranes</b>, which came to pick up his seed.",
+            "options": [
+              "A. Large birds that can fly",
+              "B. Small insects",
+              "C. A type of tree"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/cranes.png",
+            "definition": "Large birds that can fly"
+          },
+          "midBossQuiz": {
+            "q": "What did the Farmer do with the Stork?",
+            "o": [
+              "He set it free.",
+              "He caught it in a net.",
+              "He fed it seeds."
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable26",
+          "fable_title": "The Mountain in Labor",
+          "text": "A MOUNTAIN was once greatly agitated. Loud groans and noises were heard, and crowds of people came from all parts to see what was the matter. While they were assembled in anxious expectation of some terrible calamity, out came a Mouse. Don’t make much ado about nothing.",
+          "word_count": 47,
+          "source_ids": [
+            "fable26_p1",
+            "fable26_p2",
+            "fable26_p3"
+          ],
+          "vocab": {
+            "word": "Mouse",
+            "sentence": "While they were assembled in anxious expectation of some terrible calamity, out came a <b>Mouse</b>.",
+            "options": [
+              "A. A type of bird",
+              "B. A small animal with a long tail",
+              "C. A large mammal"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/mouse.png",
+            "definition": "A small animal with a long tail"
+          },
+          "midBossQuiz": {
+            "q": "What came out of the mountain after the loud groans?",
+            "o": [
+              "A crowd of people",
+              "A Mouse",
+              "A terrible calamity"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable27",
+          "fable_title": "The Bear and the Fox",
+          "text": "A BEAR boasted very much of his philanthropy, saying that of all animals he was the most tender in his regard for man, for he had such respect for him that he would not even touch his dead body. A Fox hearing these words said with a smile to the Bear, “Oh! that you would eat the dead and not the living.”",
+          "word_count": 62,
+          "source_ids": [
+            "fable27_p1",
+            "fable27_p2"
+          ],
+          "vocab": {
+            "word": "Bear",
+            "sentence": "A <b>Bear</b> boasted very much of his philanthropy, saying that of all animals he was the most tender in his regard for man, for he had such respect for him that he would not even touch his dead body.",
+            "options": [
+              "A. A type of fish",
+              "B. A large mammal",
+              "C. A kind of bird"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/bear.png",
+            "definition": "A large mammal"
+          },
+          "midBossQuiz": {
+            "q": "What did the Bear boast about?",
+            "o": [
+              "He loved all animals.",
+              "He was the most tender in his regard for man.",
+              "He could climb trees very well."
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "This chapter features three fables that explore the consequences of one's associations, the triviality of appearances, and the hypocrisy of character. In 'The Farmer and the Stork', a Stork is punished for being caught with Cranes, highlighting the danger of bad company. 'The Mountain in Labor' presents a situation where much anticipation leads to an insignificant outcome, teaching that not all commotion signifies importance. Lastly, 'The Bear and the Fox' reveals the Bear's pretense of morality, with the Fox pointing out his inconsistency in valuing life.",
+        "q": "What common theme can be identified across all three fables in this chapter regarding character and reputation?",
+        "o": [
+          "A. Animals are always rewarded for their good deeds.",
+          "B. One's true character is revealed through associations and actions.",
+          "C. Appearances often lead to positive outcomes.",
+          "D. Animals rarely care about each other's well-being."
+        ],
+        "a": 1
+      }
+    },
+    {
+      "chapter_num": 10,
+      "chapter_id": "day10",
+      "title": "The Tortoise and the Eagle / The Fox and the Goat / The Raven and the Swan",
+      "passages": {
+        "A": {
+          "fable_id": "fable28",
+          "fable_title": "The Tortoise and the Eagle",
+          "text": "A TORTOISE, lazily basking in the sun, complained to the sea-birds of her hard fate, that no one would teach her to fly. An Eagle, hovering near, heard her lamentation and demanded what reward she would give him if he would take her aloft and float her in the air. “I will give you,” she said, “all the riches of the Red Sea.” “I will teach you to fly then,” said the Eagle; and taking her up in his talons he carried her almost to the clouds suddenly he let her go, and she fell on a lofty mountain, dashing her shell to pieces. The Tortoise exclaimed in the moment of death: “I have deserved my present fate; for what had I to do with wings and clouds, who can with difficulty move about on the earth?” If men had all they wished, they would be often ruined.",
+          "word_count": 148,
+          "source_ids": [
+            "fable28_p1",
+            "fable28_p2",
+            "fable28_p3"
+          ],
+          "vocab": {
+            "word": "Eagle",
+            "sentence": "An <b>Eagle</b>, hovering near, heard her lamentation and demanded what reward she would give him if he would take her aloft and float her in the air.",
+            "options": [
+              "A. A type of fish",
+              "B. A large bird of prey",
+              "C. A kind of tree"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/eagle.png",
+            "definition": "A large bird of prey"
+          },
+          "midBossQuiz": {
+            "q": "What did the Tortoise promise the Eagle as a reward?",
+            "o": [
+              "A promise of freedom",
+              "All the riches of the Red Sea",
+              "A place to build a nest"
+            ],
+            "a": 1
+          }
+        },
+        "B": {
+          "fable_id": "fable29",
+          "fable_title": "The Fox and the Goat",
+          "text": "A FOX one day fell into a deep well and could find no means of escape. A Goat, overcome with thirst, came to the same well, and seeing the Fox, inquired if the water was good. Concealing his sad plight under a merry guise, the Fox indulged in a lavish praise of the water, saying it was excellent beyond measure, and encouraging him to descend. The Goat, mindful only of his thirst, thoughtlessly jumped down, but just as he drank, the Fox informed him of the difficulty they were both in and suggested a scheme for their common escape. “If,” said he, “you will place your forefeet upon the wall and bend your head, I will run up your back and escape, and will help you out afterwards.” The Goat readily assented and the Fox leaped upon his back. Steadying himself with the Goat’s horns, he safely reached the mouth of the well and made off as fast as he could. When the Goat upbraided him for breaking his promise, he turned around and cried out, “You foolish old fellow! If you had as many brains in your head as you have hairs in your beard, you would never have gone down before you had inspected the way up, nor have exposed yourself to dangers from which you had no means of escape.” Look before you leap.",
+          "word_count": 227,
+          "source_ids": [
+            "fable29_p1",
+            "fable29_p2",
+            "fable29_p3"
+          ],
+          "vocab": {
+            "word": "thirst",
+            "sentence": "A Goat, overcome with <b>thirst</b>, came to the same well, and seeing the Fox, inquired if the water was good.",
+            "options": [
+              "A. A feeling of hunger",
+              "B. A strong desire to drink",
+              "C. A state of happiness"
+            ],
+            "answer": 1,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/thirst.png",
+            "definition": "A strong desire to drink"
+          },
+          "midBossQuiz": {
+            "q": "What did the Fox suggest the Goat do to escape the well?",
+            "o": [
+              "Jump back into the water",
+              "Place his forefeet upon the wall and bend his head",
+              "Climb the well without help"
+            ],
+            "a": 1
+          }
+        },
+        "C": {
+          "fable_id": "fable30",
+          "fable_title": "The Raven and the Swan",
+          "text": "A RAVEN saw a Swan and desired to secure for himself the same beautiful plumage. Supposing that the Swan’s splendid white color arose from his washing in the water in which he swam, the Raven left the altars in the neighborhood where he picked up his living, and took up residence in the lakes and pools. But cleansing his feathers as often as he would, he could not change their color, while through want of food he perished. Change of habit cannot alter Nature.",
+          "word_count": 84,
+          "source_ids": [
+            "fable30_p1",
+            "fable30_p2",
+            "fable30_p3"
+          ],
+          "vocab": {
+            "word": "plumage",
+            "sentence": "A RAVEN saw a Swan and desired to secure for himself the same beautiful <b>plumage</b>.",
+            "options": [
+              "A. feathers or the feathers of a bird",
+              "B. a type of fruit",
+              "C. a kind of fish"
+            ],
+            "answer": 0,
+            "image": "https://storage.googleapis.com/graphdebug-2c507.firebasestorage.app/vocab-images/aesop/plumage.png",
+            "definition": "feathers or the feathers of a bird"
+          },
+          "midBossQuiz": {
+            "q": "What did the Raven desire to have like the Swan?",
+            "o": [
+              "A different habitat",
+              "The same beautiful plumage",
+              "More food"
+            ],
+            "a": 1
+          }
+        }
+      },
+      "finalBossQuiz": {
+        "passage": "This chapter presents three fables that illustrate important life lessons. In 'The Tortoise and the Eagle', the tortoise learns that ambition without ability can lead to ruin. 'The Fox and the Goat' teaches the importance of being cautious and thinking ahead, as the goat falls into a trap due to his thirst. Lastly, 'The Raven and the Swan' highlights that one cannot change their inherent nature by simply changing their environment. Together, these stories emphasize the value of self-awareness and the consequences of one's choices.",
+        "q": "What common lesson do these fables convey about understanding oneself and the nature of one's abilities?",
+        "o": [
+          "A. Seeking to change oneself without understanding can lead to failure.",
+          "B. Each character learns that they should embrace their true nature.",
+          "C. It is important to always trust others completely.",
+          "D. Avoiding challenges is the best way to ensure safety."
+        ],
+        "a": 1
+      }
+    }
+  ]
+}

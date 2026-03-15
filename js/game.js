@@ -13,6 +13,10 @@ import { GameLogic } from './core/GameLogic.js?v=20260224-FQ';
 import { DOMManager } from './core/DOMManager.js?v=20260224-FQ';
 import { FinalQuizManager } from './managers/FinalQuizManager.js?v=20260224-FQ';
 import { BookSelectManager } from './managers/BookSelectManager.js?v=20260226-BS3';
+import { BossMiniBattle } from './BossMiniBattle.js';
+
+// 소형 빌런 배틀 전역 인스턴스
+window.bossMiniBattle = new BossMiniBattle();
 
 // ── Firebase SDK Deferred Loader ──────────────────────────────────────────────
 // [v33] Firebase SDK is NOT loaded at page start (removed from index.html).
@@ -576,6 +580,17 @@ const Game = {
     },
 
     onCalibrationFinish() {
+        if (typeof window.calManager !== 'undefined' && window.calManager.state && window.calManager.state.isBossMode) {
+            console.log("Boss Calibration finished. Triggering Final Boss Alert.");
+            window.calManager.state.isBossMode = false; // Reset
+            if (this.typewriter && typeof this.typewriter.showFinalBossAlert === 'function') {
+                this.typewriter.showFinalBossAlert();
+            } else {
+                this.showFinalBossAlert(); // Fallback if typewriter is not available
+            }
+            return;
+        }
+
         console.log("Calibration finished. Starting Owl Scene.");
         this.startOwlScene();
     },
@@ -732,125 +747,128 @@ const Game = {
         const elRank = document.getElementById('report-rank-text');
         if (elRank) elRank.innerText = rank;
 
-        // [FIX] Bind Claim Reward Button logic
-        const btnClaim = document.getElementById("btn-claim-reward");
-        const emailInput = document.getElementById("warden-email");
-        if (btnClaim) {
-            // Remove old listeners (clone node trick)
-            const newBtn = btnClaim.cloneNode(true);
-            if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
+        // [FIX v2] Bind Claim Reward Button logic (deferred until DOM is settled)
+        setTimeout(() => {
+            const btnClaim = document.getElementById("btn-claim-reward");
+            if (btnClaim) {
+                // Remove old listeners (clone node trick)
+                const newBtn = btnClaim.cloneNode(true);
+                if (btnClaim.parentNode) btnClaim.parentNode.replaceChild(newBtn, btnClaim);
 
-            newBtn.onclick = async () => {
-                const email = emailInput ? emailInput.value.trim() : "";
+                newBtn.onclick = async () => {
+                    // Re-query emailInput fresh on every click (avoid stale DOM ref)
+                    const emailInput = document.getElementById("warden-email");
+                    const email = emailInput ? emailInput.value.trim() : "";
 
-                if (!email || !email.includes("@")) {
-                    alert("Please enter a valid email address.");
-                    return;
-                }
-
-                // 1. Load Firebase SDK on demand (deferred from page load)
-                if (typeof firebase === "undefined") {
-                    newBtn.innerText = "⏳ CONNECTING...";
-                    try {
-                        await loadFirebaseSDK();
-                    } catch (e) {
-                        console.error("[Firebase] SDK dynamic load failed:", e);
-                        alert("System Error: Firebase SDK failed to load.");
-                        newBtn.disabled = false;
-                        newBtn.innerText = "CLAIM REWARD";
+                    if (!email || !email.includes("@")) {
+                        alert("Please enter a valid email address.");
                         return;
                     }
-                }
 
-                if (!firebase.apps.length) {
-                    if (window.FIREBASE_CONFIG) {
+                    // 1. Load Firebase SDK on demand (deferred from page load)
+                    if (typeof firebase === "undefined") {
+                        newBtn.innerText = "⏳ CONNECTING...";
                         try {
-                            firebase.initializeApp(window.FIREBASE_CONFIG);
+                            await loadFirebaseSDK();
                         } catch (e) {
-                            console.error("Firebase Init Error:", e);
-                            alert("Database Connection Failed.");
+                            console.error("[Firebase] SDK dynamic load failed:", e);
+                            alert("System Error: Firebase SDK failed to load.");
+                            newBtn.disabled = false;
+                            newBtn.innerText = "CLAIM REWARD";
                             return;
                         }
-                    } else {
-                        alert("System Error: Firebase Config missing.");
-                        return;
                     }
-                }
 
-                // 2. Prepare Data
-                const now = new Date();
-                // KST (UTC+9) formatting
-                const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                const kstStr = kstDate.toISOString().replace('T', ' ').slice(0, 19);
-
-                const reportData = {
-                    email: email,
-                    timestamp: kstStr,
-                    wpm: finalWPM,
-                    rank: rank,
-                    ink: finalInk,
-                    rune: finalRune,
-                    gem: finalGem,
-                    device: navigator.userAgent
-                };
-
-                // 3. Save to Realtime Database
-                const originalText = "CLAIM REWARD";
-                newBtn.disabled = true;
-                newBtn.innerText = "⏳ SAVING...";
-                newBtn.style.opacity = "0.7";
-
-                // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
-                const db = firebase.database();
-
-                // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
-                const newLeadRef = db.ref("warden_leads/" + (window.Game.firebaseSessionId || window.Game.sessionId));
-
-                // Add Session ID reference to report data
-                reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
-
-                // Amplitude 'Reward_Claimed' event and User Properties
-                if (window.amplitude) {
-                    if (window.amplitude.Identify) {
-                        const identifyEvent = new window.amplitude.Identify().set('email', email);
-                        window.amplitude.identify(identifyEvent);
+                    if (!firebase.apps.length) {
+                        if (window.FIREBASE_CONFIG) {
+                            try {
+                                firebase.initializeApp(window.FIREBASE_CONFIG);
+                            } catch (e) {
+                                console.error("Firebase Init Error:", e);
+                                alert("Database Connection Failed.");
+                                return;
+                            }
+                        } else {
+                            alert("System Error: Firebase Config missing.");
+                            return;
+                        }
                     }
-                    window.amplitude.track('Reward_Claimed', { rank: rank });
-                }
 
-                // Promise Array for Parallel saving
-                const promises = [];
+                    // 2. Prepare Data
+                    const now = new Date();
+                    // KST (UTC+9) formatting
+                    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                    const kstStr = kstDate.toISOString().replace('T', ' ').slice(0, 19);
 
-                // 1. Save Lead Data (Summary)
-                promises.push(newLeadRef.set(reportData));
+                    const reportData = {
+                        email: email,
+                        timestamp: kstStr,
+                        wpm: finalWPM,
+                        rank: rank,
+                        ink: finalInk,
+                        rune: finalRune,
+                        gem: finalGem,
+                        device: navigator.userAgent
+                    };
 
-                // 2. Save Full Gaze Data (Detail) - if available
-                if (window.gazeDataManager) {
-                    newBtn.innerText = "⏳ DATA SYNC...";
-                    console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
-                    promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
-                }
+                    // 3. Save to Realtime Database
+                    const originalText = "CLAIM REWARD";
+                    newBtn.disabled = true;
+                    newBtn.innerText = "⏳ SAVING...";
+                    newBtn.style.opacity = "0.7";
 
-                Promise.all(promises)
-                    .then(() => {
-                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
-                        this.showSuccessModal(() => {
-                            this.goToNewShare();
+                    // [FIX-v29] db를 외부 스코프로 이동 → .then/.catch에서 goOffline() 접근 가능
+                    const db = firebase.database();
+
+                    // [NEW] Use the globally generated firebaseSessionId instead of pushing a new key
+                    const newLeadRef = db.ref("warden_leads/" + (window.Game.firebaseSessionId || window.Game.sessionId));
+
+                    // Add Session ID reference to report data
+                    reportData.sessionId = window.Game.firebaseSessionId || window.Game.sessionId;
+
+                    // Amplitude 'Reward_Claimed' event and User Properties
+                    if (window.amplitude) {
+                        if (window.amplitude.Identify) {
+                            const identifyEvent = new window.amplitude.Identify().set('email', email);
+                            window.amplitude.identify(identifyEvent);
+                        }
+                        window.amplitude.track('Reward_Claimed', { rank: rank });
+                    }
+
+                    // Promise Array for Parallel saving
+                    const promises = [];
+
+                    // 1. Save Lead Data (Summary)
+                    promises.push(newLeadRef.set(reportData));
+
+                    // 2. Save Full Gaze Data (Detail) - if available
+                    if (window.gazeDataManager) {
+                        newBtn.innerText = "⏳ DATA SYNC...";
+                        console.log("[Firebase] Starting Gaze Data Upload for Session:", newLeadRef.key);
+                        promises.push(window.gazeDataManager.uploadToCloud(newLeadRef.key));
+                    }
+
+                    Promise.all(promises)
+                        .then(() => {
+                            // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
+                            this.showSuccessModal(() => {
+                                this.goToNewShare();
+                            });
+                            newBtn.innerText = "✅ CLAIMED";
+                            newBtn.style.background = "#4CAF50";
+                            if (emailInput) emailInput.disabled = true;
+                        })
+                        .catch((error) => {
+                            console.error('[Firebase] Save Error (non-blocking):', error.message || error);
+                            // Firebase failed - still proceed to share screen (don't block user)
+                            this.showSuccessModal(() => { this.goToNewShare(); });
+                            newBtn.innerText = 'CLAIMED';
+                            newBtn.style.background = '#4CAF50';
+                            if (emailInput) emailInput.disabled = true;
                         });
-                        newBtn.innerText = "✅ CLAIMED";
-                        newBtn.style.background = "#4CAF50";
-                        if (emailInput) emailInput.disabled = true;
-                    })
-                    .catch((error) => {
-                        // uploadToCloud() 내부 finally에서 goOffline() 처리 — 여기서 중복 호출 제거
-                        console.error("Firebase Save Error:", error);
-                        console.error("Transmission Failed: " + error.message);
-                        newBtn.disabled = false;
-                        newBtn.innerText = originalText;
-                        newBtn.style.opacity = "1";
-                    });
-            };
-        }
+                };
+            }
+        }, 300); // end setTimeout - deferred bind after DOM is ready
     },
 
     // NEW: Custom Success Modal Logic
@@ -952,7 +970,7 @@ Game.typewriter = {
             if (container) {
                 // Apply layout styles JS-side just in case CSS missed something
                 container.style.position = "relative";
-                container.style.overflow = "visible"; // Allow overflow for debugging visibility
+                container.style.overflow = "visible";
 
                 this.renderer = new TextRenderer("book-content", {
                     fontSize: window.innerWidth <= 768 ? "1.0rem" : "1.3rem",
@@ -1035,6 +1053,13 @@ Game.typewriter = {
         const screenRead = document.getElementById('screen-read');
         if (screenRead) screenRead.scrollTop = 0;
 
+        // 소형 빌런 HP 바 실시 + 리셋
+        if (window.bossMiniBattle) {
+            window.bossMiniBattle.reset();
+            // HP 바는 첩 프레임 후 표시 (DOM render 완료 대기)
+            setTimeout(() => window.bossMiniBattle.showHPBar(), 400);
+        }
+
         // [CRITICAL FIX] Reset Pang Event Logic / First Content Time for new paragraph
         console.log(`[Typewriter] Pre-Check: Resetting Triggers for Para ${this.currentParaIndex}...`);
 
@@ -1078,42 +1103,41 @@ Game.typewriter = {
             Game.sceneManager.setCursorReference(this.renderer.cursor);
         }
 
-        // 2. Lock Layout (Next Frame to allow DOM render)
+        // 2. Lock Layout — 1회만 실행 (모든 단어 display:inline-block 상태)
+        // [Phase 1+2] lockLayout은 전체 단어가 보이는 상태에서 1회만 실행한다.
+        // showPage(0) 내부에서 lockLayout()을 재호출하면 page1+ 단어의 lineIndex가
+        // 초기화되므로 showPage 대신 page0 단어를 직접 display 제어한다.
         requestAnimationFrame(() => {
-            this.renderer.lockLayout();
+            this.renderer.lockLayout(); // 전체 단어 lineIndex 확보 (1회)
             const debugEl = document.getElementById('line-detect-result');
             if (debugEl) debugEl.textContent = `Lines Cached: ${this.renderer.lines.length}`;
 
-            // Resume Game Loop safely after layout is ready
-            this.isPaused = false;
+            // [Phase 1] container를 page0 크기로 제한:
+            // page0 단어 → display:inline-block, page1+ 단어 → display:none
+            // (startWordStream이 page1+ 단어에 도달하면 그 자리에서 inline-block으로 전환)
+            if (this.renderer.pages && this.renderer.pages.length > 0) {
+                const page0Set = new Set(this.renderer.pages[0].map(w => w.index));
+                this.renderer.words.forEach(w => {
+                    w.element.style.display = page0Set.has(w.index) ? 'inline-block' : 'none';
+                });
+            }
 
-            // [CRITICAL FIX] Re-enable Tracking!
-            // Tracking is disabled in 'confrontVillain' (Mid-Boss).
-            // We must re-enable it here for the next paragraph.
+            this.isPaused = false;
             Game.state.isTracking = true;
             console.log("[Typewriter] Tracking Re-enabled for new paragraph.");
 
-            // 3. Start Reading Flow
-            // UX IMPROVEMENT: Hide cursor initially. 
-            // The screen 'fadeIn' animation shifts the text container. 
-            // If we show the cursor immediately, it looks like it's floating/misaligned.
             if (this.renderer.cursor) this.renderer.cursor.style.opacity = "0";
 
-            // Wait for measurement and pagination
             setTimeout(() => {
                 if (this.renderer) {
-                    // Start from Page 0
-                    this.renderer.showPage(0).then(() => {
-                        this.renderer.resetToStart(); // Aligns correctly
-                        if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
-                        console.log("[Typewriter] Page 0 Ready.");
+                    this.renderer.resetToStart();
+                    if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
+                    console.log("[Typewriter] Ready: page0 bounded, full lineIndex cached.");
 
-                        // Start Text after full delay
-                        setTimeout(() => {
-                            this.startTime = Date.now();
-                            this.tick();
-                        }, 1000); // Reduced from 3000 to 1000 for snappier page loads
-                    });
+                    setTimeout(() => {
+                        this.startTime = Date.now();
+                        this.tick();
+                    }, 1000);
                 }
             }, 600);
         });
@@ -1122,153 +1146,22 @@ Game.typewriter = {
     tick() {
         if (this.isPaused) return;
 
-        // Prevent double-tick: clear previous if exists (though usually it fires once)
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
-
-        // [SAFETY] If chunks are not ready (length 0), wait and retry.
-        if (!this.renderer || !this.renderer.chunks || this.renderer.chunks.length === 0) {
-            console.warn("[Typewriter] Chunks not ready. Retrying in 500ms...");
+        // [SAFETY] renderer 또는 words가 준비되지 않았으면 재시도
+        if (!this.renderer || !this.renderer.words || this.renderer.words.length === 0) {
             this.timer = setTimeout(() => this.tick(), 500);
             return;
         }
 
-        // Reveal next chunk
-        if (this.chunkIndex < this.renderer.chunks.length) {
-
-            // TEXT TRAIN EFFECT (Continuous Flow):
-            // Instead of fading out an old chunk manually here, we SCHEDULE the death of the NEW chunk.
-            // "I am born now, and I shall die in 4 seconds."
-            // This ensures a smooth, independent pipeline regardless of whether the cursor pauses.
-            this.renderer.scheduleFadeOut(this.chunkIndex, 3000); // 3 seconds lifetime
-
-            // Wait for Animation to Finish (Promise-based) with Timeout Safety
-            const chunkLen = this.renderer.chunks[this.chunkIndex].length;
-            const wpm = Game.wpm || 200;
-            const msPerWord = 60000 / wpm; // e.g. 200wpm -> 300ms
-
-            // The renderer's revealChunk animation takes (length * interval) ms.
-            // Game.wpmParams.interval is usually very fast (e.g. 50ms) for 'snappy' reveal.
-            // We need to wait for the visual reveal, THEN wait for the remaining time to match WPM.
-
-            const revealPromise = this.renderer.revealChunk(this.chunkIndex, Game.wpmParams.interval);
-
-            // Total time this chunk *should* occupy
-            // [TUNING] Dynamic Multiplier for "Reading/Pause" buffer.
-            let buffer = 1.2; // Default (200 WPM)
-            if (wpm <= 100) buffer = 1.15; // [100 WPM] Increased chunk size, so reduce buffer slightly.
-            else if (wpm >= 300) buffer = 1.05; // [300 WPM] Needs to be faster. Reduce gap.
-
-            const targetDuration = (msPerWord * chunkLen) * buffer;
-
-            // Safety timeout
-            const timeoutPromise = new Promise(resolve => setTimeout(resolve, targetDuration + 1000));
-
-            const startTime = Date.now();
-
-            Promise.race([revealPromise, timeoutPromise]).then(() => {
-                const elapsed = Date.now() - startTime;
-
-                // Calculate remaining wait time
-                // We want total time (reveal + pause) = targetDuration
-                let remainingWait = targetDuration - elapsed;
-
-                // If reveal was instant or fast, we wait longer.
-                // If reveal took long (e.g. line break pause inside renderer?), we wait less.
-
-                if (remainingWait < 0) remainingWait = 0;
-
-                // [WPM COMPENSATION LOGIC]
-                // 1. Check if the *current* chunk (this.chunkIndex) had a line break.
-                // The renderer adds +450ms internally if a word starts a new line.
-                // We must SUBTRACT this from our game loop delay to avoid double waiting.
-                let hadLineBreak = false;
-                if (this.renderer && this.renderer.chunks && this.renderer.lines) {
-                    const currentChunkIndices = this.renderer.chunks[this.chunkIndex];
-                    if (currentChunkIndices) {
-                        // [FIX-iOS] Use Set for O(1) lookup instead of O(N×M) nested some().
-                        // Old code: chunks.some(w => lines.some(l => l.startIndex === w))
-                        // = chunkSize × lineCount comparisons per tick.
-                        if (!this._lineStartSet) {
-                            this._lineStartSet = new Set(this.renderer.lines.map(l => l.startIndex));
-                        }
-                        hadLineBreak = currentChunkIndices.some(wordIdx =>
-                            wordIdx > 0 && this._lineStartSet.has(wordIdx)
-                        );
-                    }
-                }
-
-                this.chunkIndex++;
-
-                // Calculate Delay (Pause AFTER valid reading)
-                // We use the remainingWait calculated above to ensure WPM adherence.
-                let baseDelay = remainingWait;
-
-                // Apply Compensation
-                let finalDelay = baseDelay;
-                if (hadLineBreak) {
-                    // Renderer paused 450ms, so we pause 450ms less.
-                    finalDelay = Math.max(0, baseDelay - 450);
-                    // console.log(`[WPM Sync] Line Break Detected in Chunk ${this.chunkIndex-1}. Compensating: ${baseDelay} -> ${finalDelay}ms`);
-                }
-
-                this.timer = setTimeout(() => {
-                    this.timer = null;
-                    this.tick();
-                }, finalDelay);
-            });
-
-        } else {
-            console.log("Chunk Sequence Finished for current Page/Flow.");
-
-            // Check if there are more pages in this paragraph!
-            // [BUGFIX] If all chunks are shown, force finish regardless of 'pages'.
-            // The renderer's page count might include trailing empty pages or logic issues.
-            // Since chunkIndex >= chunks.length means *ALL* text is visible, we should proceed to end the paragraph.
-            /*
-            const renderer = this.renderer;
-            if (renderer && renderer.currentPageIndex < renderer.pages.length - 1) {
-                console.log("[Typewriter] Moving to Next Page...");
- 
-                // Fade out current page words? Or just switch?
-                // Let's just switch cleanly.
-                setTimeout(() => {
-                    const nextPage = renderer.currentPageIndex + 1;
-                    renderer.showPage(nextPage).then(() => {
-                        // Reset chunk index to the first chunk of the new page?
-                        // Actually, this.chunkIndex is global for the whole text. 
-                        // It continues naturally. We just need to ensure the words are visible.
-                        // Wait... The words ON the new page are currently opacity:0.
-                        // tick() will reveal them.
- 
-                        renderer.resetToStart(); // Move cursor to top of new page
-            }
-            */
-
-            console.log("Paragraph Fully Revealed (All Pages). Preparing for Replay...");
-
-            // [FIX] Do NOT fade out text here.
-            // We need the text to remain EXACTLY as it is for the Gaze Replay overlay.
-            // If we fade out and then force-show in replay, it causes layout shifts (jumps).
-            // The text will be hidden naturally when we switch to 'screen-boss' after replay.
-
-            // let cleanupDelay = 0;
-            // const startCleanupIdx = Math.max(0, this.chunkIndex - 3);
-            // for (let i = startCleanupIdx; i < this.renderer.chunks.length; i++) {
-            //    this.renderer.scheduleFadeOut(i, cleanupDelay + 600);
-            //    cleanupDelay += 600;
-            // }
-
-            // [CHANGED] Always trigger Mid-Boss Battle after ANY paragraph (including the last one).
-            // Logic: P1 -> Replay -> Mid -> P2 -> Replay -> Mid -> ...
+        // [Phase 2] WPM 기반 연속 스트리밍 — 청크 시스템 완전 대체
+        // startWordStream()이 단어당 정확히 (60000/wpm)ms 간격으로 표시하므로
+        // 어떤 WPM 값에서도 정확한 속도가 보장된다.
+        this.renderer.startWordStream(Game.wpm || 200, () => {
+            // 스트리밍 완료 → 기존 "Chunk Sequence Finished" 로직과 동일하게 처리
             setTimeout(async () => {
-                // Play Gaze Replay before Villain appears
                 await this.triggerGazeReplay();
                 this.triggerMidBossBattle();
-            }, 1000); // 1s initial delay
-        }
+            }, 3000);
+        });
     },
 
     // --- NEW: Gaze Replay ---
@@ -1361,13 +1254,45 @@ Game.typewriter = {
                     // Restore cursor opacity just in case (though screen switch follows)
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
 
-                    // [FIX-iOS] Free gaze data now — replay has already consumed sessionData.
-                    // Next paragraph will start with an empty array (fresh t=0 timeline).
-                    // Called here to avoid the race condition of clearing inside resetTriggers()
-                    // while gaze data is already flowing in from setSeesoTracking(true).
                     const gdm = window.gazeDataManager;
-                    if (gdm && typeof gdm.clearGazeData === 'function') {
-                        gdm.clearGazeData();
+
+                    // [NEW] Upload gaze data + pangLog BEFORE clearing memory.
+                    // Timing: replay just ended = villain is about to appear (소형빌런 진입).
+                    // MUST be called before clearGazeData() — after that, this.data is empty.
+                    // [FIX] Use firebaseSessionId (20-char) — same key visible in session_list
+                    const uploadId = Game.firebaseSessionId || Game.sessionId;
+                    if (gdm && uploadId) {
+                        const paraIdx = this.currentParaIndex;
+                        console.log(`[Upload] Mid-boss entry: uploading para ${paraIdx} → session [${uploadId}]`);
+
+                        const uploadPromises = [];
+                        // ① pangLog
+                        if (typeof gdm.uploadPangLog === 'function') {
+                            uploadPromises.push(
+                                gdm.uploadPangLog(uploadId, paraIdx).catch(e => {
+                                    console.warn('[Upload] pangLog failed:', e);
+                                    return 'pangLog_failed';
+                                })
+                            );
+                        }
+                        // ② gaze + meta + replaySegments (uploadToCloud 내부에서 모두 처리)
+                        uploadPromises.push(
+                            gdm.uploadToCloud(uploadId).catch(e => {
+                                console.warn('[Upload] uploadToCloud failed:', e);
+                                return 'gaze_failed';
+                            })
+                        );
+
+                        // 업로드 완료 후 데이터 클리어
+                        Promise.all(uploadPromises).then(results => {
+                            if (gdm && typeof gdm.clearGazeData === 'function') gdm.clearGazeData();
+                        });
+                    } else {
+                        console.warn('[Upload] Skipped — no uploadId:', { firebaseSessionId: Game.firebaseSessionId, sessionId: Game.sessionId });
+                        // 업로드 없어도 데이터 클리어 필요
+                        if (gdm && typeof gdm.clearGazeData === 'function') {
+                            gdm.clearGazeData();
+                        }
                     }
 
                     // [FIX-iPhone15Pro] Restore WASM processing before next paragraph.
@@ -1618,8 +1543,13 @@ Game.typewriter = {
 
                 // Step 5: Advance
                 if (this.currentParaIndex >= this.paragraphs.length - 1) {
-                    console.log("[Game] All paragraphs done. Summoning ARCH-VILLAIN...");
-                    setTimeout(() => { this.showFinalBossAlert(); }, 1000);
+                    // [SKIP] Boss Calibration 2 screens removed.
+                    // Previously: screen-boss-calibration → 5-point gaze calibration → showFinalBossAlert
+                    // Now: directly jump to Final Boss alert after last mini-boss answer.
+                    console.log("[Game] All paragraphs done. Skipping Boss Calibration → Final Boss directly.");
+                    setTimeout(() => {
+                        this.showFinalBossAlert();
+                    }, 1000);
                 } else {
                     const villainModal = document.getElementById("villain-modal");
                     if (villainModal) villainModal.style.display = "none";

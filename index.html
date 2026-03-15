@@ -1,9 +1,12 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>The Book Wardens</title>
 
   <!-- Open Graph / Facebook -->
@@ -89,6 +92,8 @@
 
   <script src="./coi-serviceworker.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- [DEV] html2canvas: DOM → PNG 캡처 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     /* Villian Modal Styles used for Typewriter Mode */
     #villain-modal {
@@ -455,6 +460,130 @@
 </head>
 
 <body>
+
+  <!-- ============================================================
+       [DEV] Screenshot Debug Button
+       - 우상단 고정 📷 버튼: 현재 화면 캡처 → 스마트폰 저장
+       - 모바일: Web Share API (navigator.share) → 사진 앱에 저장
+       - 데스크탑 폴백: <a download> 자동 다운로드
+       ============================================================ -->
+  <button id="dev-screenshot-btn" aria-label="[DEV] Take Screenshot" title="[DEV] Take Screenshot" style="
+      position:fixed; top:12px; right:12px;
+      z-index:2147483647;
+      width:40px; height:40px;
+      border-radius:50%;
+      border:1.5px solid rgba(255,255,255,0.25);
+      background:rgba(20,10,40,0.72);
+      color:rgba(255,255,255,0.75);
+      font-size:18px; line-height:1;
+      cursor:pointer;
+      display:none; align-items:center; justify-content:center;
+      box-shadow:0 2px 12px rgba(0,0,0,0.55);
+      transition:background 0.2s, transform 0.15s;
+      -webkit-tap-highlight-color:transparent;
+      padding:0;
+    ">📷</button>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ── 스크린샷 촬영 + 저장 핵심 함수 ── */
+      async function takeScreenshot() {
+        const btn = document.getElementById('dev-screenshot-btn');
+
+        // 촬영 중 버튼 숨기기 (캡처 이미지에서 제외)
+        if (btn) btn.style.visibility = 'hidden';
+
+        try {
+          // html2canvas 로드 확인
+          if (typeof html2canvas !== 'function') {
+            alert('[DEV] html2canvas 로드 전입니다.\n잠시 후 다시 시도하세요.');
+            return;
+          }
+
+          // DOM → Canvas 렌더링
+          // useCORS: Firebase/CDN 이미지 크로스오리진 허용
+          // scale: devicePixelRatio → 레티나 고해상도 대응
+          const canvas = await html2canvas(document.body, {
+            useCORS: true,
+            allowTaint: false,
+            scale: window.devicePixelRatio || 1,
+            logging: false,
+            backgroundColor: '#0a0010',
+            ignoreElements: (el) => el.id === 'dev-screenshot-btn',
+          });
+
+          // Canvas → PNG Blob
+          const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob((b) => {
+              if (b) resolve(b);
+              else reject(new Error('toBlob 실패'));
+            }, 'image/png');
+          });
+
+          // 파일명: bookwardens_YYYYMMDD_HHMMSS.png
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          const filename = `bookwardens_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.png`;
+
+          // ① 모바일 우선: Web Share API (파일 공유 → 사진 앱 저장)
+          const file = new File([blob], filename, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: 'The Book Wardens Screenshot',
+                text: filename,
+              });
+              console.log('[DEV Screenshot] 공유 완료:', filename);
+              return;
+            } catch (shareErr) {
+              if (shareErr.name === 'AbortError') return; // 사용자 취소
+              console.warn('[DEV Screenshot] Web Share 실패, 폴백 다운로드:', shareErr);
+            }
+          }
+
+          // ② 폴백: <a download> 강제 다운로드 (PC / Share 미지원 환경)
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+          console.log('[DEV Screenshot] 다운로드 트리거:', filename);
+
+        } catch (err) {
+          console.error('[DEV Screenshot] 오류:', err);
+          alert('[DEV] 스크린샷 실패:\n' + err.message);
+        } finally {
+          if (btn) btn.style.visibility = 'visible';
+        }
+      }
+
+      /* ── 버튼 이벤트 바인딩 ── */
+      function bindBtn() {
+        const btn = document.getElementById('dev-screenshot-btn');
+        if (!btn) return;
+        btn.addEventListener('click', takeScreenshot);
+        btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(120,60,200,0.85)'; btn.style.transform = 'scale(1.08)'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(20,10,40,0.72)'; btn.style.transform = 'scale(1)'; });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindBtn);
+      } else {
+        bindBtn();
+      }
+
+      // 콘솔에서도 직접 호출 가능: window._devScreenshot()
+      window._devScreenshot = takeScreenshot;
+
+    })();
+  </script>
+
   <!-- 1. Eye Tracking Layer (Background/Debug) -->
   <div id="stage">
     <video id="camera-preview" autoplay muted playsinline></video>
@@ -522,6 +651,14 @@
         <img src="./Main_Intro.png" alt="The Book Wardens"
           style="max-width: 100%; max-height: 80vh; object-fit: contain; filter: drop-shadow(0 0 30px rgba(139, 47, 201, 0.4)); margin-bottom: 20px;">
         <div class="start-prompt">Touch to Start</div>
+        <!-- [DEV] Shortcut to Score Screen -->
+        <button id="dev-score-btn" onclick="window.Game && window.Game.goToNewScore({wpm:185,ink:240,rune:80,gem:60})"
+          style="display:none;position:absolute;bottom:18px;right:14px;padding:6px 13px;font-size:0.72rem;
+                 background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.22);
+                 color:rgba(255,255,255,0.55);border-radius:20px;cursor:pointer;letter-spacing:1px;
+                 font-family:monospace;">
+          [DEV] Score Screen
+        </button>
       </div>
     </section>
 
@@ -831,6 +968,12 @@
         onclick="if(window.amplitude) window.amplitude.track('Confront_Villain_Clicked');">
         Confront the Ink Shadow
       </button>
+
+      <!-- [읽기 화면 빌런 오버레이] 우측 하단 고정 — 텍스트 가리지 않는 크기 -->
+      <img id="read-boss-overlay"
+           src="./ink_shadow_boss.png"
+           alt="Ink Shadow"
+           aria-hidden="true">
     </section>
 
     <!-- SCREEN 3: BOSS BATTLE (Comprehension) -->
@@ -851,6 +994,21 @@
       </div>
     </section>
 
+
+    <!-- SCREEN 3.6: BOSS CALIBRATION -->
+    <section id="screen-boss-calibration" class="screen"
+      style="flex-direction:column; align-items:center; justify-content:center; background:#000;">
+      <div id="boss-cal-intro" style="text-align:center; padding: 20px; z-index: 20000;">
+        <img src="./finalredvillain.png"
+          style="width:140px; filter:brightness(110%) drop-shadow(0 0 20px rgba(255,60,60,0.85)); margin-bottom:20px;">
+        <h2 style="color:#ff4444; font-family:'Cinzel',serif; margin-bottom:10px;">DESTROY THE VILLAIN</h2>
+        <p style="color:#ddd; margin-bottom:30px; line-height:1.8;">Villains are coming!<br>Stare at each one with your
+          eyes<br>to blow them all up!</p>
+        <button class="btn-primary"
+          onclick="if(window.amplitude) window.amplitude.track('Boss_Calibration_Started'); window.startBossCalibrationUI();"
+          style="background:linear-gradient(135deg, #cc0000, #ff4444); padding:15px 40px; font-weight:bold;">ATTACK!</button>
+      </div>
+    </section>
 
     <!-- SCREEN 3.7: FINAL QUIZ (FinalQuizManager 전용 화면) -->
     <style>
@@ -1544,14 +1702,29 @@
 
   <!-- Scripts -->
   <!-- 1. Eye Tracking Core -->
-  <script type="module" src="./js/app.js?v=20260224-FinalQuiz"></script>
+  <script type="module" src="./js/app.js?v=20260308-GazeGraph"></script>
   <!-- Alice Battle Logic (Latest - Single Bar Logic) -->
   <script src="./js/alice-battle-simple.js?v=20260224-FinalQuiz"></script>
   <!-- Linked Game.AliceBattle to AliceBattleRef Logic moved to GameLogic -->
   <!-- 2. Game Logic -->
   <script type="module" src="./js/calibration.js?v=20260224-FinalQuiz"></script>
   <!-- WardenManager removed (Imported by game.js) -->
-  <script type="module" src="./js/game.js?v=20260224-FinalQuiz"></script>
+  <script type="module" src="./js/game.js?v=20260308-GazeGraph"></script>
+
+  <!-- 3. VocabImageManager — v4: same-origin 로컈 이미지 (모든 COEP/CORS 문제 제거) -->
+  <script src="./js/VocabImageManager.js?v=20260307-VIM4"></script>
+  <script type="module">
+    // [v3] VocabImageManager이 Firestore를 사용하지 않으므로
+    // Firebase 실시간 DB(Claim Reward 용) 초기화만 유지.
+    // VocabImageManager.init()은 호환성을 위해 비동기사 유지하되 실질적으로 Firestore 여결 안함.
+    (() => {
+      if (window.VocabImageManager) {
+        window.VocabImageManager.init(null, 'aesop').then(() => {
+          console.log('[VocabImage] v3 준비 완료 — Storage 직접 URL 모드');
+        });
+      }
+    })();
+  </script>
 
   <!-- 3. Explicit Event Binding for Debug Button (With STANDALONE BATTLE LOGIC) -->
 

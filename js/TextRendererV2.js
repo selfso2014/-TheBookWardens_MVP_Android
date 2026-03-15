@@ -99,6 +99,10 @@ export class TextRenderer {
         this.container.style.lineHeight = this.options.lineHeight;
         this.container.style.padding = this.options.padding;
         this.container.style.textAlign = "left";
+        // Snapshot the original border value for later restoration.
+        // getComputedStyle gives the live computed border; reading .style gives
+        // the inline attribute which is what we actually need to restore.
+        this._origBorderInline = this.container.getAttribute('style') || '';
     }
 
     prepareDynamic(chapterData, wpm = 150) {
@@ -174,14 +178,25 @@ export class TextRenderer {
                     // span.style.fontWeight = "bold"; // Example default
                 }
 
-                span.style.color = "#ffffff"; // Default
-                span.style.opacity = "0";
+                span.style.color = "#ffffff";
+                // [Char-level] word span 자체는 opacity 제어 안 함
+                // 대신 각 글자에 .tr-char span을 래핑 → 글자 단위로 opacity 제어
+                // word span 너비는 선언 시점에 확정됨 → 이후 reflow 없음
                 span.style.marginRight = this.options.wordSpacing;
                 span.style.display = "inline-block";
                 span.style.lineHeight = "1.2";
                 span.style.verticalAlign = "middle";
                 span.dataset.index = globalWordIndex;
-                span.textContent = tokenObj.t;
+
+                // 종수 이유: textContent 직접 설정 시 word span의 너비가 자동 결정됨
+                // Array.from: Unicode 코드포인트(이모지 등) 안전 분리
+                Array.from(tokenObj.t).forEach(ch => {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'tr-char';
+                    charSpan.textContent = ch;
+                    // opacity:0, transition:none 은 CSS .tr-char에서 설정됨
+                    span.appendChild(charSpan);
+                });
 
                 this.container.appendChild(span);
 
@@ -531,6 +546,45 @@ export class TextRenderer {
     }
 
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // [Phase 1: Train Window] 4줄 슬라이딩 윈도우
+    // ─────────────────────────────────────────────────────────────────────────
+    // [Phase 1: Train Window] 4줄 트레인 — 줄 페이드아웃 방식
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 새 줄(currentLineIndex)이 시작될 때 호출된다.
+     * 현재 줄 기준으로 4줄 이전의 줄 단어들을 페이드아웃하여
+     * 화면에는 항상 최근 4줄만 선명하게 보이도록 한다.
+     *
+     * 핵심 원칙:
+     *   - 텍스트는 절대 위치를 이동하지 않는다.
+     *   - 줄이 나타나면 그 자리에 고정된다.
+     *   - 5번째 이상 오래된 줄만 서서히 사라진다.
+     *
+     * @param {number} currentLineIndex - 방금 시작된 줄 번호
+     */
+    _fadeOutTrainTail(currentLineIndex) {
+        if (!this.lines || this.lines.length === 0) return;
+
+        // 페이드아웃 대상: 현재 줄에서 4줄 이전 (5번째 이상 오래된 줄)
+        const fadeTargetLine = currentLineIndex - 4;
+        if (fadeTargetLine < 0) return; // 아직 4줄 미만 — 페이드아웃 불필요
+
+        const lineObj = this.lines[fadeTargetLine];
+        if (!lineObj || !lineObj.wordIndices) return;
+
+        // 해당 줄의 단어들을 부드럽게 페이드아웃 (위치는 변하지 않음)
+        lineObj.wordIndices.forEach(idx => {
+            const w = this.words[idx];
+            if (!w || !w.element) return;
+            w.element.style.transition = 'opacity 0.4s ease-out';
+            w.element.style.opacity = '0';
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     _finalizeLine(words) {
         const first = words[0].rect;
         const last = words[words.length - 1].rect;
@@ -567,6 +621,144 @@ export class TextRenderer {
         }
         this.currentVisibleLineIndex = 0;
     }
+
+    // =========================================================================
+    // [Phase 2] startWordStream — WPM 기반 연속 스트리밍
+    // 청크 경계를 완전히 무시하고, words[] 전체를 일정 속도로 순서대로 표시한다.
+    // 어떤 WPM 값에서도 정확하게 동작한다.
+    // =========================================================================
+
+    /**
+     * words[] 전체를 wpm에 맞는 일정 속도로 순서대로 표시한다.
+     *
+     * @param {number}   wpm        - 분당 단어 수 (예: 150, 200, 300)
+     * @param {Function} onComplete - 마지막 단어 표시 완료 시 호출되는 콜백
+     */
+    startWordStream(wpm, onComplete) {
+        if (!this.isLayoutLocked) this.lockLayout();
+        if (!this.words || this.words.length === 0) {
+            if (onComplete) onComplete();
+            return;
+        }
+
+        this.cancelAllAnimations();
+
+        const msPerWord = 60000 / wpm;
+
+        // ── 글자 단위 스케줄 빌드 ───────────────────────────────────────────────
+        // 단어 경계 = msPerWord 배수 → WPM 정확도 보장.
+        // 단어 내 글자 간격 = msPerWord ÷ 글자수 → 부드러운 흐름.
+        let cumulativeTime = 0;
+        const schedule = [];
+
+        this.words.forEach(word => {
+            const charSpans = word.element.querySelectorAll('.tr-char');
+
+            if (charSpans.length === 0) {
+                // fallback: 레거시 prepare() 경로 — tr-char 없음 → 단어 전체를 1 단위로
+                schedule.push({
+                    charSpan: word.element,
+                    word,
+                    revealAt: cumulativeTime,
+                    charTransitionMs: Math.round(msPerWord * 0.4),
+                    isFirstChar: true,
+                    isLastChar:  true
+                });
+                cumulativeTime += msPerWord;
+                return;
+            }
+
+            const charCount        = charSpans.length;
+            const charInterval     = msPerWord / charCount;
+            const charTransitionMs = Math.max(15, Math.round(charInterval * 0.8));
+
+            charSpans.forEach((charSpan, idx) => {
+                schedule.push({
+                    charSpan,
+                    word,
+                    revealAt:      cumulativeTime + idx * charInterval,
+                    charTransitionMs,
+                    isFirstChar:   idx === 0,
+                    isLastChar:    idx === charCount - 1
+                });
+            });
+
+            cumulativeTime += msPerWord; // 다음 단어는 항상 msPerWord 배수에서 시작
+        });
+
+        // ── RAF 루프 ────────────────────────────────────────────────────────────
+        const startTs      = performance.now();
+        let scheduleIdx    = 0;
+        let prevStreamLine = -1;
+        let rafId          = null;
+
+        const streamLoop = (now) => {
+            const elapsed = now - startTs;
+
+            while (scheduleIdx < schedule.length &&
+                   elapsed >= schedule[scheduleIdx].revealAt) {
+
+                const { charSpan, word, isFirstChar, isLastChar, charTransitionMs } = schedule[scheduleIdx];
+
+                // 줄 전환 감지 — 단어의 첫 글자일 때만 실행
+                if (isFirstChar && word.lineIndex !== prevStreamLine) {
+                    prevStreamLine = word.lineIndex;
+                    this.currentVisibleLineIndex = word.lineIndex;
+
+                    // gaze context 갱신
+                    const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
+                    if (gm?.setContext && this.lines[word.lineIndex]) {
+                        gm.setContext({
+                            lineIndex: word.lineIndex,
+                            lineY:     this.lines[word.lineIndex].visualY
+                        });
+                    }
+
+                    // [Phase 1] 4줄 트레인 유지
+                    this._fadeOutTrainTail(word.lineIndex);
+
+                    // 커서를 새 줄 첫 단어로
+                    this.updateCursor(word, 'start');
+                }
+
+                // [Phase 1+2] display:none 단어(page1+) → 첫 글자일 때 inline-block 전환
+                if (isFirstChar && word.element.style.display === 'none') {
+                    word.element.style.display = 'inline-block';
+                }
+
+                // 글자 fade-in (CSS transition:none → JS inline이 우선 적용)
+                charSpan.style.transition = `opacity ${charTransitionMs}ms ease-out`;
+                charSpan.style.opacity    = '1';
+
+                // 단어의 마지막 글자 → 단어 완료 처리
+                if (isLastChar) {
+                    word.element.classList.add('revealed');
+                    this.updateCursor(word, 'end');
+                }
+
+                scheduleIdx++;
+            }
+
+            if (scheduleIdx < schedule.length) {
+                rafId = requestAnimationFrame(streamLoop);
+                const prevIdx = this.activeRAFs.indexOf(rafId);
+                if (prevIdx !== -1) this.activeRAFs.splice(prevIdx, 1);
+                this.activeRAFs.push(rafId);
+            } else {
+                rafId = null;
+                if (onComplete) {
+                    const tid = setTimeout(onComplete, 100);
+                    this.activeAnimations.push(tid);
+                }
+            }
+        };
+
+        rafId = requestAnimationFrame(streamLoop);
+        this.activeRAFs.push(rafId);
+    }
+
+
+    // =========================================================================
 
     revealChunk(chunkIndex, interval = 150) {
         if (!this.isLayoutLocked) this.lockLayout();
@@ -614,6 +806,8 @@ export class TextRenderer {
                                     lineY: this.lines[item.word.lineIndex].visualY
                                 });
                             }
+                            // [Phase 1: Train Window] 새 줄 시작 → 4줄 전(currentLine - 4) 줄 페이드아웃
+                            this._fadeOutTrainTail(item.word.lineIndex);
                         }
                         item.cursorMoved = true;
                     }
@@ -644,7 +838,7 @@ export class TextRenderer {
                 if (revealedCount < revealData.length) {
                     // [FIX-iOS] Self-cleaning RAF slot.
                     // Old: push() every frame, never remove → activeRAFs grew O(frames) during reading.
-                    // New: single rolling slot — remove previous id before registering next.
+                    // New: single rolling slot ? remove previous id before registering next.
                     if (currentRevealRAFId !== null) {
                         const idx = this.activeRAFs.indexOf(currentRevealRAFId);
                         if (idx !== -1) this.activeRAFs.splice(idx, 1);
@@ -652,7 +846,7 @@ export class TextRenderer {
                     currentRevealRAFId = requestAnimationFrame(animateReveal);
                     this.activeRAFs.push(currentRevealRAFId);
                 } else {
-                    // Done — remove slot from tracking
+                    // Done ? remove slot from tracking
                     if (currentRevealRAFId !== null) {
                         const idx = this.activeRAFs.indexOf(currentRevealRAFId);
                         if (idx !== -1) this.activeRAFs.splice(idx, 1);
@@ -900,7 +1094,7 @@ export class TextRenderer {
 
         const impact = this.impactElement;
 
-        // Reset Style instantly (no reflow needed — CSS transition handles it)
+        // Reset Style instantly (no reflow needed ? CSS transition handles it)
         impact.style.transition = "none";
         impact.style.width = "10px";
         impact.style.height = "10px";
@@ -918,9 +1112,36 @@ export class TextRenderer {
             impact.style.opacity = "0";
         }));
 
+        // ── [Pang Flash] 텍스트 박스 내측 보라색 글로우 (배경색 변경 없이 테두리 내측만) ──
+        // 마쩔타 원(0.2s)과 완전 동기화: 켜집(0.05s) → 켜집(0.2s)
+        if (this.container) {
+            const box = this.container;
+
+            // 1. 빠르게 켜기 (0.05s ease-in)
+            box.style.transition = 'box-shadow 0.05s ease-in';
+            box.classList.add('pang-flash');
+
+            // 2. 50ms 후 → 서서히 켼지기 (0.2s ease-out, 원과 동일 속도)
+            const t1 = setTimeout(() => {
+                box.style.transition = 'box-shadow 0.2s ease-out';
+                box.classList.remove('pang-flash');
+            }, 50);
+
+            // 3. 280ms 후 → transition 인라인 스타일 제거 (CSS 기본값 복원)
+            const t2 = setTimeout(() => {
+                box.style.transition = '';
+            }, 280);
+
+            // cancelAllAnimations() 시 타이머 함께 정리
+            this.activeAnimations.push(t1, t2);
+        }
+
         if (this.validatedLines && typeof lineIndex === 'number' && lineIndex >= 0) {
             this.validatedLines.add(lineIndex);
         }
+
+        // HP -3% 업데이트 (조용히, 애니메이션 없음)
+        if (window.bossMiniBattle) window.bossMiniBattle.onPang();
 
         return true;
     }
@@ -972,509 +1193,1625 @@ export class TextRenderer {
         });
     }
 
-    // --- NEW: Gaze Replay Visualization (GLI-based Segmentation & Scaling) ---
-    // --- NEW: Gaze Replay Visualization (Pang Event Driven + Combo System) ---
+    // ???????????????????????????????????????????????????????????????????????????
+    // 5-PHASE RIFT SEALING REPLAY
+    // Phase 1: Gray text  →  Phase 2: Dot + line light-up  →
+    // Phase 3: Energy beams + progress bar  →  Phase 4: Popup  →  Phase 5: Mid-Boss
+    // ???????????????????????????????????????????????????????????????????????????
     playGazeReplay(gazeData, onComplete) {
-        // [ROBUST] Sync Markers before starting replay to ensure visibility
         this.syncPangMarkers();
 
         if (!gazeData || gazeData.length < 2) {
-            console.warn("[TextRenderer] No gaze data for replay.");
+            console.warn('[TextRenderer] No gaze data for replay.');
             if (onComplete) onComplete();
             return;
         }
 
-        // Helper to force visibility against any async fade-outs
+        // ── forceVisibility helper ──
         const forceVisibility = () => {
             if (this.container) {
-                this.container.style.transition = "none";
-                this.container.style.opacity = "1";
-                this.container.style.visibility = "visible";
+                this.container.style.transition = 'none';
+                this.container.style.opacity = '1';
+                this.container.style.visibility = 'visible';
             }
             if (this.words && this.words.length > 0) {
                 this.words.forEach(w => {
-                    if (w.element) {
-                        w.element.style.transition = "none";
-                        w.element.style.opacity = "1";
-                        w.element.style.visibility = "visible";
-
-                        // [CRITICAL FIX] Ensure position is reset to "revealed" state (0px)
-                        // Otherwise it defaults to .tr-word (10px down), causing mismatch.
-                        w.element.style.transform = "translateY(0)";
-                        w.element.classList.add("revealed");
-
-                        w.element.classList.remove("faded-out");
-                        w.element.classList.remove("chunk-fade-out"); // Specific class used by fadeOutChunk
-                        w.element.classList.remove("hidden");
-                    }
+                    if (!w.element) return;
+                    w.element.style.transition = 'none';
+                    w.element.style.opacity = '1';
+                    w.element.style.visibility = 'visible';
+                    w.element.style.transform = 'translateY(0)';
+                    w.element.classList.add('revealed');
+                    w.element.classList.remove('faded-out', 'chunk-fade-out', 'hidden');
                 });
             }
         };
 
-        // 1. Immediate Enforcement (one-shot)
         forceVisibility();
-
-        // 2. Single delayed re-enforcement (NOT an interval)
-        // [FIX-iOS] The old 10ms setInterval was doing 70,000+ DOM writes → OOM Kill.
-        // One extra call at 250ms is sufficient to override any async fade-out.
         const safetyTimer = setTimeout(forceVisibility, 250);
         this.activeAnimations.push(safetyTimer);
 
-        console.log(`[TextRenderer] Text restored. Waiting 500ms before replay...`);
-        // DELAY REPLAY START
         setTimeout(() => {
             clearTimeout(safetyTimer);
 
-            // [NEW] CRITICAL FIX: Do NOT Re-Lock Layout.
-            // We use the ORIGINAL coordinates from the reading session.
-            // Re-locking causes micro-shifts if the browser layout engine decided to reflow.
-            // if (this.words.length > 0) {
-            //    console.log("[TextRenderer] Zero-Error Mapping: Re-calculating layout...");
-            //    this.lockLayout();
-            // }
-
-            // Use the freshly calculated lines (or existing ones)
             const visualLines = this.lines || [];
-
             if (visualLines.length === 0) {
-                console.warn("[TextRenderer] No visual lines available for mapping. Forcing one-time lock.");
-                // Emergency Fallback only
+                console.warn('[TextRenderer] No visual lines. Forcing lock.');
                 this.lockLayout();
             }
 
-            console.log(`[TextRenderer] Starting Pang-Log Driven Replay...`);
-
-            // [NEW] Source of Truth: Pang Logs
-            // We ONLY replay lines that successfully triggered a Pang Event.
+            // ── Build processedPath from Pang logs ──
             const gm = (window.Game && window.Game.gazeManager) || window.gazeDataManager;
             const rawPangLogs = (gm && typeof gm.getPangLogs === 'function') ? gm.getPangLogs() : [];
 
-            console.log(`[TextRenderer] Found ${rawPangLogs.length} Pang Events for Replay.`);
-
-            const processedPath = [];
-
-            // ---------------------------------------------------------
-            // LOGIC: Filter data based on Pang Logs
-            // ---------------------------------------------------------
-
             if (rawPangLogs.length === 0) {
-                console.log("[TextRenderer] No Pang Events recorded. Skipping Replay.");
+                console.log('[TextRenderer] No Pang Events. Skipping Replay.');
                 if (onComplete) onComplete();
                 return;
             }
 
-            // Sort Logs by Time (just in case)
             rawPangLogs.sort((a, b) => a.t - b.t);
 
-            // [FIX-iOS] O(N+M) sorted-pointer approach instead of O(N×M) filter-per-pang.
-            // Old code: 8 pangs × gazeData.filter(9000) = 72,000 comparisons.
-            // New code: single pass through sorted gazeData with advancing pointer.
-            //
-            // [FIX-iOS] gazeData is already time-sorted: processGaze() timestamps with Date.now()
-            // and pushes sequentially, so t values are monotonically increasing.
-            // slice().sort() on a 9000-entry array creates a full copy + O(N log N) sort
-            // for no reordering benefit — eliminated to prevent JS heap spike at replay start.
-            const sortedGaze = gazeData; // Already sorted by t (Date.now() monotonic)
-            let gazePointer = 0;
-            let lastLogEndTime = 0;
+            const sortedGaze = gazeData;
+            const getGx = (d) => (typeof d.gx === 'number') ? d.gx : d.x;
+
+            let avgReadTime = 3000;
+            if (rawPangLogs.length >= 2) {
+                let sum = 0, cnt = 0;
+                for (let i = 1; i < rawPangLogs.length; i++) {
+                    const g = rawPangLogs[i].t - rawPangLogs[i - 1].t;
+                    if (g > 0 && g < 10000) { sum += g; cnt++; }
+                }
+                if (cnt > 0) avgReadTime = sum / cnt;
+            }
+
+            const processedPath = [];
+            const replaySegments = [];
+            let lastPangTime = 0;
 
             rawPangLogs.forEach((log, idx) => {
                 const targetLineIndex = log.line;
-                const endTime = log.t;
-
-                if (!visualLines[targetLineIndex]) { lastLogEndTime = endTime; return; }
+                const pangTime = log.t;
+                if (!visualLines[targetLineIndex]) { lastPangTime = pangTime; return; }
 
                 const targetLineObj = visualLines[targetLineIndex];
                 const fixedY = targetLineObj.visualY;
 
-                while (gazePointer < sortedGaze.length && sortedGaze[gazePointer].t <= lastLogEndTime) {
-                    gazePointer++;
+                const candidateData = [];
+                for (let i = 0; i < sortedGaze.length; i++) {
+                    const d = sortedGaze[i];
+                    if (d.t <= lastPangTime) continue;
+                    if (d.t > pangTime) break;
+                    if (typeof d.line === 'number' &&
+                        (d.line === targetLineIndex || d.line === targetLineIndex + 1)) {
+                        candidateData.push(d);
+                    }
+                }
+                if (candidateData.length < 5) { lastPangTime = pangTime; return; }
+
+                let peakIdx = candidateData.length - 1;
+                let peakGx = getGx(candidateData[peakIdx]);
+                const searchStart = Math.max(0, Math.floor(candidateData.length * 0.5));
+                for (let i = candidateData.length - 1; i >= searchStart; i--) {
+                    const gx = getGx(candidateData[i]);
+                    if (gx > peakGx) { peakGx = gx; peakIdx = i; }
+                }
+                const segEndTime = candidateData[peakIdx].t;
+
+                const searchFromTime = (idx > 0) ? lastPangTime : Math.max(0, segEndTime - avgReadTime);
+                let valleyIdx = 0, valleyGx = Infinity;
+                for (let i = 0; i < candidateData.length; i++) {
+                    if (candidateData[i].t < searchFromTime) continue;
+                    if (candidateData[i].t > segEndTime) break;
+                    const gx = getGx(candidateData[i]);
+                    if (gx < valleyGx) { valleyGx = gx; valleyIdx = i; }
                 }
 
                 const segmentData = [];
-                let scanIdx = gazePointer;
-                while (scanIdx < sortedGaze.length && sortedGaze[scanIdx].t <= endTime) {
-                    const d = sortedGaze[scanIdx];
-                    // [FIX-iOS] Updated property name: .lineIndex -> .line (compressed format)
-                    if (typeof d.line === 'number' && d.line === targetLineIndex) {
-                        segmentData.push(d);
+                for (let i = valleyIdx; i <= peakIdx; i++) segmentData.push(candidateData[i]);
+                if (segmentData.length < 3) { lastPangTime = pangTime; return; }
+
+                if (processedPath.length > 0) processedPath.push({ isJump: true });
+
+                replaySegments.push({
+                    idx, targetLine: targetLineIndex,
+                    segStart: candidateData[valleyIdx].t, segEnd: segEndTime, pangTime,
+                    sourceMinX: Math.round(valleyGx), sourceMaxX: Math.round(peakGx),
+                    targetLeft: Math.round(targetLineObj.rect.left),
+                    targetWidth: Math.round(targetLineObj.rect.width),
+                    samples: segmentData.length,
+                });
+
+                const sourceWidth = peakGx - valleyGx;
+                const targetLeft = targetLineObj.rect.left;
+                const targetWidth = targetLineObj.rect.width;
+
+                for (let i = 0; i < segmentData.length; i++) {
+                    const d = segmentData[i];
+                    const gx = getGx(d);
+                    let scaledX = gx;
+                    if (sourceWidth > 10 && targetWidth > 0) {
+                        let r = (gx - valleyGx) / sourceWidth;
+                        r = Math.max(0, Math.min(1, r));
+                        scaledX = targetLeft + r * targetWidth;
+                    } else {
+                        scaledX = targetLeft + (gx - valleyGx);
                     }
-                    scanIdx++;
+                    processedPath.push({ x: scaledX, y: fixedY, t: d.t, isJump: false });
                 }
-
-                if (segmentData.length >= 5) {
-                    if (processedPath.length > 0) {
-                        processedPath.push({ isJump: true });
-                    }
-
-                    let sourceMinX = Infinity;
-                    let sourceMaxX = -Infinity;
-                    for (let i = 0; i < segmentData.length; i++) {
-                        const gx = (typeof segmentData[i].gx === 'number') ? segmentData[i].gx : segmentData[i].x;
-                        if (gx < sourceMinX) sourceMinX = gx;
-                        if (gx > sourceMaxX) sourceMaxX = gx;
-                    }
-
-                    const sourceWidth = sourceMaxX - sourceMinX;
-                    const targetLeft = targetLineObj.rect.left;
-                    const targetWidth = targetLineObj.rect.width;
-
-                    for (let i = 0; i < segmentData.length; i++) {
-                        const d = segmentData[i];
-                        const gx = (typeof d.gx === 'number') ? d.gx : d.x;
-                        let scaledX = gx;
-
-                        if (sourceWidth > 10 && targetWidth > 0) {
-                            let ratio = (gx - sourceMinX) / sourceWidth;
-                            ratio = Math.max(0, Math.min(1, ratio));
-                            scaledX = targetLeft + (ratio * targetWidth);
-                        } else {
-                            scaledX = targetLeft + (gx - sourceMinX);
-                        }
-
-                        processedPath.push({
-                            x: scaledX,
-                            y: fixedY,
-                            t: d.t,
-                            isJump: false
-                        });
-                    }
-                }
-
-                lastLogEndTime = endTime;
+                lastPangTime = pangTime;
             });
 
-            // [DEBUG] Expose Replay Path for Dashboard
+            // Expose for dashboard/GazeDataManager
             try {
-                if (window.opener) window.opener.dashboardReplayData = processedPath;
                 window.dashboardReplayData = processedPath;
-
-                // [NEW] Pass to GazeDataManager for Cloud Upload
-                if (window.gazeDataManager && typeof window.gazeDataManager.setReplayData === 'function') {
-                    window.gazeDataManager.setReplayData(processedPath);
+                if (window.gazeDataManager) {
+                    if (typeof window.gazeDataManager.setReplayData === 'function')
+                        window.gazeDataManager.setReplayData(processedPath);
+                    window.gazeDataManager.replaySegments = replaySegments;
                 }
-            } catch (e) {
-                console.warn("Could not expose replay data to opener", e);
-            }
+            } catch (e) { console.warn('Could not expose replay data', e); }
 
-            // ---------------------------------------------------------
-            // VALIDATION & RENDER (CANVAS + COMBO)
-            // ---------------------------------------------------------
             if (processedPath.length < 2) {
-                console.warn("[TextRenderer] No processed path generated (maybe no data matched Pang Logs).");
+                console.warn('[TextRenderer] No processed path.');
                 if (onComplete) onComplete();
                 return;
             }
 
-            // --- 1. Canvas Setup (Existing) ---
+            // ─────────────────────────────────────────────
+            // Replay watermark label: ?? Gaze Replay (blinks throughout)
+            // _showReplayIntroCard is preserved for future use but not called.
+            // ─────────────────────────────────────────────
+            (() => {
+                const old = document.getElementById('replay-watermark-label');
+                if (old) try { old.remove(); } catch (e) { }
+
+                // Cancel any previous label animation RAF
+                if (this._replayLabelRAF) {
+                    cancelAnimationFrame(this._replayLabelRAF);
+                    this._replayLabelRAF = null;
+                }
+
+                // ── Container (always opaque) ──────────────────────────────
+                const label = document.createElement('div');
+                label.id = 'replay-watermark-label';
+                Object.assign(label.style, {
+                    position: 'fixed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '3px 11px 3px 6px',
+                    background: 'rgba(18,6,38,0.96)',
+                    border: '1.5px solid rgba(180,120,255,0.60)',
+                    borderRadius: '50px',
+                    boxShadow: '0 0 16px rgba(120,60,220,0.40)',
+                    backdropFilter: 'blur(8px)',
+                    pointerEvents: 'none',
+                    zIndex: '9999999',
+                    opacity: '1',
+                });
+
+                // ── Mini canvas: same plasma sphere as Phase 2 ────────────
+                const cvs = document.createElement('canvas');
+                cvs.width = 80;   // same scale as full canvas sphere (r=34 outer ring -> 80px fits)
+                cvs.height = 80;
+                Object.assign(cvs.style, {
+                    width: '32px',
+                    height: '32px',
+                    marginRight: '8px',
+                    flexShrink: '0',
+                    display: 'block',
+                    imageRendering: 'crisp-edges',
+                });
+                const mCtx = cvs.getContext('2d');
+                const cx = 40, cy = 40;   // center of the 80x80 canvas
+
+                // ── Text (blink independently) ──────────────────────────────
+                if (!document.getElementById('replay-blink-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'replay-blink-style';
+                    st.textContent = '@keyframes replayTextBlink{0%,40%,100%{opacity:1}50%,90%{opacity:0.08}}';
+                    document.head.appendChild(st);
+                }
+                const textWrap = document.createElement('span');
+                Object.assign(textWrap.style, {
+                    display: 'inline-block',
+                    animation: 'replayTextBlink 1.8s ease-in-out infinite',
+                });
+                const txt = document.createElement('span');
+                txt.textContent = 'Gaze Replay';
+                Object.assign(txt.style, {
+                    fontFamily: "'Cinzel', 'Georgia', serif",
+                    fontSize: 'clamp(11px, 2.9vw, 15px)',
+                    fontWeight: '700',
+                    letterSpacing: '4px',
+                    color: '#ffffff',
+                    textShadow: '0 0 12px rgba(200,140,255,0.9), 0 1px 3px rgba(0,0,0,0.8)',
+                    whiteSpace: 'nowrap',
+                });
+                textWrap.appendChild(txt);
+                label.appendChild(cvs);
+                label.appendChild(textWrap);
+
+                // ── Position: between HUD bottom and chapter badge top ─────
+                document.body.appendChild(label);
+                try {
+                    const hud = document.getElementById('hud') ||
+                        document.querySelector('.hud-container, .hud, #resource-hud');
+                    const badge = document.getElementById('chapter-title-badge');
+                    const lh = label.getBoundingClientRect().height;
+                    if (badge) {
+                        const br = badge.getBoundingClientRect();
+                        // Place below text box (this.container) bottom border
+                        const contRect = this.container ? this.container.getBoundingClientRect() : br;
+                        label.style.top = (contRect.bottom + 6) + 'px';
+                        // 빌런 너비를 제외한 영역의 중앙에 배치 (우측 갬침 방지)
+                        const bossEl2 = document.getElementById('read-boss-overlay');
+                        const bossW2  = (bossEl2 && bossEl2.offsetWidth) ? bossEl2.offsetWidth : 170;
+                        const availW  = contRect.width - bossW2;
+                        const centerX = contRect.left + availW / 2;
+                        label.style.left = centerX + 'px';
+                        label.style.transform = 'translateX(-50%)';
+                    } else {
+                        label.style.top = '88%';
+                        label.style.left = '50%';
+                        label.style.transform = 'translateX(-50%)';
+                    }
+                } catch (e) {
+                    label.style.top = '14%';
+                    label.style.left = '50%';
+                    label.style.transform = 'translateX(-50%)';
+                }
+
+                // ── RAF loop: draw EXACT same plasma sphere as Phase 2 ─────
+                let rafStart = null;
+                const drawLabel = (timestamp) => {
+                    if (!cvs.isConnected) return;   // stop if removed from DOM
+                    if (!rafStart) rafStart = timestamp;
+                    const elapsed = timestamp - rafStart;
+                    const theta = elapsed * 0.003;  // same rotation speed as Phase 2
+
+                    mCtx.clearRect(0, 0, 80, 80);
+
+                    // Plasma core (white + green glow) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.beginPath();
+                    mCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+                    mCtx.fillStyle = '#ffffff';
+                    mCtx.shadowColor = '#00ff88';
+                    mCtx.shadowBlur = 20;
+                    mCtx.fill();
+                    mCtx.restore();
+
+                    // Inner ring (rotating) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.translate(cx, cy);
+                    mCtx.rotate(theta);
+                    mCtx.beginPath();
+                    mCtx.arc(0, 0, 18, 0, Math.PI * 2);
+                    mCtx.strokeStyle = 'rgba(0,255,120,0.5)';
+                    mCtx.lineWidth = 1.5;
+                    mCtx.shadowColor = 'rgba(0,255,120,0.8)';
+                    mCtx.shadowBlur = 12;
+                    mCtx.stroke();
+                    mCtx.restore();
+
+                    // Outer ring (counter-rotating) — IDENTICAL to Phase 2
+                    mCtx.save();
+                    mCtx.translate(cx, cy);
+                    mCtx.rotate(-theta * 0.6);
+                    mCtx.beginPath();
+                    mCtx.arc(0, 0, 34, 0, Math.PI * 2);
+                    mCtx.strokeStyle = 'rgba(0,255,120,0.2)';
+                    mCtx.lineWidth = 1;
+                    mCtx.shadowColor = 'rgba(0,255,120,0.4)';
+                    mCtx.shadowBlur = 6;
+                    mCtx.stroke();
+                    mCtx.restore();
+
+                    this._replayLabelRAF = requestAnimationFrame(drawLabel);
+                };
+                this._replayLabelRAF = requestAnimationFrame(drawLabel);
+
+                this._replayIntroLabel = label;
+            })();
+            this._grayOutAllText();
+            // Phase 2: kick off plasma animation (1 extra RAF so gray paint settles)
+            requestAnimationFrame(() => {
+                this._replayRAFId = requestAnimationFrame(animate);
+            });
+
+            // ─────────────────────────────────────────────
+            // PHASE 2: Plasma dot + Charging nodes (No progress bar)
+            // ─────────────────────────────────────────────
             const canvas = document.createElement('canvas');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            canvas.style.position = 'fixed';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.pointerEvents = 'none';
-            canvas.style.zIndex = '999999';
+            canvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999999;';
             document.body.appendChild(canvas);
             const ctx = canvas.getContext('2d');
 
             const path = processedPath;
-
-            // --- 2. Combo System Setup ---
-            const pathStartTime = path[0].t;
-            const pathEndTime = path[path.length - 1].t;
-
-            // [SPEED UP] Make replay very fast (3.0s fixed)
-            const duration = 3000;
-
+            const duration = Math.max(1500, replaySegments.length * 500);
             let startTime = null;
 
-            // Remap logs to Progress (0..1)
-            const replayEvents = rawPangLogs.map(log => {
-                let t = log.t;
-                if (t < pathStartTime) t = pathStartTime;
-                if (t > pathEndTime) t = pathEndTime;
+            const litLines = new Set();
+            const PANG_X = window.innerWidth - 24;
+            const CHARGE_THRESH = window.innerWidth * 0.25;
 
-                let ratio = (t - pathStartTime) / (pathEndTime - pathStartTime);
-                if (isNaN(ratio)) ratio = 0;
+            // chargedNodesMap: lineIdx → node (pre-populate all visual lines as idle)
+            const chargedNodesMap = new Map();
+            visualLines.forEach((vl, lineIdx) => {
+                chargedNodesMap.set(lineIdx, {
+                    lineIdx,
+                    x: PANG_X,
+                    y: vl ? vl.visualY : 0,
+                    radius: 14,
+                    state: 'idle',     // 'idle' | 'entering' | 'charging' | 'charged'
+                    chargePct: 0,
+                    fixedAngles: null, // locked on 'charged' confirm
+                    glowAlpha: 1.0,    // faded during Phase 3 discharge
+                    inkDropFired: false, // fire once when charged
+                });
+            });
 
-                return {
-                    progressTrigger: ratio, // 0.0 ~ 1.0
-                    line: log.line,
-                    triggered: false
-                };
-            }).sort((a, b) => a.progressTrigger - b.progressTrigger);
-
-            // Combo State
-            this.comboState = {
-                current: 0,
-                lastLine: -1,
-                totalScore: 0
-            };
-
-            // No more giant UI container (_initScoreUI removed)
+            const trailBuffer = [];
+            let prevLineIdx = null;
 
             const animate = (timestamp) => {
-                // [FIX-iOS] forceVisibility() was removed from this loop.
-                // It was doing 200 words × 7 style writes × 60fps = 84,000 DOM ops during replay.
-                // The single-shot + delayed call above is sufficient.
-
                 if (!startTime) startTime = timestamp;
-
                 const elapsed = timestamp - startTime;
                 const progress = elapsed / duration;
 
-                if (progress >= 1) {
-                    canvas.style.transition = "opacity 0.5s";
-                    canvas.style.opacity = "0";
+                if (progress >= 1.0) {
+                    // Finalize remaining nodes → 'charged'
+                    chargedNodesMap.forEach(node => {
+                        if (node.state !== 'charged' && node.state !== 'idle') {
+                            node.state = 'charged';
+                            node.chargePct = 1;
+                        }
+                        if (node.state === 'charged' && !node.fixedAngles) {
+                            node.fixedAngles = [
+                                Math.random() * Math.PI * 2,
+                                Math.random() * Math.PI * 2,
+                                Math.random() * Math.PI * 2,
+                            ];
+                        }
+                        // Fire ink drop for any newly charged nodes
+                        if (node.state === 'charged' && !node.inkDropFired) {
+                            node.inkDropFired = true;
+                            this._fireInkDrop(node);
+                        }
+                    });
                     this._replayRAFId = null;
-                    setTimeout(() => { canvas.remove(); if (onComplete) onComplete(); }, 500);
+                    canvas.style.transition = 'opacity 0.4s';
+                    canvas.style.opacity = '0';
+                    setTimeout(() => {
+                        canvas.remove();
+                        // ─────────────────────────────────────
+                        // PHASE 2.5: Mini Boss Battle
+                        // ─────────────────────────────────────
+                        const runWire = () =>
+                            this._runWireDischarge(chargedNodesMap, litLines, visualLines, onComplete);
+                        if (window.bossMiniBattle) {
+                            window.bossMiniBattle.triggerAfterReplay(runWire);
+                        } else {
+                            runWire();
+                        }
+                    }, 500);
                     return;
                 }
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // --- 3. Combo Check ---
-                this._checkReplayCombo(progress, replayEvents, visualLines);
-
-                // --- 4. Draw Path ---
                 const maxIdx = Math.floor(path.length * progress);
+                const head = (maxIdx >= 0 && maxIdx < path.length) ? path[maxIdx] : null;
 
-                if (maxIdx >= 0 && maxIdx < path.length) {
-                    const head = path[maxIdx];
-                    if (head && !head.isJump) {
-                        ctx.beginPath();
-                        ctx.fillStyle = '#00ff00';
-                        ctx.shadowColor = '#00ff00';
-                        ctx.shadowBlur = 10;
-                        ctx.arc(head.x, head.y, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
+                if (head && head.isJump) {
+                    trailBuffer.length = 0;
+                } else if (head && !head.isJump) {
+                    const lineIdx = this._findLineForY(head.y, visualLines);
+
+                    // New line entered
+                    if (lineIdx !== null && !litLines.has(lineIdx)) {
+                        litLines.add(lineIdx);
+                        this._lightUpLine(lineIdx);
+                        const node = chargedNodesMap.get(lineIdx);
+                        if (node) node.state = 'entering';
                     }
+
+                    if (lineIdx !== null) {
+                        const node = chargedNodesMap.get(lineIdx);
+                        // Charging distance check
+                        if (node && (node.state === 'entering' || node.state === 'charging')) {
+                            const dist = PANG_X - head.x;
+                            if (dist <= CHARGE_THRESH) {
+                                node.state = 'charging';
+                                node.chargePct = Math.max(0, Math.min(1, 1 - dist / CHARGE_THRESH));
+                            }
+                        }
+                        // Line transition → confirm previous as charged
+                        if (prevLineIdx !== null && prevLineIdx !== lineIdx) {
+                            const prevNode = chargedNodesMap.get(prevLineIdx);
+                            if (prevNode && prevNode.state !== 'charged') {
+                                prevNode.state = 'charged';
+                                prevNode.chargePct = 1;
+                                if (!prevNode.fixedAngles) {
+                                    prevNode.fixedAngles = [
+                                        Math.random() * Math.PI * 2,
+                                        Math.random() * Math.PI * 2,
+                                        Math.random() * Math.PI * 2,
+                                    ];
+                                }
+                                // Fire ink drop on charge confirm
+                                if (!prevNode.inkDropFired) {
+                                    prevNode.inkDropFired = true;
+                                    this._fireInkDrop(prevNode);
+                                }
+                            }
+                        }
+                        prevLineIdx = lineIdx;
+                    }
+
+                    // Trail buffer
+                    trailBuffer.push({ x: head.x, y: head.y });
+                    if (trailBuffer.length > 12) trailBuffer.shift();
+
+                    // Draw trail
+                    for (let i = trailBuffer.length - 1; i >= 0; i--) {
+                        const tp = trailBuffer[i];
+                        const alpha = (i + 1) / trailBuffer.length * 0.5;
+                        const r = 4 * ((i + 1) / trailBuffer.length);
+                        ctx.save();
+                        ctx.globalAlpha = alpha;
+                        ctx.beginPath();
+                        ctx.arc(tp.x, tp.y, r, 0, Math.PI * 2);
+                        ctx.fillStyle = '#00ff88';
+                        ctx.shadowColor = '#00ff88';
+                        ctx.shadowBlur = 6;
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // Plasma core
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 20;
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Inner ring (rotating)
+                    const theta = elapsed * 0.003;
+                    ctx.save();
+                    ctx.translate(head.x, head.y);
+                    ctx.rotate(theta);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0,255,120,0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.shadowColor = 'rgba(0,255,120,0.8)';
+                    ctx.shadowBlur = 12;
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // Outer ring (counter-rotating)
+                    ctx.save();
+                    ctx.translate(head.x, head.y);
+                    ctx.rotate(-theta * 0.6);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 34, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0,255,120,0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.shadowColor = 'rgba(0,255,120,0.4)';
+                    ctx.shadowBlur = 6;
+                    ctx.stroke();
+                    ctx.restore();
                 }
-                // [FIX-iOS] Store RAF ID so it can be cancelled by cancelAllAnimations()
+
+                // Draw all charged nodes (purple spheres with lightning)
+                chargedNodesMap.forEach(node => {
+                    this._drawChargedNode(ctx, node, elapsed);
+                });
+
                 this._replayRAFId = requestAnimationFrame(animate);
             };
-            // [FIX-iOS] Track the initial replay RAF
-            this._replayRAFId = requestAnimationFrame(animate);
+            // Phase 2 RAF is now started exclusively from the _showReplayIntroCard
+            // callback above. Do NOT add a direct kick-off here.
 
         }, 500);
     }
 
-    // --- COMBO SYSTEM HELPERS ---
-
-    _checkReplayCombo(progress, events, visualLines) {
-        events.forEach(ev => {
-            if (!ev.triggered && progress >= ev.progressTrigger) {
-                ev.triggered = true;
-
-                const lineIdx = ev.line;
-                let score = 10;
-
-                // Continuity: line == last + 1
-                if (lineIdx === this.comboState.lastLine + 1) {
-                    this.comboState.current++;
-                } else {
-                    if (this.comboState.lastLine === -1 && lineIdx === 0) {
-                        this.comboState.current = 1;
-                    } else {
-                        this.comboState.current = 1;
-                    }
-                }
-
-                if (this.comboState.current > 1) {
-                    score += (this.comboState.current * 10);
-                }
-
-                this.comboState.totalScore += score;
-                this.comboState.lastLine = lineIdx;
-
-                if (visualLines[lineIdx]) {
-                    const lineY = visualLines[lineIdx].visualY;
-                    // Trigger minimal popup & flash
-                    this._showMiniScore(score, lineY);
-                    this._spawnReplayPulse(lineY);
-                }
-
-                if (window.Game && typeof window.Game.addInk === 'function') {
-                    // window.Game.addInk(score); 
-                }
-            }
+    // ─── Phase 1: Gray all text ───────────────────────────────────────────────
+    _grayOutAllText() {
+        if (!this.words) return;
+        this.words.forEach(w => {
+            if (!w.element) return;
+            w.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+            w.element.style.color = 'rgba(255,255,255,0.18)';
+            w.element.style.textShadow = 'none';
         });
     }
 
-    _showMiniScore(score, yPos) {
-        // [ENHANCED] Combo Text (150% Scale)
-        const el = document.createElement('div');
-        el.className = 'replay-mini-score';
-        el.innerHTML = `Combo! <br>+${score}`; // Combo text + Score
-
-        const xPos = window.innerWidth - 60;
-
-        el.style.position = 'fixed';
-        el.style.left = xPos + 'px';
-        el.style.top = yPos + 'px';
-        el.style.transform = 'translate(-50%, -50%) scale(0)'; // Start scaling from 0
-        el.style.color = '#FFD700'; // Gold Color for Combo
-        el.style.fontWeight = 'bold';
-        el.style.fontSize = '14px'; // 14px Base Font
-        el.style.fontFamily = 'monospace';
-        el.style.pointerEvents = 'none';
-        el.style.zIndex = '1000000';
-        el.style.textAlign = 'center';
-        el.style.textShadow = '0 0 15px #FFD700, 0 0 5px orange'; // Stronger Glow
-        // Apply Transition for Scale & Opacity
-        el.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s 0.5s';
-        el.style.opacity = '1';
-
-        document.body.appendChild(el);
-
-        // Pop Up Animation (Scale 1.2)
-        requestAnimationFrame(() => {
-            el.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            el.style.opacity = '1';
+    // ─── Phase 2: Find closest line index by Y ────────────────────────────────
+    _findLineForY(y, visualLines) {
+        let closest = null, minDist = Infinity;
+        visualLines.forEach((line, idx) => {
+            const d = Math.abs(line.visualY - y);
+            if (d < minDist) { minDist = d; closest = idx; }
         });
+        return (minDist < 60) ? closest : null;
+    }
 
-        // Trigger Flying Ink Animation
-        this._animateScoreToHud(xPos, yPos, score);
-
-        // Remove after delay
+    // ─── Phase 2: Light up line (flash → settle) ─────────────────────────────
+    _lightUpLine(lineIndex) {
+        if (!this.lines || !this.lines[lineIndex]) return;
+        const line = this.lines[lineIndex];
+        if (!line.wordIndices) return;
+        line.wordIndices.forEach(wIdx => {
+            const word = this.words[wIdx];
+            if (word && word.element) {
+                word.element.style.transition = 'none';
+                word.element.style.color = '#ffffff';
+                word.element.style.textShadow =
+                    '0 0 22px #fff, 0 0 14px rgba(155,89,182,1), 0 0 6px rgba(215,189,226,0.9)';
+                word.element.style.filter = 'brightness(2.0)';
+            }
+        });
         setTimeout(() => {
-            el.style.opacity = '0';
-            setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
-        }, 800);
+            line.wordIndices.forEach(wIdx => {
+                const word = this.words[wIdx];
+                if (word && word.element) {
+                    word.element.style.transition = 'text-shadow 0.4s ease-out, filter 0.4s ease-out';
+                    word.element.style.textShadow = '0 0 6px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                    word.element.style.filter = 'brightness(1.0)';
+                }
+            });
+        }, 100);
     }
 
-    _animateScoreToHud(startX, startY, score) {
-        // Find Target (Ink Icon/Counter in HUD)
-        const targetEl = document.getElementById("ink-count");
-        if (!targetEl) return;
+    // ─── Progress bar: REMOVED (no-op stub kept for legacy safety) ───────────
+    _createProgressBar() { return null; }
 
-        // Use parent for bigger target area if possible
-        const targetRect = (targetEl.parentElement || targetEl).getBoundingClientRect();
-        const targetX = targetRect.left + targetRect.width / 2;
-        const targetY = targetRect.top + targetRect.height / 2;
+    // ─── Phase 3: Chain → 강력 방전 ───────────────────────────────────────────
+    _runWireDischarge(chargedNodesMap, litLines, visualLines, onDone) {
+        const totalLines = visualLines.length;
+        const isSealed = totalLines > 0 && (litLines.size / totalLines) >= 0.6;
 
-        // Calculate Control Point (CP) for Bezier Curve
-        // CP.x = startX (Vertical rise initially)
-        // CP.y = Midpoint between HUD and First Line of Text
-        let firstLineY = startY;
-        if (this.lines && this.lines.length > 0) {
-            firstLineY = this.lines[0].visualY || this.lines[0].rect.top;
-        }
-        // Ensure CP is higher than startY even if on first line
-        if (firstLineY > startY) firstLineY = startY;
+        let loopRunning = true;
+        let completed = false;
+        let rafId = null;
+        let borderGlowSet = false;
 
-        // CP Y: Midpoint between HUD (targetY) and First Line
-        // We add an extra offset (-50) to ensure it arcs OVER the text if needed
-        const cpX = startX;
-        const cpY = (targetY + firstLineY) / 2 - 50;
+        const dischargeCanvas = document.createElement('canvas');
+        dischargeCanvas.width = window.innerWidth;
+        dischargeCanvas.height = window.innerHeight;
+        dischargeCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:999998;';
+        document.body.appendChild(dischargeCanvas);
+        const dCtx = dischargeCanvas.getContext('2d');
 
-        // Create Flying Particle
-        const p = document.createElement('div');
-        p.className = 'flying-ink';
-        p.innerText = `+${score}`;
-        p.style.position = 'fixed';
-        p.style.left = startX + 'px';
-        p.style.top = startY + 'px';
-        p.style.color = '#00ffff';
-        p.style.fontWeight = 'bold';
-        p.style.fontSize = '18px';
-        p.style.pointerEvents = 'none';
-        p.style.zIndex = '1000001';
-        p.style.transform = 'translate(-50%, -50%) scale(1.5)';
-        p.style.transition = 'transform 0.1s';
-
-        document.body.appendChild(p);
-        // [FIX #9] Register this node so cancelAllAnimations() can remove it if RAF is force-cancelled
-        if (this._activeFlyingInkNodes) this._activeFlyingInkNodes.add(p);
-
-        // [120Hz FIX] Timestamp-gate to 60fps max.
-        const TARGET_FRAME_MS = 1000 / 60;
-        let startTime = null;
-        const duration = 1000;
-        let lastFrameTs = 0;
-        // [FIX-iOS] Self-cleaning RAF tracking — single slot instead of push-per-frame.
-        // Old code pushed a new id every frame → activeRAFs grew unboundedly → OOM.
-        let currentRAFId = null;
-
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-
-            const shouldRender = (timestamp - lastFrameTs) >= TARGET_FRAME_MS;
-            if (shouldRender) lastFrameTs = timestamp;
-
-            const progress = (timestamp - startTime) / duration;
-
-            if (progress >= 1) {
-                if (p.parentNode) p.remove();
-                // [FIX #9] Deregister from tracking set on natural completion
-                if (this._activeFlyingInkNodes) this._activeFlyingInkNodes.delete(p);
-                // Remove our slot from tracking
-                if (currentRAFId) {
-                    const idx = this.activeRAFs.indexOf(currentRAFId);
-                    if (idx !== -1) this.activeRAFs.splice(idx, 1);
-                    currentRAFId = null;
-                }
-                if (window.Game && typeof window.Game.addInk === 'function') {
-                    window.Game.addInk(score);
-                }
-                const hudIcon = targetEl.parentElement || targetEl;
-                hudIcon.style.transition = "transform 0.1s";
-                hudIcon.style.transform = "scale(1.3)";
-                setTimeout(() => hudIcon.style.transform = "scale(1)", 150);
-                return;
-            }
-
-            if (shouldRender) {
-                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                const t = ease;
-                const invT = 1 - t;
-                const currentX = (invT * invT * startX) + (2 * invT * t * cpX) + (t * t * targetX);
-                const currentY = (invT * invT * startY) + (2 * invT * t * cpY) + (t * t * targetY);
-
-                p.style.left = currentX + 'px';
-                p.style.top = currentY + 'px';
-
-                const scale = 1.5 - (progress * 0.5);
-                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            }
-
-            // Self-cleaning: remove old id, schedule new, track new
-            if (currentRAFId) {
-                const idx = this.activeRAFs.indexOf(currentRAFId);
-                if (idx !== -1) this.activeRAFs.splice(idx, 1);
-            }
-            currentRAFId = requestAnimationFrame(animate);
-            this.activeRAFs.push(currentRAFId);
+        const finish = () => {
+            if (completed) return;
+            completed = true;
+            loopRunning = false;
+            clearTimeout(hardTimeout);
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+            // Immediately reset container styles (no lag into next screen)
+            this._replayContainerReset();
+            try { dischargeCanvas.remove(); } catch (e) { }
+            // Rift 정화 Phase: 오염 단어 시각 복원 후 restoreTextWave 진행
+            const riftWords = window.bossMiniBattle?.getSortedRiftWords() ?? [];
+            this._riftPurificationPhase(riftWords, () => {
+                this._restoreTextWave(litLines, visualLines, isSealed, onDone);
+            });
         };
-        // Initial kick — track the first RAF id
-        currentRAFId = requestAnimationFrame(animate);
-        this.activeRAFs.push(currentRAFId);
+
+        const hardTimeout = setTimeout(finish, 18000);
+
+        // Container geometry
+        const cRect = this.container ? this.container.getBoundingClientRect() : null;
+        const cLeft = cRect ? cRect.left : 10;
+        const cTop = cRect ? cRect.top : 10;
+        const cW = cRect ? cRect.width : window.innerWidth - 20;
+        const cH = cRect ? cRect.height : window.innerHeight - 20;
+        // Gather point: center of container
+        const gatherX = cLeft + cW * 0.5;
+        const gatherY = cTop + cH * 0.5;
+
+        // Discharge nodes (charged + in litLines), Y-ascending
+        const dischargeNodes = [];
+        chargedNodesMap.forEach(node => {
+            if (litLines.has(node.lineIdx) && node.state === 'charged') {
+                dischargeNodes.push(node);
+            }
+        });
+        dischargeNodes.sort((a, b) => a.y - b.y);
+
+        // ── timing ──────────────────────────────────────────────────────────
+        const INITIAL_WAIT = 400;            // nodes vibrate before chain
+        const CHAIN_DUR = 200;            // single bolt duration
+        const CHAIN_OVERLAP = 55;             // overlap between sequential bolts
+        const chainTotalDur = Math.max(0, dischargeNodes.length - 1) * (CHAIN_DUR - CHAIN_OVERLAP);
+        // Phase B: border electric crawl
+        const BORDER_START_T = INITIAL_WAIT + chainTotalDur + 80;
+        const BORDER_DUR = 700;           // "파지직" border crawl duration
+        // Phase C: scan bar
+        const SCAN_START_T = BORDER_START_T + BORDER_DUR;
+        const SCAN_DUR = 550;           // top→bottom travel time
+        const PHASE3_DUR = SCAN_START_T + SCAN_DUR + 1000;
+
+        // ── helper: zigzag path ──────────────────────────────────────────────
+        const makeZigzag = (x0, y0, x1, y1, jitter = 18, steps = 5) => {
+            const pts = [{ x: x0, y: y0 }];
+            for (let k = 1; k <= steps; k++) {
+                const f = k / (steps + 1);
+                pts.push({
+                    x: x0 + (x1 - x0) * f + (Math.random() - 0.5) * jitter,
+                    y: y0 + (y1 - y0) * f + (Math.random() - 0.5) * jitter,
+                });
+            }
+            pts.push({ x: x1, y: y1 });
+            return pts;
+        };
+
+        const drawZigzag = (c, pts, outerColor, outerW, blur, innerW = 1.5) => {
+            c.save();
+            c.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y));
+            c.strokeStyle = outerColor; c.lineWidth = outerW;
+            c.shadowColor = outerColor; c.shadowBlur = blur; c.stroke();
+            c.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y));
+            c.strokeStyle = '#ffffff'; c.lineWidth = innerW;
+            c.shadowColor = '#fff'; c.shadowBlur = 8; c.stroke();
+            c.restore();
+        };
+
+        // Pre-generate chain bolt variants
+        const chainBolts = [];
+        for (let i = 0; i < dischargeNodes.length - 1; i++) {
+            const from = dischargeNodes[i];
+            const to = dischargeNodes[i + 1];
+            chainBolts.push({
+                from, to,
+                startT: INITIAL_WAIT + i * (CHAIN_DUR - CHAIN_OVERLAP),
+                endT: INITIAL_WAIT + i * (CHAIN_DUR - CHAIN_OVERLAP) + CHAIN_DUR,
+                variants: Array.from({ length: 3 }, () => makeZigzag(from.x, from.y, to.x, to.y, 12)),
+            });
+        }
+
+
+
+        // RAF loop
+        let phaseStart = null;
+        const phase3Loop = (timestamp) => {
+            if (!loopRunning) return;
+            if (!phaseStart) phaseStart = timestamp;
+            const elapsed = timestamp - phaseStart;
+
+            dCtx.clearRect(0, 0, dischargeCanvas.width, dischargeCanvas.height);
+
+            // Always: draw all charged nodes (fading during discharge)
+            chargedNodesMap.forEach(node => {
+                if (node.state !== 'idle' && node.glowAlpha > 0) {
+                    this._drawChargedNode(dCtx, node, elapsed);
+                }
+            });
+
+            // ── Phase A: chain bolts node → node (sequential) ──
+            chainBolts.forEach(bolt => {
+                if (elapsed < bolt.startT || elapsed > bolt.endT + 60) return;
+                const progress = Math.min(1, (elapsed - bolt.startT) / CHAIN_DUR);
+                const fadeOut = elapsed > bolt.endT ? 1 - (elapsed - bolt.endT) / 60 : 1;
+                const vi = Math.floor(elapsed / 30) % 3;
+                dCtx.save();
+                dCtx.globalAlpha = progress * fadeOut;
+                drawZigzag(dCtx, bolt.variants[vi], 'rgba(180,100,255,0.95)', 4, 24);
+                dCtx.restore();
+            });
+
+            // ── Phase B: border electric crawl ("파지직") ────────────────────
+            if (elapsed >= BORDER_START_T && elapsed < SCAN_START_T + 100) {
+                const bElapsed = elapsed - BORDER_START_T;
+                // intensity: fade-in 100ms → MAX → fade-out last 100ms
+                const rawIntensity = Math.min(bElapsed / 100, 1,
+                    (BORDER_DUR - bElapsed + 100) / 100);
+                const intensity = Math.max(0, rawIntensity);
+
+                // ── DOM border glow (set once at start) ──
+                if (!borderGlowSet && this.container) {
+                    borderGlowSet = true;
+                    this.container.style.transition = 'none';
+                    this.container.style.boxShadow =
+                        '0 0 0 2px rgba(255,255,255,0.85), ' +
+                        '0 0 18px 4px rgba(255,255,255,0.55), ' +
+                        '0 0 40px 8px rgba(200,140,255,0.45)';
+                    this.container.style.borderColor = 'rgba(240,220,255,1)';
+                    // start fade-out of DOM glow at end of border phase
+                    setTimeout(() => {
+                        if (!this.container) return;
+                        this.container.style.transition =
+                            'box-shadow 0.35s ease-out, border-color 0.35s ease-out';
+                        this.container.style.boxShadow = '';
+                        this.container.style.borderColor = '';
+                    }, BORDER_DUR - 80);
+                }
+
+                // ── Canvas: perimeter spark walkers ──
+                const numSparks = Math.round(6 + intensity * 4); // 6~10
+                const perimeter = 2 * (cW + cH);
+
+                // helper: perimeter pos → {x,y}
+                const perimPt = (d) => {
+                    d = ((d % perimeter) + perimeter) % perimeter;
+                    if (d <= cW) return { x: cLeft + d, y: cTop };
+                    d -= cW;
+                    if (d <= cH) return { x: cLeft + cW, y: cTop + d };
+                    d -= cH;
+                    if (d <= cW) return { x: cLeft + cW - d, y: cTop + cH };
+                    d -= cW;
+                    return { x: cLeft, y: cTop + cH - d };
+                };
+
+                for (let s = 0; s < numSparks; s++) {
+                    // Each spark: random start position, random short arc length
+                    const startD = Math.random() * perimeter;
+                    const arcLen = 30 + Math.random() * 70; // 30~100px along perimeter
+                    const steps = 5;
+                    const jitter = 4 + Math.random() * 8;   // perpendicular jitter
+                    const pts = [];
+                    for (let k = 0; k <= steps; k++) {
+                        const d = startD + (arcLen / steps) * k;
+                        const base = perimPt(d);
+                        // Jitter perpendicular to border: outward-facing
+                        const onTop = base.y === cTop;
+                        const onBot = Math.abs(base.y - (cTop + cH)) < 1;
+                        const onLeft = base.x === cLeft;
+                        const jx = onTop || onBot ? (Math.random() - 0.5) * jitter * 0.5
+                            : (onLeft ? -1 : 1) * Math.random() * jitter;
+                        const jy = onLeft || (!onTop && !onBot) ? (Math.random() - 0.5) * jitter * 0.5
+                            : (onTop ? -1 : 1) * Math.random() * jitter;
+                        pts.push({ x: base.x + jx, y: base.y + jy });
+                    }
+
+                    const alpha = intensity * (0.55 + Math.random() * 0.45);
+                    const lw = 1.5 + Math.random() * 2.5;
+                    const blur = 10 + Math.random() * 20;
+                    dCtx.save();
+                    dCtx.globalAlpha = alpha;
+                    dCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
+                    dCtx.strokeStyle = `rgba(200,160,255,0.9)`;
+                    dCtx.lineWidth = lw + 1;
+                    dCtx.shadowColor = 'rgba(180,120,255,1)';
+                    dCtx.shadowBlur = blur;
+                    dCtx.stroke();
+                    // white core
+                    dCtx.beginPath();
+                    pts.forEach((p, pi) => pi === 0 ? dCtx.moveTo(p.x, p.y) : dCtx.lineTo(p.x, p.y));
+                    dCtx.strokeStyle = '#ffffff';
+                    dCtx.lineWidth = lw * 0.5;
+                    dCtx.shadowColor = '#ffffff';
+                    dCtx.shadowBlur = 8;
+                    dCtx.stroke();
+                    dCtx.restore();
+                }
+
+                // Node fade-out during border phase
+                const nodeFade = Math.max(0, 1 - bElapsed / BORDER_DUR);
+                dischargeNodes.forEach(node => { node.glowAlpha = nodeFade; });
+            }
+
+            // ── Phase C: scan bar sweeps top→bottom ──────────────────────────
+            if (elapsed >= SCAN_START_T && this.container) {
+                const scanProg = Math.min(1, (elapsed - SCAN_START_T) / SCAN_DUR);
+                const eased = scanProg < 0.5
+                    ? 2 * scanProg * scanProg
+                    : 1 - Math.pow(-2 * scanProg + 2, 2) / 2;
+
+                const r = this.container.getBoundingClientRect();
+                const scanY = r.top + eased * r.height;
+                const barAlpha = scanProg < 0.97 ? 0.92 : (1 - (scanProg - 0.97) / 0.03);
+
+                // Layer 1: trailing gradient above bar
+                const grad = dCtx.createLinearGradient(0, scanY - 40, 0, scanY);
+                grad.addColorStop(0, 'rgba(255,255,255,0)');
+                grad.addColorStop(1, `rgba(255,255,255,${(barAlpha * 0.18).toFixed(3)})`);
+                dCtx.save();
+                dCtx.fillStyle = grad;
+                dCtx.fillRect(r.left, scanY - 40, r.width, 40);
+                dCtx.restore();
+
+                // Layer 2: core bright bar (4x thick = 12px)
+                dCtx.save();
+                dCtx.globalAlpha = barAlpha;
+                dCtx.shadowColor = '#ffffff';
+                dCtx.shadowBlur = 32;
+                dCtx.fillStyle = '#ffffff';
+                dCtx.fillRect(r.left, scanY - 6, r.width, 12);
+                dCtx.restore();
+
+                // Layer 3: soft halo below bar
+                dCtx.save();
+                dCtx.globalAlpha = barAlpha * 0.22;
+                dCtx.fillStyle = 'rgba(220,190,255,1)';
+                dCtx.fillRect(r.left, scanY + 6, r.width, 20);
+                dCtx.restore();
+            }
+
+            if (elapsed >= PHASE3_DUR) { finish(); return; }
+            rafId = requestAnimationFrame(phase3Loop);
+        };
+
+        if (dischargeNodes.length === 0) { setTimeout(finish, 400); return; }
+        rafId = requestAnimationFrame(phase3Loop);
     }
 
-    _spawnReplayPulse(yPos) {
-        const pulse = document.createElement('div');
-        pulse.style.position = 'fixed';
-        pulse.style.right = '20px';
-        pulse.style.top = yPos + 'px';
-        pulse.style.width = '8px';
-        pulse.style.height = '8px';
-        pulse.style.borderRadius = '50%';
-        pulse.style.backgroundColor = 'magenta';
-        pulse.style.boxShadow = '0 0 10px magenta';
-        pulse.style.zIndex = '999999';
-        pulse.style.transform = 'translate(50%, -50%) scale(1)';
-        pulse.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    // === Phase 0: Replay Opening Card ========================================
+    _showReplayIntroCard(onDone) {
+        try {
+            const old = document.getElementById('replay-intro-card');
+            if (old) { try { old.remove(); } catch (e) { } }
 
-        document.body.appendChild(pulse);
+            // ── Meta data ──
+            const chapterBadge = document.getElementById('chapter-title-badge');
+            const chapterText = chapterBadge ? chapterBadge.textContent.trim() : 'The Book Wardens';
+            const wpmEl = document.getElementById('wpm-display');
+            const wpmVal = wpmEl ? wpmEl.textContent.trim() : '0';
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
 
+            // ── Book cover image mapping ──
+            const ct = chapterText.toLowerCase();
+            const bookImg = ct.includes('sherlock') ? './SherlockBook.png'
+                : ct.includes('aesop') ? './aesopBook.png'
+                    : './aliceBook.png';
+
+            // ── Popup card (centered over the passage) ──
+            const overlay = document.createElement('div');
+            overlay.id = 'replay-intro-card';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -52%) scale(0.92)',
+                width: 'min(304px, 72vw)',
+                background: 'rgba(28,4,52,0.96)',
+                border: '1.5px solid rgba(180,110,255,0.65)',
+                borderRadius: '18px',
+                padding: '22px 19px 18px',
+                boxSizing: 'border-box',
+                boxShadow: '0 0 48px rgba(140,60,255,0.5), 0 8px 32px rgba(0,0,0,0.7)',
+                backdropFilter: 'blur(12px)',
+                zIndex: '9999998',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                opacity: '0',
+                transition: 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
+                gap: '0',
+            });
+
+            // ── Hero title: GAZE REPLAY ──
+            const badge = document.createElement('div');
+            badge.textContent = 'GAZE REPLAY';
+            Object.assign(badge.style, {
+                fontFamily: "'Cinzel', 'Georgia', serif",
+                fontSize: 'clamp(24px, 7vw, 36px)',
+                fontWeight: '900',
+                letterSpacing: '6px',
+                color: '#ffffff',
+                textTransform: 'uppercase',
+                textAlign: 'center',
+                textShadow: '0 0 36px rgba(200,120,255,1), 0 0 14px rgba(255,255,255,0.8), 0 2px 6px rgba(0,0,0,0.9)',
+                lineHeight: '1.2',
+                marginBottom: '16px',
+            });
+
+            // ── Book cover image ──
+            const cover = document.createElement('img');
+            cover.src = bookImg;
+            cover.alt = chapterText;
+            Object.assign(cover.style, {
+                width: 'clamp(80px, 22vw, 130px)',
+                height: 'auto',
+                objectFit: 'contain',
+                borderRadius: '6px',
+                boxShadow: '0 0 32px rgba(180,100,255,0.7), 0 4px 20px rgba(0,0,0,0.8)',
+                marginBottom: '20px',
+                border: '1.5px solid rgba(200,140,255,0.5)',
+            });
+
+            // ── Sub-title: chapter name ──
+            const title = document.createElement('div');
+            title.textContent = chapterText;
+            Object.assign(title.style, {
+                fontFamily: 'monospace',
+                fontSize: 'clamp(10px, 2.6vw, 13px)',
+                fontWeight: '400',
+                color: 'rgba(200,170,240,0.85)',
+                textAlign: 'center',
+                maxWidth: '82vw',
+                lineHeight: '1.5',
+                letterSpacing: '2px',
+                textShadow: '0 0 8px rgba(180,130,255,0.5)',
+                padding: '0 12px',
+                marginBottom: '10px',
+                textTransform: 'uppercase',
+            });
+
+            // ── Divider ──
+            const divider = document.createElement('div');
+            Object.assign(divider.style, {
+                width: '160px', height: '1.5px',
+                background: 'linear-gradient(90deg, transparent, rgba(200,140,255,0.9), transparent)',
+                margin: '4px 0 16px',
+            });
+
+            // ── Stats row ──
+            const stats = document.createElement('div');
+            Object.assign(stats.style, {
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '36px',
+                alignItems: 'center',
+            });
+            const mkStat = (label, val) => {
+                const s = document.createElement('div');
+                Object.assign(s.style, { textAlign: 'center' });
+                const v = document.createElement('div');
+                v.textContent = val;
+                Object.assign(v.style, {
+                    fontSize: 'clamp(16px, 4vw, 22px)',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                    textShadow: '0 0 12px rgba(210,170,255,0.9)',
+                });
+                const l = document.createElement('div');
+                l.textContent = label;
+                Object.assign(l.style, {
+                    fontSize: 'clamp(9px, 2vw, 11px)',
+                    color: 'rgba(200,170,240,0.85)',
+                    letterSpacing: '3px',
+                    marginTop: '3px',
+                    fontFamily: 'monospace',
+                });
+                s.appendChild(v); s.appendChild(l);
+                return s;
+            };
+            stats.appendChild(mkStat('WPM', wpmVal));
+            // vertical sep
+            const sep = document.createElement('div');
+            Object.assign(sep.style, { width: '1px', height: '32px', background: 'rgba(180,140,255,0.35)' });
+            stats.appendChild(sep);
+            stats.appendChild(mkStat('DATE', dateStr));
+
+            // ── Logo ──
+            const logo = document.createElement('div');
+            logo.textContent = 'THE BOOK WARDENS';
+            Object.assign(logo.style, {
+                fontFamily: "'Cinzel', monospace",
+                fontSize: 'clamp(9px, 2.2vw, 11px)',
+                letterSpacing: '5px',
+                color: 'rgba(180,140,220,0.55)',
+                marginTop: '28px',
+                textTransform: 'uppercase',
+            });
+
+            overlay.appendChild(badge);
+            overlay.appendChild(cover);
+            overlay.appendChild(title);
+            overlay.appendChild(divider);
+            overlay.appendChild(stats);
+            overlay.appendChild(logo);
+            document.body.appendChild(overlay);
+
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                overlay.style.transform = 'translate(-50%, -52%) scale(1)';
+            });
+
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
+                    if (typeof onDone === 'function') onDone();
+                }, 500);
+            }, 5000);
+
+        } catch (err) {
+            console.error('[_showReplayIntroCard]', err);
+            if (typeof onDone === 'function') onDone();
+        }
+    }
+
+    // === Phase 4: Replay Ending Card ==========================================
+    _showReplayEndCard(isSealed, litLines, visualLines, onDone) {
+        try {
+            const old = document.getElementById('replay-rift-result');
+            if (old) { try { old.remove(); } catch (e) { } }
+
+            const sealed = isSealed;
+
+            // ── Collect stats ──
+            const inkEl = document.getElementById('ink-count');
+            const inkVal = inkEl ? (parseInt(inkEl.textContent, 10) || 0) : 0;
+            const wpmEl = document.getElementById('wpm-display');
+            const wpmVal = wpmEl ? (wpmEl.textContent.trim() || '0') : '0';
+            const totalL = visualLines ? visualLines.length : 0;
+            const litCount = litLines ? litLines.size : 0;
+            const sealPct = totalL > 0 ? Math.round((litCount / totalL) * 100) : 0;
+
+            // ── Colors ──
+            const bgMain = sealed ? 'radial-gradient(ellipse at 50% 30%, rgba(70,0,110,0.98) 0%, rgba(8,4,22,1) 70%)'
+                : 'radial-gradient(ellipse at 50% 30%, rgba(20,10,45,0.98) 0%, rgba(5,3,15,1) 70%)';
+            const accent = sealed ? '#ffffff' : 'rgba(210,200,240,0.9)';
+            const accentSub = sealed ? 'rgba(220,180,255,0.85)' : 'rgba(170,160,210,0.7)';
+            const bdrClr = sealed ? 'rgba(200,140,255,0.7)' : 'rgba(100,85,150,0.5)';
+            const glow = sealed
+                ? '0 0 30px rgba(210,120,255,1), 0 0 12px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+                : '0 0 10px rgba(130,110,180,0.7), 0 2px 4px rgba(0,0,0,0.8)';
+
+            const resultText = sealed ? 'RIFT SEALED' : 'NOT YET';
+            const resultSub = sealed ? 'All seals restored' : `${sealPct}% seals active`;
+
+            // ── Popup card ──
+            const overlay = document.createElement('div');
+            overlay.id = 'replay-rift-result';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -52%) scale(0.88)',
+                width: 'min(304px, 72vw)',
+                background: sealed ? 'rgba(36,0,62,0.96)' : 'rgba(12,8,28,0.96)',
+                border: `1.5px solid ${bdrClr}`,
+                borderRadius: '18px',
+                padding: '22px 19px 18px',
+                boxSizing: 'border-box',
+                boxShadow: `0 0 52px rgba(140,60,255,0.45), 0 8px 32px rgba(0,0,0,0.7)`,
+                backdropFilter: 'blur(14px)',
+                zIndex: '9999990',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                opacity: '0',
+                transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+                gap: '0',
+            });
+
+            // Result title
+            const title = document.createElement('div');
+            title.textContent = resultText;
+            Object.assign(title.style, {
+                color: accent,
+                fontSize: 'clamp(20px, 6vw, 32px)',
+                fontWeight: '900',
+                fontFamily: "'Cinzel', monospace",
+                letterSpacing: '5px',
+                textAlign: 'center',
+                textShadow: glow,
+                lineHeight: '1.3',
+                marginBottom: '6px',
+            });
+
+            // Sub text
+            const sub = document.createElement('div');
+            sub.textContent = resultSub;
+            Object.assign(sub.style, {
+                color: accentSub,
+                fontSize: 'clamp(11px, 2.8vw, 14px)',
+                fontFamily: 'monospace',
+                letterSpacing: '3px',
+                textTransform: 'uppercase',
+                textShadow: '0 0 8px rgba(180,140,255,0.6)',
+                marginBottom: '28px',
+            });
+
+            // Divider
+            const div = document.createElement('div');
+            Object.assign(div.style, {
+                width: '200px', height: '1.5px',
+                background: `linear-gradient(90deg, transparent, ${bdrClr}, transparent)`,
+                margin: '0 0 28px',
+            });
+
+            // Stats row container
+            const statsRow = document.createElement('div');
+            Object.assign(statsRow.style, {
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: '0',
+                alignItems: 'stretch',
+            });
+
+            const mkStat = (icon, val, lbl, last, sublbl) => {
+                const s = document.createElement('div');
+                Object.assign(s.style, {
+                    textAlign: 'center',
+                    padding: '0 28px',
+                    borderRight: last ? 'none' : `1px solid rgba(180,140,255,0.3)`,
+                });
+                const ic = document.createElement('div');
+                ic.textContent = icon;
+                Object.assign(ic.style, { fontSize: 'clamp(20px,5vw,28px)', lineHeight: '1', marginBottom: '6px' });
+                const vv = document.createElement('div');
+                vv.textContent = val;
+                Object.assign(vv.style, {
+                    fontSize: 'clamp(22px, 6vw, 34px)',
+                    fontWeight: '900',
+                    color: accent,
+                    fontFamily: 'monospace',
+                    lineHeight: '1',
+                    textShadow: '0 0 16px rgba(210,170,255,0.9)',
+                    marginBottom: '5px',
+                });
+                const ll = document.createElement('div');
+                ll.textContent = lbl;
+                Object.assign(ll.style, {
+                    fontSize: 'clamp(9px, 2.2vw, 11px)',
+                    color: accentSub,
+                    letterSpacing: '3px',
+                    fontFamily: 'monospace',
+                    textTransform: 'uppercase',
+                });
+                if (icon) s.appendChild(ic); s.appendChild(vv); s.appendChild(ll);
+                if (sublbl) {
+                    const sl = document.createElement('div');
+                    sl.textContent = sublbl;
+                    Object.assign(sl.style, {
+                        fontSize: 'clamp(8px, 1.8vw, 9px)',
+                        color: 'rgba(180,150,220,0.55)',
+                        letterSpacing: '1.5px',
+                        fontFamily: 'monospace',
+                        textTransform: 'uppercase',
+                        marginTop: '2px',
+                    });
+                    s.appendChild(sl);
+                }
+                return s;
+            };
+            // Line Coverage = litLines read / totalLines
+            const coverageVal = sealPct;  // already computed as litCount/totalL * 100
+            statsRow.appendChild(mkStat('', wpmVal, 'WPM', false, 'Words Per Minute'));
+            statsRow.appendChild(mkStat('', coverageVal + '%', 'LINE COVERAGE', true));
+
+            // Logo
+            const logo = document.createElement('div');
+            logo.textContent = 'THE BOOK WARDENS';
+            Object.assign(logo.style, {
+                fontFamily: "'Cinzel', monospace",
+                fontSize: 'clamp(9px, 2.2vw, 11px)',
+                letterSpacing: '5px',
+                color: 'rgba(180,140,220,0.45)',
+                marginTop: '36px',
+                textTransform: 'uppercase',
+            });
+
+            overlay.appendChild(title);
+            overlay.appendChild(sub);
+            overlay.appendChild(div);
+            overlay.appendChild(statsRow);
+            overlay.appendChild(logo);
+            document.body.appendChild(overlay);
+
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                overlay.style.transform = 'translate(-50%, -50%) scale(1)';
+            });
+
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    try { if (overlay.parentNode) overlay.remove(); } catch (e) { }
+                    // Remove watermark label + cancel its RAF
+                    try {
+                        if (this._replayLabelRAF) { cancelAnimationFrame(this._replayLabelRAF); this._replayLabelRAF = null; }
+                        if (this._replayIntroLabel && this._replayIntroLabel.parentNode)
+                            this._replayIntroLabel.remove();
+                        this._replayIntroLabel = null;
+                    } catch (e) { }
+                    if (typeof onDone === 'function') onDone();
+                }, 500);
+            }, 3000);
+
+        } catch (err) {
+            console.error('[_showReplayEndCard]', err);
+            if (typeof onDone === 'function') onDone();
+        }
+    }
+
+
+    // === Phase 4: Text Restoration Wave ======================================
+    _restoreTextWave(litLines, visualLines, isSealed, onDone) {
+        if (isSealed && visualLines && this.words) {
+            // SUCCESS: restore ALL lines to white (not just litLines)
+            visualLines.forEach((line, i) => {
+                setTimeout(() => {
+                    if (!line.wordIndices) return;
+                    line.wordIndices.forEach(wIdx => {
+                        const word = this.words[wIdx];
+                        if (word && word.element) {
+                            word.element.style.transition = 'color 0.4s ease, text-shadow 0.4s ease';
+                            word.element.style.color = '#ffffff';
+                            word.element.style.textShadow = '0 0 8px rgba(155,89,182,0.5), 0 0 2px rgba(255,255,255,0.4)';
+                        }
+                    });
+                }, i * 50);
+            });
+        }
+        // FAIL: all text stays grey (no restoration)
+        const waveDur = isSealed ? (visualLines ? visualLines.length * 50 : 0) + 1400 : 0;  // +400ms transition + 1000ms pause
+        setTimeout(() => { this._showReplayEndCard(isSealed, litLines, visualLines, onDone); }, waveDur);
+    }
+
+    // === Helper: Draw purple charged node (sphere + wrapping lightning) =======
+    _drawChargedNode(ctx, node, elapsed) {
+        const { x, y, radius, state, chargePct, fixedAngles } = node;
+        const alpha = (node.glowAlpha !== undefined) ? node.glowAlpha : 1;
+        if (alpha <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (state === 'idle') {
+            // Dim glow only
+            ctx.globalAlpha = 0.35 * alpha;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#2a0044';
+            ctx.shadowColor = 'rgba(155,89,182,0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
+
+        // Sphere body (radial gradient for 3D look)
+        const sphereAlpha = 0.6 + chargePct * 0.4;
+        ctx.globalAlpha = sphereAlpha * alpha;
+        const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, 1, x, y, radius);
+        grad.addColorStop(0, '#b066dd');
+        grad.addColorStop(0.5, '#5c0099');
+        grad.addColorStop(1, '#1a0033');
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.shadowColor = `rgba(180, 100, 255, ${chargePct * 0.9})`;
+        ctx.shadowBlur = 10 + chargePct * 22;
+        ctx.fill();
+        ctx.restore();
+
+        if (state !== 'charging' && state !== 'charged') return;
+
+        // Wrapping lightning bolts
+        const numBolts = (state === 'charged' || chargePct >= 0.5) ? 3 : 2;
+        const angles = (state === 'charged' && fixedAngles)
+            ? fixedAngles
+            : Array.from({ length: numBolts }, () => Math.random() * Math.PI * 2);
+
+        for (let b = 0; b < numBolts; b++) {
+            const startAngle = angles[b];
+            const sweep = Math.PI * 0.6 + (Math.random() - 0.5) * 0.3; // ~108°
+            const numSeg = 5;
+            const pts = [];
+            const jitterAmt = state === 'charged' ? 3 : 7;
+            for (let s = 0; s <= numSeg; s++) {
+                const a = startAngle + (sweep / numSeg) * s;
+                const sr = radius + (Math.random() - 0.5) * jitterAmt;
+                pts.push({ x: x + Math.cos(a) * sr, y: y + Math.sin(a) * sr });
+            }
+
+            // Outer glow
+            ctx.save();
+            ctx.globalAlpha = (0.7 + chargePct * 0.3) * alpha;
+            ctx.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.strokeStyle = `rgba(180, 100, 255, 0.85)`;
+            ctx.lineWidth = 3 + chargePct * 2;
+            ctx.shadowColor = '#9b59b6';
+            ctx.shadowBlur = 16 + chargePct * 10;
+            ctx.stroke();
+            // Inner white core
+            ctx.beginPath();
+            pts.forEach((p, pi) => pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // === Helper: Border position interpolation (clockwise) ===================
+    _borderPos(d, left, top, w, h) {
+        const p = 2 * (w + h);
+        d = ((d % p) + p) % p;
+        if (d <= w) return { x: left + d, y: top };
+        d -= w;
+        if (d <= h) return { x: left + w, y: top + d };
+        d -= h;
+        if (d <= w) return { x: left + w - d, y: top + h };
+        d -= w;
+        return { x: left, y: top + h - d };
+    }
+
+    // === Helper: Ink drop VFX → HUD =========================================
+    // Fires when a purple node becomes fully charged (line transition confirm).
+    // Spawns a flying ink particle that travels to the HUD ink icon.
+    _fireInkDrop(node) {
+        const INK_PER_LINE = 10;
+        try {
+            // 1. Spawn flying ink via Game helper (bezier → HUD → addInk)
+            if (window.Game && typeof window.Game.spawnFlyingResource === 'function') {
+                window.Game.spawnFlyingResource(node.x, node.y, INK_PER_LINE, 'ink');
+            }
+
+            // 2. HUD icon pop animation
+            const inkCountEl = document.getElementById('ink-count');
+            const iconEl = inkCountEl
+                ? inkCountEl.parentElement && inkCountEl.parentElement.querySelector('img.res-icon')
+                : null;
+            if (iconEl) {
+                iconEl.classList.remove('ink-pop');
+                // Force reflow to restart animation if already running
+                void iconEl.offsetWidth;
+                iconEl.classList.add('ink-pop');
+                setTimeout(() => iconEl.classList.remove('ink-pop'), 400);
+            }
+        } catch (e) {
+            console.warn('[_fireInkDrop]', e);
+        }
+    }
+
+    // === Replay cleanup: fully restore container styles ======================
+    // Called by _runWireDischarge.finish() so no style leaks into the next screen.
+    _replayContainerReset() {
+        const c = this.container;
+        if (!c) return;
+
+        // 1. Stop any running CSS transition immediately
+        c.style.transition = 'none';
+        c.style.boxShadow = '';
+        c.style.filter = '';
+
+        // 2. Restore border: We CANNOT use c.style.borderColor = '' because
+        //    JS borderColor is a longhand that breaks the 'border' shorthand.
+        //    Instead rebuild the inline style from the original snapshot,
+        //    then reapply the renderer-managed properties on top.
+        if (this._origBorderInline !== undefined) {
+            // Re-apply original inline style string (contains the HTML border attr)
+            c.setAttribute('style', this._origBorderInline);
+            // Then re-apply renderer-overridden properties that must persist
+            c.style.position = 'relative';
+            c.style.fontFamily = this.options.fontFamily;
+            c.style.fontSize = this.options.fontSize;
+            c.style.lineHeight = this.options.lineHeight;
+            c.style.padding = this.options.padding;
+            c.style.textAlign = 'left';
+        } else {
+            // Fallback: just clear the glow-related properties
+            c.style.borderColor = ''; // may still break shorthand but better than stuck glow
+        }
+
+        // 3. One RAF later: clear the transition override so CSS rules resume normally
         requestAnimationFrame(() => {
-            pulse.style.transform = 'translate(50%, -50%) scale(3)';
-            pulse.style.opacity = '0';
+            if (!c) return;
+            c.style.transition = '';
+        });
+    }
+
+
+    // === Legacy stubs ========================================================
+    _sealRiftVFX(visualLines, onDone) { if (typeof onDone === 'function') onDone(); }
+    _waveTextWhite(visualLines) { }
+    _runEnergyTransfer(litLines, visualLines, progressContainer, onDone) {
+        if (typeof onDone === 'function') onDone();
+    }
+    _showRiftPopup() { }
+    _checkReplayCombo() { }
+    _showMiniScore() { }
+    _animateScoreToHud() { }
+    _spawnReplayPulse() { }
+
+    // ─────────────────────────────────────────────────────────────────
+    // [Rift Purification Phase]
+    // Wire Discharge 완료 후, 오염 단어를 극적으로 복원하는 4초 시퀀스
+    // ─────────────────────────────────────────────────────────────────
+    _riftPurificationPhase(words, onDone) {
+        const TOTAL_MS = 4000;
+        const card = this.container;
+
+        // rift 단어 없으면 즉시 통과
+        if (!words || words.length === 0) {
+            if (onDone) onDone();
+            return;
+        }
+
+        const cardRect = card ? card.getBoundingClientRect() : null;
+        if (!cardRect) { if (onDone) onDone(); return; }
+
+        // ── Stage 1: 스캔 바 하강 + 카드 pulse (0 ~ 500ms) ─────────
+        const scanBar = document.createElement('div');
+        scanBar.id = 'rift-scan-bar';
+        scanBar.style.cssText = [
+            `position:fixed`,
+            `left:${cardRect.left}px`,
+            `top:${cardRect.top}px`,
+            `width:${cardRect.width}px`,
+            `height:4px`,
+            `background:linear-gradient(90deg,transparent,rgba(180,80,255,0.95),transparent)`,
+            `box-shadow:0 0 14px rgba(180,80,255,0.9)`,
+            `pointer-events:none`,
+            `z-index:9000`,
+            `transition:top 0.5s linear`,
+        ].join(';');
+        document.body.appendChild(scanBar);
+
+        // 텍스트 카드 pulse
+        if (card) {
+            card.style.transition = 'box-shadow 0.3s ease-in';
+            card.style.boxShadow = 'inset 0 0 45px rgba(180,80,255,0.5)';
+        }
+
+        // 스캔 바 하강
+        requestAnimationFrame(() => {
+            scanBar.style.top = (cardRect.top + cardRect.height) + 'px';
         });
 
-        setTimeout(() => pulse.remove(), 200);
+        // ── Stage 2: 줄별 순차 복원 (500ms ~ 3500ms) ──────────────
+        // 단어를 Y 좌표 기준으로 줄 버킷에 그룹화 (±20px)
+        const lineMap = new Map();
+        words.forEach(({ el, cls }) => {
+            if (!el || !el.isConnected) return;
+            const r   = el.getBoundingClientRect();
+            const key = Math.round(r.top / 28) * 28;   // 28px 버킷
+            if (!lineMap.has(key)) lineMap.set(key, []);
+            lineMap.get(key).push({ el, cls });
+        });
+        const lineGroups = [...lineMap.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([lineY, ws]) => ({ lineY, words: ws }));
+
+        let lineDelay = 500;
+        lineGroups.forEach(group => {
+            const ls = lineDelay;
+
+            // 줄 플래시
+            setTimeout(() => this._riftLineFlash(group.lineY, cardRect), ls);
+
+            // 줄 내 단어 복원
+            group.words.forEach(({ el, cls }, i) => {
+                setTimeout(() => this._restoreRiftWord(el, cls), ls + 160 + i * 75);
+            });
+
+            lineDelay += 320 + group.words.length * 75;
+        });
+
+        // ── Stage 3: 전체 클렌즈 + 종료 (3500ms ~ 4000ms) ─────────
+        const stage3 = Math.min(Math.max(lineDelay, 2200), 3500);
+        setTimeout(() => {
+            // 스캔 바 퇴장
+            scanBar.style.transition = 'opacity 0.5s';
+            scanBar.style.opacity = '0';
+            setTimeout(() => { try { scanBar.remove(); } catch (_) {} }, 550);
+
+            // 카드 최종 클렌즈 글로우
+            if (card) {
+                card.style.boxShadow = 'inset 0 0 60px rgba(180,80,255,0.8)';
+                setTimeout(() => {
+                    card.style.transition = 'box-shadow 0.8s ease-out';
+                    card.style.boxShadow = '';
+                }, 200);
+            }
+
+            // 남은 rift 클래스 강제 정리
+            document.querySelectorAll('.rift-corrupted,.rift-blur,.rift-dark')
+                .forEach(el => el.classList.remove('rift-corrupted', 'rift-blur', 'rift-dark'));
+        }, stage3);
+
+        // 완료 콜백
+        setTimeout(() => { if (onDone) onDone(); }, TOTAL_MS);
+    }
+
+    /** 줄 단위 보라색 가로 플래시 */
+    _riftLineFlash(lineY, cardRect) {
+        const flash = document.createElement('div');
+        flash.style.cssText = [
+            `position:fixed`,
+            `left:${cardRect.left}px`,
+            `top:${lineY - 4}px`,
+            `width:${cardRect.width}px`,
+            `height:26px`,
+            `background:rgba(180,80,255,0.22)`,
+            `pointer-events:none`,
+            `z-index:8999`,
+            `border-radius:2px`,
+        ].join(';');
+        document.body.appendChild(flash);
+        flash.style.transition = 'opacity 0.4s ease-out';
+        requestAnimationFrame(() => {
+            flash.style.opacity = '0';
+            setTimeout(() => { try { flash.remove(); } catch (_) {} }, 450);
+        });
+    }
+
+    /** 단어 타입별 복원 애니메이션 */
+    _restoreRiftWord(el, cls) {
+        if (!el || !el.isConnected) return;
+
+        const done = () => {
+            el.classList.add('rift-restored');
+            setTimeout(() => el.classList.remove('rift-restored'), 550);
+            this._spawnRestoreParticle(el);
+        };
+
+        if (cls === 'rift-blur') {
+            el.style.transition = 'filter 0.35s ease-out';
+            el.style.filter = 'blur(0px)';
+            setTimeout(() => {
+                el.classList.remove('rift-blur');
+                el.style.filter = '';
+                el.style.transition = '';
+                done();
+            }, 380);
+
+        } else if (cls === 'rift-dark') {
+            el.style.transition = 'opacity 0.35s ease-out';
+            el.style.opacity = '1';
+            setTimeout(() => {
+                el.classList.remove('rift-dark');
+                el.style.opacity = '';
+                el.style.transition = '';
+                done();
+            }, 380);
+
+        } else {  // rift-corrupted
+            el.style.animation = 'none';
+            el.style.color = '#ffffff';
+            el.style.textShadow = '0 0 8px rgba(180,80,255,1)';
+            setTimeout(() => {
+                el.classList.remove('rift-corrupted');
+                el.style.color = '';
+                el.style.textShadow = '';
+                el.style.animation = '';
+                done();
+            }, 230);
+        }
+    }
+
+    /** 복원 완료 시 위로 올라가는 미니 보라 파티클 */
+    _spawnRestoreParticle(el) {
+        if (!el || !el.getBoundingClientRect) return;
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width * 0.5;
+        const cy = r.top;
+        for (let i = 0; i < 2; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'rift-restore-particle';
+            dot.style.left = (cx + (Math.random() - 0.5) * 18) + 'px';
+            dot.style.top  = cy + 'px';
+            document.body.appendChild(dot);
+            let life = 1, ty = 0;
+            const vy = -(1.4 + Math.random() * 0.8);
+            const tick = () => {
+                life -= 0.042; ty += vy;
+                dot.style.opacity = life;
+                dot.style.transform = `translateY(${ty}px)`;
+                if (life > 0) requestAnimationFrame(tick);
+                else { try { dot.remove(); } catch (_) {} }
+            };
+            requestAnimationFrame(tick);
+        }
     }
 }
 window.TextRenderer = TextRenderer;
+

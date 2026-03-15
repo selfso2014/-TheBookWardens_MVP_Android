@@ -521,6 +521,204 @@ body {
   /* Reduced from 40px to start text higher */
 }
 
+/* ── 읽기 화면 빌런 오버레이 ─────────────────────────────── */
+#read-boss-overlay {
+  display: none;
+  position: fixed;
+  right: 4px;
+  bottom: -20px;               /* 하반신 일부 화면 밖 → 상체만 보임 */
+  width: 170px;                /* 130→170px: +30% 확대 */
+  height: auto;
+  z-index: 200;
+  /* scaleX(-1) 제거: 원본 이미지의 왼쪽 방향 그대로 */
+  opacity: 1.0;          /* 완전 불투명 — 선명하게 */
+  filter: drop-shadow(0 0 18px rgba(124,58,237,0.85));
+  pointer-events: none;
+  animation: bossFloat 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* 읽기 화면 활성 시에만 보임 */
+#screen-read.active #read-boss-overlay {
+  display: block;
+}
+
+/* 빌런 숨쉬기 떠다니기 */
+@keyframes bossFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* 팡 이벤트 시 흔들기 */
+#read-boss-overlay.pang-shake {
+  animation: bossShakeBoss 0.42s ease;
+}
+
+@keyframes bossShakeBoss {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-6px); }
+  35%      { transform: translateX(6px); }
+  55%      { transform: translateX(-4px); }
+  75%      { transform: translateX(3px); }
+}
+
+/* ─── Boss HP Bar ─────────────────────────────────────────── */
+#boss-hp-wrap {
+  position: fixed;
+  right: 4px;
+  z-index: 201;
+  display: none !important;   /* HP 바 전체 숨김 */
+  pointer-events: none;
+}
+#boss-hp-bar {
+  width: 100%;
+  height: 10px;               /* 게임 HP 바 스타일 */
+  background: #2a0000;        /* 어두운 붉은 배경 */
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(180, 0, 0, 0.6);
+}
+#boss-hp-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #cc0000, #ff4444);  /* 붉은 그라데이션 */
+  border-radius: 4px;
+  transition: width 0.35s ease-out, background 0.6s;
+}
+#boss-hp-pct {
+  display: block;
+  text-align: right;
+  color: #ff9999;
+  font-size: 9px;
+  font-family: 'Outfit', monospace;
+  margin-top: 2px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ─── 빌런 말풍선 ─────────────────────────────────────────── */
+.boss-speech-bubble {
+  position: fixed;
+  background: rgba(25, 0, 50, 0.97);
+  border: 2.5px solid rgba(255, 80, 80, 0.9);
+  border-radius: 10px;
+  color: #ffcccc;
+  font-family: 'Outfit', monospace;
+  font-size: clamp(20px, 4.8vw, 24px);   /* 200% 대비 75% 크기 */
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 12px 24px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 510;
+  opacity: 0;
+  transition: opacity 0.3s;
+  text-shadow: 0 0 10px rgba(255, 80, 80, 0.9), 0 0 20px rgba(255, 40, 40, 0.5);
+  box-shadow: 0 0 12px rgba(255, 60, 60, 0.4), inset 0 0 8px rgba(255, 30, 30, 0.1);
+}
+/* 꼬리 — 아래쪽으로 가리킴 (말풍선이 빌런 위에 위치) */
+.boss-speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 22px;
+  transform: none;
+  border-width: 13px 8px 0 8px;
+  border-style: solid;
+  border-color: rgba(255,80,80,0.9) transparent transparent transparent;
+}
+.boss-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 24px;
+  transform: none;
+  border-width: 10px 7px 0 7px;
+  border-style: solid;
+  border-color: rgba(25,0,50,0.97) transparent transparent transparent;
+}
+
+/* ─── Rift Text Effects ───────────────────────────────────── */
+@keyframes riftWave {
+  0%, 100% { transform: skewX(0deg) translateX(0); }
+  25%      { transform: skewX(-2.5deg) translateX(-1px); }
+  75%      { transform: skewX(2.5deg)  translateX(1px); }
+}
+.rift-corrupted {
+  animation: riftWave 0.4s ease infinite;
+  /* 잊크 스모그: 글자 형태 숨기고 검은 얼룩으로 가림 */
+  color: transparent !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  text-shadow: 0 0 10px rgba(10,0,20,0.95), 0 0 18px rgba(50,0,80,0.6) !important;
+  border-radius: 2px;
+  padding: 0 2px;
+  display: inline-block;
+}
+.rift-restored {
+  color: #cc88ff !important;
+  text-shadow: 0 0 10px rgba(124, 58, 237, 0.9) !important;
+  transition: color 0.5s, text-shadow 0.5s, opacity 0.5s;
+}
+
+/* 강한 블러 — 텍스트 뿌옇게, 읽기 불가 */
+.rift-blur {
+  filter: blur(3.5px) !important;
+  opacity: 0.7;
+  display: inline-block;
+  transition: filter 0.4s, opacity 0.4s;
+}
+
+/* 사실상 투명 — 텍스트 거의 안 보임 */
+.rift-dark {
+  opacity: 0.06 !important;
+  display: inline-block;
+  transition: opacity 0.4s;
+}
+
+/* ─── RIFT 경고 배너 ─────────────────────────────────────── */
+#rift-warning-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, rgba(90,0,20,0.94), rgba(60,0,80,0.94));
+  color: #ffaaaa;
+  font-family: 'Outfit', 'Cinzel', monospace;
+  font-size: clamp(10px, 2.6vw, 13px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 80, 80, 0.55);
+  pointer-events: none;
+  z-index: 501;
+  opacity: 0;
+  transition: opacity 0.35s;
+  text-shadow: 0 0 8px rgba(255, 80, 80, 0.7);
+}
+
+/* ─── Ink Splatter Particle ──────────────────────────────── */
+.ink-splat {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 499;
+}
+
+/* Rift 복원 완료 시 위로 올라가는 보라 파티클 */
+.rift-restore-particle {
+  position: fixed;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(180, 80, 255, 0.9);
+  box-shadow: 0 0 6px rgba(180, 80, 255, 0.8);
+  pointer-events: none;
+  z-index: 9001;
+}
+
 .book-container {
   max-width: 600px;
   line-height: 2.7;
@@ -528,6 +726,18 @@ body {
   font-size: 1.1rem;
   color: #ccc;
   position: relative;
+  /* [FIX] Prevent mobile browser (Samsung Internet / Chrome Android) from
+     triggering Quick Dictionary / Translate popup on game text. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* [Pang Flash] box-shadow 트랜지션 — 배경색 변경 없이 테두리 내측 글로우만 */
+  transition: box-shadow 0.2s ease-out;
+}
+
+/* 팡 이벤트 발생 시 텍스트 박스 내측 보라색 글로우 */
+.pang-flash {
+  box-shadow: inset 0 0 28px rgba(124, 58, 237, 0.55) !important;
 }
 
 .rift-text {
@@ -724,7 +934,9 @@ body {
   filter: none;
   background: transparent;
   cursor: auto;
-  user-select: text;
+  /* [FIX] Keep none (was 'text') to prevent browser dictionary popup on revealed rift words */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* --- Yellow Cursor for Snake Effect --- */
@@ -766,8 +978,9 @@ body {
 
 /* --- Chunk Fade Out Effect --- */
 #book-content span {
-  transition: opacity 1.0s ease-out;
-  /* Smooth fade */
+  /* [Phase 2 Fix] transition을 JS(startWordStream)에서 WPM 비례로 제어.
+     CSS에서 1.0s를 지정하면 JS inline보다 ID specificity가 높아 override됨 → 제거. */
+  transition: none;
 }
 
 .chunk-fade-out {
@@ -780,19 +993,27 @@ body {
 
 /* --- TextRenderer Specialized Styles --- */
 .tr-word {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* [Char-level] opacity는 내부 .tr-char가 제어. word span 자체는 하상 visible.
+     _fadeOutTrainTail이 inline style로 opacity:0을 직접 설정하면 모든 tr-char가 함께 숨겨짘. */
+  transition: none;
   display: inline-block;
   white-space: pre-wrap;
   color: #fff;
-  /* Unified White */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* Revealed State (Fade In + Slide Up) */
+/* [Char-level] 글자 단위 술루프 요소 */
+.tr-char {
+  opacity: 0;          /* JS startWordStream이 글자별로 fade-in 제어 */
+  transition: none;    /* JS inline style이 override — CSS는 none */
+  display: inline;     /* word span 안에서 자연스럳게 프로우 */
+}
+
+/* Revealed State */
 .tr-word.revealed {
-  opacity: 1 !important;
-  transform: translateY(0);
+  opacity: 1;
 }
 
 /* Read State (Gaze Hit) - Minimal Feedback Only */

@@ -18,9 +18,18 @@ export class CalibrationManager {
             maxWaitTimer: null,
             progressWatchdog: null,
             inFailPopup: false,
+            isBossMode: false,
         };
         this.seeso = null; // SDK reference stored on bindTo()
         this.rotationAngle = 0;
+        this.bossImg = new Image();
+        this.bossImg.src = './ink_shadow_boss.png';
+        // [BossCAL] Preload explosion image at construction so it's ready when needed
+        this.bombPangImg = new Image();
+        this.bombPangImg.src = './bombpang.png';
+        // [BossCAL] Snapshot of completed-point coords for explosion animation
+        // { x, y, startTime } — independent of state.point to avoid overwrite race
+        this.explosion = null;
     }
 
     // ─── Reset ────────────────────────────────────────────────────────────────
@@ -32,10 +41,13 @@ export class CalibrationManager {
         this.state.isFinishing = false;
         this.state.running = false;
         this.state.inFailPopup = false;
+        this.state.isBossMode = false;
         if (this.state.watchdogTimer) clearTimeout(this.state.watchdogTimer);
         if (this.state.safetyTimer) clearTimeout(this.state.safetyTimer);
         if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
         if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
+        // [BossCAL] Bug1 Fix: Clear stale explosion so it doesn't render before first villain
+        this.explosion = null;
     }
 
     // ─── Face Check ───────────────────────────────────────────────────────────
@@ -214,6 +226,18 @@ export class CalibrationManager {
         // We show the actual point + instruction + OK button, but do NOT auto-collect.
         if (typeof seeso.addCalibrationNextPointCallback === "function") {
             seeso.addCalibrationNextPointCallback((x, y) => {
+                // [BossCAL] Bug2 Fix: Snapshot PREVIOUS point BEFORE overwriting state.point.
+                // SDK fires onCalibrationNextPoint(N+1) BEFORE progress=1.0 for point N,
+                // so the only safe window to capture point N's coords is right here.
+                // pointCount >= 1 guards against snapshotting on the very first point
+                // (there is no previous point to explode at).
+                if (this.state.isBossMode && this.state.point && (this.state.pointCount || 0) >= 1) {
+                    this.explosion = {
+                        x: this.state.point.x,
+                        y: this.state.point.y,
+                        startTime: performance.now()
+                    };
+                }
                 this.state.isFinishing = false;
                 this.state.pointCount = (this.state.pointCount || 0) + 1;
 
@@ -230,7 +254,24 @@ export class CalibrationManager {
 
                 logI("cal", `onCalibrationNextPoint (#${this.state.pointCount}) x=${x} y=${y} → waiting for OK`);
 
-                // ── Show instruction text ──
+                // ── BOss Mode Auto-Advance ──
+                if (this.state.isBossMode) {
+                    // Start collecting automatically after 800ms to allow eye movement
+                    this.state.watchdogTimer = setTimeout(() => {
+                        this.state.running = true;
+                        this.startCollection();
+                        try {
+                            if (typeof seeso.startCollectSamples === "function") {
+                                seeso.startCollectSamples();
+                            }
+                        } catch (e) {
+                            logE("cal", "SDK startCollectSamples threw error", e);
+                        }
+                    }, 800);
+                    return; // Skip drawing default buttons
+                }
+
+                // ── Show instruction text (Standard Mode) ──
                 const statusEl = document.getElementById("calibration-status");
                 if (statusEl) {
                     statusEl.textContent = "Look at the dot and press OK to start.";
@@ -299,6 +340,9 @@ export class CalibrationManager {
                 setState("cal", `running (${pct}%)`);
 
                 if (progress >= 1.0) {
+                    // [BossCAL] Bug2 Fix: Snapshot moved to onCalibrationNextPoint (above).
+                    // Reason: SDK fires NextPoint BEFORE progress=1.0,
+                    // so state.point is already the NEXT point's coords by the time we get here.
                     if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
                     if (this.state.maxWaitTimer) clearTimeout(this.state.maxWaitTimer);
                 }
@@ -317,7 +361,23 @@ export class CalibrationManager {
                 if (this.state.progressWatchdog) clearInterval(this.state.progressWatchdog);
 
                 this.state.isFinishing = true;
-                this.finishSequence();
+
+                // [BossCAL] Bug3 Fix: 5th point has no onCalibrationNextPoint after it,
+                // so the explosion snapshot must happen here.
+                // state.point = null immediately to stop villain rendering during explosion.
+                // Delay finishSequence by 650ms so the RAF loop can animate the explosion.
+                // (finishSequence calls stopCalibrationLoop → RAF stops → no more renders)
+                if (this.state.isBossMode && this.state.point) {
+                    this.explosion = {
+                        x: this.state.point.x,
+                        y: this.state.point.y,
+                        startTime: performance.now()
+                    };
+                    this.state.point = null; // Villain disappears immediately; explosion renders alone
+                    setTimeout(() => this.finishSequence(), 650);
+                } else {
+                    this.finishSequence();
+                }
             });
             logI("sdk", "addCalibrationFinishCallback bound");
         }
@@ -334,6 +394,9 @@ export class CalibrationManager {
 
         this.ctx.requestRender();
 
+        // [BossCAL] Clear in-flight explosion on finish/abort
+        this.explosion = null;
+
         // [FIX] Mark calibration as finished so heartbeat stops treating this as active calibration.
         // Without this, state.cal stays "running (97%)" forever and heartbeat WARNs every 2s.
         if (typeof this.ctx.setState === 'function') {
@@ -341,7 +404,19 @@ export class CalibrationManager {
         }
 
         const stage = document.getElementById("stage");
-        if (stage) stage.classList.remove("visible");
+        if (stage) {
+            stage.classList.remove("visible");
+            // [FIX] Reset top padding applied during Boss Mode calibration
+            stage.style.top = "";
+            stage.style.height = "";
+        }
+
+        // [FIX-BossCAL] Restore game header hidden at startBossCalibrationUI()
+        const gameHeader = document.querySelector('.game-header');
+        if (gameHeader) {
+            gameHeader.style.opacity = '1';
+            gameHeader.style.pointerEvents = 'auto';
+        }
 
         const calScreen = document.getElementById("screen-calibration");
         if (calScreen) calScreen.style.display = 'none';
@@ -358,14 +433,94 @@ export class CalibrationManager {
 
     // ─── Render ───────────────────────────────────────────────────────────────
     render(ctx, width, height, toCanvasLocalPoint) {
-        // Nothing to draw if in fail popup or no point yet
+        // Nothing to draw if in fail popup
         if (this.state.inFailPopup) return;
+
+        // ── Explosion Render (bombpang.png) ──
+        // Must be ABOVE the state.point null-guard so it keeps rendering
+        // during the 650ms window after the 5th point completes (state.point = null at that point).
+        // Also handles points 1-4 while the villain has already moved to the next position.
+        if (this.state.isBossMode && this.explosion
+            && this.bombPangImg && this.bombPangImg.complete && this.bombPangImg.width > 0) {
+            const EXPLOSION_DURATION = 600; // ms
+            const elapsed = performance.now() - this.explosion.startTime;
+            if (elapsed < EXPLOSION_DURATION) {
+                const t = elapsed / EXPLOSION_DURATION;   // 0 → 1
+                // Scale: 0.8 → 1.5 (grows outward), alpha: 1.0 → 0 (fades out)
+                const expScale = 0.8 + t * 0.7;
+                const alpha = 1.0 - t;
+                const VILLAIN_BASE_W = 120;
+                const expW = VILLAIN_BASE_W * 1.5;        // 180px
+                const expH = (expW / this.bombPangImg.width) * this.bombPangImg.height;
+
+                // Convert snapshot SDK coords → canvas-local coords each frame
+                const ept = toCanvasLocalPoint(this.explosion.x, this.explosion.y)
+                    || this.explosion;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(ept.x, ept.y);
+                ctx.scale(expScale, expScale);
+                ctx.drawImage(this.bombPangImg, -expW / 2, -expH / 2, expW, expH);
+                ctx.restore();
+            } else {
+                this.explosion = null; // Animation complete — discard
+            }
+        }
+
+        // No calibration point to draw — e.g. 5th point completing (explosion-only window)
         if (!this.state.point) return;
 
         const pt = toCanvasLocalPoint(this.state.point.x, this.state.point.y) || this.state.point;
 
 
-        // ── ORB RENDER: always show orb when point is set (running=false → progress=0 slow spin) ──
+        // ── BOss Mode Render ──
+        if (this.state.isBossMode) {
+            const cx = pt.x; const cy = pt.y;
+            const target = this.state.progress || 0;
+            this.state.displayProgress += (target - this.state.displayProgress) * 0.28;
+            const p = this.state.displayProgress;
+
+            // ── Villain Image ──
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Pulsate aggressively based on progress
+            const throb = p > 0 ? Math.sin(performance.now() / 80) * 0.15 * p : 0;
+            const scale = 0.5 + p * 0.4 + throb;
+
+            ctx.scale(scale, scale);
+
+            if (p > 0.05) {
+                ctx.shadowBlur = 30 * p;
+                ctx.shadowColor = `rgba(255, 0, 0, ${p})`;
+            }
+
+            if (this.bossImg && this.bossImg.complete) {
+                const w = 120;
+                const h = (120 / this.bossImg.width) * this.bossImg.height;
+                ctx.drawImage(this.bossImg, -w / 2, -h / 2, w, h);
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            }
+
+            // Draw center crosshair
+            ctx.beginPath();
+            ctx.moveTo(-10, 0); ctx.lineTo(10, 0);
+            ctx.moveTo(0, -10); ctx.lineTo(0, 10);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+            // (Explosion is now rendered at the top of render(), before this block)
+            return;
+        }
+
+        // ── ORB RENDER (Standard Mode): always show orb when point is set (running=false → progress=0 slow spin) ──
         const target = this.state.progress || 0;
         if (target === 0) {
             this.state.displayProgress = 0;

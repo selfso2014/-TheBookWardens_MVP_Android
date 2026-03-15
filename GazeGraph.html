@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>GazeGraph — Pang Event Analysis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Chart.js + Annotation Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="./js/firebase-config.js"></script>
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --red: #f85149;
+            --orange: #d29922;
+            --purple: #bc8cff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        h2 {
+            font-size: 1.0rem;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        h3 {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 9px 12px;
+            font-size: 0.95rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        button {
+            padding: 9px 18px;
+            font-size: 0.9rem;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        button.ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        button.ghost:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #status {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        #status b {
+            color: var(--green);
+        }
+
+        #sessionList {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        #sessionList .session-btn {
+            background: #21262d;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        #sessionList .session-btn:hover {
+            border-color: var(--accent);
+        }
+
+        #healthReport {
+            display: none;
+            border-left: 4px solid var(--border);
+            padding-left: 14px;
+        }
+
+        #healthReport.good {
+            border-color: var(--green);
+        }
+
+        #healthReport.warn {
+            border-color: var(--orange);
+        }
+
+        #healthReport.crit {
+            border-color: var(--red);
+        }
+
+        canvas {
+            max-height: 500px;
+            width: 100% !important;
+        }
+
+        .legend-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .legend-line {
+            width: 18px;
+            height: 2px;
+            flex-shrink: 0;
+        }
+
+        #pang-table-section {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th {
+            background: #21262d;
+            color: var(--muted);
+            padding: 7px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #21262d;
+        }
+
+        tr:hover td {
+            background: #21262d;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tag-pang {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--red);
+        }
+
+        .tag-peak {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--orange);
+        }
+
+        .tag-val {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--green);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── HEADER ── -->
+    <div class="card">
+        <h1>👁️ GazeGraph — Pang Event Analysis</h1>
+        <p style="color:var(--muted); font-size:0.85rem; margin-top:4px;">
+            Pang 이벤트 발생 시점 · rawX 범위 · Peak/Valley · 줄 전환 타이밍을 한 눈에 확인
+        </p>
+
+        <div class="input-row" style="margin-top:14px;">
+            <input type="text" id="sessionIdInput" placeholder="Session ID (e.g. A1B2)">
+            <button onclick="connectSession()">Connect</button>
+        </div>
+        <div id="status">대기 중...</div>
+
+        <h3 style="margin-top:16px;">🕒 Recent Sessions</h3>
+        <div id="sessionList">Loading...</div>
+    </div>
+
+    <!-- ── HEALTH ── -->
+    <div id="healthReport" class="card"></div>
+
+    <!-- ── MAIN CHART ── -->
+    <div id="dashboard" style="display:none;">
+
+        <div class="card">
+            <h2>📊 Pang Event Detail — rawX · velX · Peak · Valley · Line Range</h2>
+
+            <div class="legend-row">
+                <div class="legend-item">
+                    <div class="legend-line" style="background:#888;"></div> rawX (gray)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:#4488ff; height:3px;"></div> velX (blue)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#ff9900;"></div> Peak ▲
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#44dd66;"></div> Valley ▼
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#ff4444;"></div> Actual Pang ★
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:#00aa44; border-top: 2px dashed #00aa44; height:0;">
+                    </div> Line xMin
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:#cc2222; border-top: 2px dashed #cc2222; height:0;">
+                    </div> Line xMax
+                </div>
+                <div class="legend-item" style="font-size:0.72rem;">
+                    <span style="background:rgba(100,100,255,0.12); border:1px solid rgba(100,100,255,0.3);
+                             padding:1px 6px; border-radius:3px; color:var(--muted);">L N 박스 = 줄 점유 구간</span>
+                </div>
+            </div>
+
+            <canvas id="chart7"></canvas>
+        </div>
+
+        <!-- ── PANG TABLE ── -->
+        <div class="card">
+            <h2>📋 Pang Events Detail Table</h2>
+            <div id="pang-table-section">
+                <p style="color:var(--muted);">데이터 로드 중...</p>
+            </div>
+        </div>
+
+        <!-- ── LINE TABLE ── -->
+        <div class="card">
+            <h2>📐 Line Time Ranges & X Bands</h2>
+            <div id="line-table-section">
+                <p style="color:var(--muted);">데이터 로드 중...</p>
+            </div>
+        </div>
+
+        <!-- ── REPLAY SEGMENT CHART ── -->
+        <div class="card">
+            <h2>🔄 Replay Segment Map — 팡 기반 리플레이 구간 시각화</h2>
+            <p style="color:var(--muted); font-size:0.8rem; margin-bottom:8px;">
+                각 팡 이벤트가 참조하는 세그먼트(시간 구간), sourceMinX/sourceMaxX (읽기 범위),<br>
+                실제 시선 위치(gx)와 lineIndex를 한 눈에 확인
+            </p>
+            <canvas id="chartReplay"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+        // ─────────────────────────────────────────────
+        //  GLOBAL STATE
+        // ─────────────────────────────────────────────
+        let chart7 = null;
+        let currentData = [];
+        let currentMeta = {};
+        let currentPangLog = [];
+        let currentReplaySegments = null;  // Firebase에서 로드된 실제 리플레이 세그먼트  // from Firebase sessions/{id}/pangLogs (all paras)
+
+        // ─────────────────────────────────────────────
+        //  FIREBASE INIT
+        // ─────────────────────────────────────────────
+        try {
+            if (window.firebase && window.FIREBASE_CONFIG && !firebase.apps.length) {
+                firebase.initializeApp(window.FIREBASE_CONFIG);
+            }
+        } catch (e) { console.error('[GazeGraph] Firebase Init:', e); }
+
+        window.onload = function () {
+            // ── Firebase 상태 확인 ──────────────────────────────────────────
+            if (!window.firebase) {
+                setStatus('<span style="color:var(--red)">❌ Firebase SDK 로드 실패 (CDN 연결 확인)</span>'); return;
+            }
+            if (!window.FIREBASE_CONFIG) {
+                setStatus('<span style="color:var(--red)">❌ firebase-config.js 로드 실패 (경로 확인)</span>'); return;
+            }
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+            } catch (e) {
+                setStatus(`<span style="color:var(--red)">❌ Firebase 초기화 오류: ${e.message}</span>`); return;
+            }
+
+            // goOnline() — 이전 goOffline() 잔류 상태 해소
+            try { firebase.database().goOnline(); } catch (_) { }
+
+            setStatus('🔌 Firebase 연결 중...');
+            loadRecentSessions();
+        };
+
+        // ─────────────────────────────────────────────
+        //  RECENT SESSIONS
+        // ─────────────────────────────────────────────
+        async function loadRecentSessions() {
+            const listEl = document.getElementById('sessionList');
+            listEl.innerHTML = '<span style="color:var(--muted)">🔄 최근 세션 조회 중...</span>';
+
+            const BASE = 'https://graphdebug-2c507-default-rtdb.firebaseio.com';
+
+            try {
+                // session_list에서 timestamp 기준 최근 10개 (REST query)
+                const url = `${BASE}/session_list.json?orderBy="timestamp"&limitToLast=10`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (!data) {
+                    listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
+                    setStatus('⚠️ 세션 없음');
+                    return;
+                }
+
+                // 각 세션의 chunks 존재 여부 확인
+                const keys = Object.keys(data);
+                const items = await Promise.all(keys.map(async (key) => {
+                    const meta = data[key] || {};
+                    try {
+                        const structRes = await fetch(`${BASE}/sessions/${key}.json?shallow=true`);
+                        const struct = await structRes.json();
+                        const hasChunks = !!(struct?.chunks || struct?.data);
+                        return {
+                            key,
+                            meta,
+                            ts: meta.timestamp || 0,
+                            samples: meta.totalSamples ?? 0,
+                            hasChunks
+                        };
+                    } catch (_) {
+                        return { key, meta, ts: meta.timestamp || 0, samples: meta.totalSamples ?? 0, hasChunks: false };
+                    }
+                }));
+
+                renderSessionButtons(listEl, items);
+                setStatus(`✅ 연결됨 (${keys.length}개 세션)`);
+            } catch (e) {
+                listEl.innerHTML = `<p style="color:var(--red)">❌ 세션 목록 오류: ${e.message}</p>`;
+                setStatus(`<span style="color:var(--red)">❌ ${e.message}</span>`);
+            }
+        }
+
+        function renderSessionButtons(listEl, items) {
+            listEl.innerHTML = '';
+            // 데이터 있는 세션 우선, 그 다음 최신순
+            items.sort((a, b) => {
+                if (a.hasChunks !== b.hasChunks) return a.hasChunks ? -1 : 1;
+                return b.ts - a.ts;
+            });
+            items.slice(0, 25).forEach(item => {
+                const d = item.ts ? new Date(item.ts) : null;
+                const time = d ? `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString()}` : '?';
+                const agent = getDeviceName(item.meta?.userAgent || '');
+                const label = item.hasChunks
+                    ? `<span style="color:var(--green)">✅ ${item.samples}pts</span>`
+                    : `<span style="color:var(--muted)">${item.samples}pts</span>`;
+                const btn = document.createElement('button');
+                btn.className = 'session-btn';
+                if (item.hasChunks) btn.style.borderColor = 'var(--green)';
+                btn.innerHTML = `<b>${item.key}</b><br><small>${time} · ${agent} · ${label}</small>`;
+                btn.onclick = () => loadSession(item.key);
+                listEl.appendChild(btn);
+            });
+            if (items.length === 0) {
+                listEl.innerHTML = '<p style="color:var(--muted)">No sessions found.</p>';
+            }
+        }
+
+        function getDeviceName(ua) {
+            if (/Android/i.test(ua)) return '📱 Android';
+            if (/iPhone|iPad/i.test(ua)) return '📱 iOS';
+            if (/Windows/i.test(ua)) return '💻 PC';
+            return '🖥️ Unknown';
+        }
+
+        function connectSession() {
+            const id = document.getElementById('sessionIdInput').value.trim();
+            if (id) loadSession(id);
+        }
+
+        // ─────────────────────────────────────────────
+        //  SESSION LOAD
+        // ─────────────────────────────────────────────
+        function loadSession(sessionId) {
+            document.getElementById('sessionIdInput').value = sessionId;
+            setStatus(`🔄 [${sessionId}] 연결 중...`);
+
+            currentData = [];
+            currentMeta = {};
+            currentPangLog = [];
+            currentReplaySegments = null;
+
+            let db;
+            try {
+                db = firebase.database();
+                db.goOnline();
+            } catch (e) {
+                setStatus(`<span style="color:var(--red)">❌ DB 오류: ${e.message}</span>`);
+                return;
+            }
+
+            const ref = db.ref('sessions/' + sessionId);
+            ref.off();  // 이전 리스너 해제
+
+            // ① Meta
+            ref.child('meta').on('value', snap => {
+                const val = snap.val();
+                if (!val) {
+                    setStatus(`<span style="color:var(--orange)">⚠️ [${sessionId}] meta 없음 — 세션 ID 확인</span>`);
+                    return;
+                }
+                currentMeta = val;
+                if (currentData.length > 0) processAndRender();
+            }, err => {
+                setStatus(`<span style="color:var(--red)">❌ meta 오류: ${err.code} — ${err.message}</span>`);
+            });
+
+            // 【진단】 세션 전체 구조를 한 번 읽어서 상태 안내
+            ref.once('value', snap => {
+                const full = snap.val();
+                if (!full) {
+                    setStatus(`<span style="color:var(--red)">❌ [${sessionId}] 세션 없음 — ID 확인</span>`);
+                    return;
+                }
+                const keys = Object.keys(full);
+                console.log(`[GazeGraph] Session keys: ${keys.join(', ')}`);
+                if (!full.chunks && !full.data) {
+                    setStatus(`<span style="color:var(--orange)">
+                        ⚠️ [${sessionId}] gaze 데이터 없음 (totalSamples: ${full.meta?.totalSamples ?? '?'})<br>
+                        👉 Android에서 지문 읽기 → 소형빌런 등장까지 진행하면 자동 업로드됩니다.
+                    </span>`);
+                }
+                // [FIX] 옛 형식: data 키에 배열로 직접 저장된 경우 (chunks 대신)
+                if (full.data && !full.chunks) {
+                    let arr = full.data;
+                    if (!Array.isArray(arr)) arr = Object.values(arr);
+                    if (arr.length > 0) {
+                        currentData = arr;
+                        setStatus(`✅ <b>${currentData.length}</b> samples (data 형식) — [${sessionId}]`);
+                        processAndRender();
+                    }
+                }
+            });
+
+            // ② Gaze chunks (incremental) — 새 형식
+            ref.child('chunks').on('child_added', snap => {
+                const chunk = snap.val();
+                if (Array.isArray(chunk)) {
+                    currentData = currentData.concat(chunk);
+                    setStatus(`✅ <b>${currentData.length}</b> samples — [${sessionId}]`);
+                    processAndRender();
+                }
+            }, err => {
+                setStatus(`<span style="color:var(--red)">❌ chunks 오류: ${err.code} — ${err.message}</span>`);
+            });
+
+            // ③ PangLogs — sessions/{id}/pangLogs/{paraIndex}
+            ref.child('pangLogs').on('value', snap => {
+                const val = snap.val();
+                if (!val) {
+                    // pangLogs 없는 것은 오래된 세션이거나 아직 플레이 안 함. 오류 아님.
+                    console.log('[GazeGraph] pangLogs not found — using didFire fallback.');
+                    return;
+                }
+                currentPangLog = [];
+                Object.keys(val).sort((a, b) => Number(a) - Number(b)).forEach(paraIdx => {
+                    const arr = val[paraIdx];
+                    if (Array.isArray(arr)) {
+                        arr.forEach(p => currentPangLog.push({ ...p, paraIndex: Number(paraIdx) }));
+                    }
+                });
+                if (currentData.length > 0) processAndRender();
+            }, err => {
+                console.warn('[GazeGraph] pangLogs error:', err.message);
+                // 오류여도 didFire fallback으로 계속 진행
+            });
+
+            // ④ ReplaySegments — sessions/{id}/replaySegments
+            ref.child('replaySegments').on('value', snap => {
+                const val = snap.val();
+                if (val) {
+                    currentReplaySegments = Array.isArray(val) ? val : Object.values(val);
+                    console.log(`[GazeGraph] Loaded ${currentReplaySegments.length} replaySegments`);
+                    if (currentData.length > 0) processAndRender();
+                } else {
+                    currentReplaySegments = null;
+                    console.log('[GazeGraph] replaySegments not found — will compute locally');
+                }
+            });
+        }
+
+        function setStatus(html) {
+            document.getElementById('status').innerHTML = html;
+        }
+
+        // ─────────────────────────────────────────────
+        //  MAIN PROCESSING PIPELINE
+        // ─────────────────────────────────────────────
+        function processAndRender() {
+            if (!currentData || currentData.length < 2) return;
+
+            // ── Normalize field names (line vs lineIndex) ──────────────────────────
+            const raw = currentData.map(d => ({
+                ...d,
+                t: Number(d.t ?? 0),
+                x: Number(d.x ?? 0),
+                y: Number(d.y ?? 0),
+                vx: Number(d.vx ?? 0),
+                gx: d.gx !== undefined ? Number(d.gx) : Number(d.x ?? 0),
+                // stored as 'line' in new format, 'lineIndex' in old format
+                lineIndex: (d.line !== undefined ? d.line : d.lineIndex),
+                didFire: d.didFire || false,
+                rsType: d.rsTriggerType || d.rsState || null,
+                simPeak: null,
+                simValley: null,
+                simTrigger: false,
+                simGLI: 0
+            }));
+
+            // ── Filter: 지문 시작 시점 이후만 표시 ────────────────────────────────
+            // firstContentTime이 있으면 그 시점, 없으면 lineIndex >= 0인 최초 시점
+            let contentStart = currentMeta?.firstContentTime || 0;
+            if (!contentStart) {
+                const firstLinePoint = raw.find(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0);
+                contentStart = firstLinePoint ? firstLinePoint.t : 0;
+            }
+            const filtered = contentStart > 0 ? raw.filter(d => d.t >= contentStart) : raw;
+            if (filtered.length < 2) { console.warn('[GazeGraph] No data after contentStart'); return; }
+            // t를 상대 시간으로 변환 (0ms부터 시작)
+            if (contentStart > 0) {
+                filtered.forEach(d => { d.t -= contentStart; });
+            }
+
+            // ── Health Check ────────────────────────────────────────────────────────
+            doHealthCheck(filtered);
+
+            // ── Step 0: Simulation (Peak / Valley / Trigger / GLI) ─────────────────
+            runSimulation(filtered);
+
+            // ── Step A: Line time ranges ────────────────────────────────────────────
+            // lineRanges[N] = { start: t, end: t }
+            const lineRanges = {};
+            filtered.forEach(d => {
+                const N = d.lineIndex;
+                if (typeof N !== 'number' || N < 0) return;
+                if (!lineRanges[N]) lineRanges[N] = { start: d.t, end: d.t };
+                else {
+                    if (d.t < lineRanges[N].start) lineRanges[N].start = d.t;
+                    if (d.t > lineRanges[N].end) lineRanges[N].end = d.t;
+                }
+            });
+
+            // ── Step B: Pang event list ─────────────────────────────────────────────
+            // Primary: use pangLog uploaded from Firebase  (most accurate)
+            // Fallback: derive from didFire in gaze data
+            let pangEvents = [];
+
+            if (currentPangLog.length > 0) {
+                pangEvents = currentPangLog.map(p => ({
+                    t_pang: Number(p.t) - contentStart,
+                    targetLine: Number(p.line),
+                    type: p.type || 'Immediate',
+                    vx: Number(p.vx ?? 0),
+                    paraIndex: p.paraIndex ?? 0,
+                    source: 'pangLog'
+                }));
+            } else {
+                // Fallback: derive from didFire flag on gaze data
+                filtered.forEach(d => {
+                    if (!d.didFire && !d.rsType) return;
+                    const N = typeof d.lineIndex === 'number' && d.lineIndex > 0
+                        ? d.lineIndex - 1
+                        : 0;
+                    pangEvents.push({
+                        t_pang: d.t,
+                        targetLine: N,
+                        type: d.rsType || 'Recorded',
+                        vx: d.vx ?? 0,
+                        paraIndex: d.pIdx ?? 0,
+                        source: 'didFire'
+                    });
+                });
+            }
+            pangEvents.sort((a, b) => a.t_pang - b.t_pang);
+
+            // ── Step C: xMin / xMax per line (팡 이전의 첫 읽기 구간만) ────────────
+            // 각 라인 N의 팡 시점을 찾아 그 이전 데이터만으로 xMin/xMax 계산
+            // → 리플레이 시 순수한 첫 독서 궤적의 좌우 범위
+            const pangTimeForLine = {};  // pangTimeForLine[N] = 라인 N의 첫 팡 시점
+            pangEvents.forEach(pe => {
+                const N = pe.targetLine;
+                if (pangTimeForLine[N] === undefined || pe.t_pang < pangTimeForLine[N]) {
+                    pangTimeForLine[N] = pe.t_pang;
+                }
+            });
+
+            const xMin = {}, xMax = {};
+            filtered.forEach(d => {
+                const N = d.lineIndex;
+                if (typeof N !== 'number' || N < 0) return;
+                // 팡 이전 데이터만 사용 (팡 없으면 전체 사용)
+                if (pangTimeForLine[N] !== undefined && d.t > pangTimeForLine[N]) return;
+                const gx = d.gx;
+                if (xMin[N] === undefined || gx < xMin[N]) xMin[N] = gx;
+                if (xMax[N] === undefined || gx > xMax[N]) xMax[N] = gx;
+            });
+
+            // 팡 없는 줄 중 xMin이 없으면 전체 데이터로 fallback
+            filtered.forEach(d => {
+                const N = d.lineIndex;
+                if (typeof N !== 'number' || N < 0) return;
+                if (xMin[N] !== undefined) return;  // 이미 계산됨
+                const gx = d.gx;
+                if (xMin[N] === undefined || gx < xMin[N]) xMin[N] = gx;
+                if (xMax[N] === undefined || gx > xMax[N]) xMax[N] = gx;
+            });
+
+            // ── Step D: Per-data-point band series ────────────────────────────────
+            const xMinSeries = filtered.map(d => {
+                const N = d.lineIndex;
+                return (typeof N === 'number' && N >= 0 && xMin[N] !== undefined) ? xMin[N] : null;
+            });
+            const xMaxSeries = filtered.map(d => {
+                const N = d.lineIndex;
+                return (typeof N === 'number' && N >= 0 && xMax[N] !== undefined) ? xMax[N] : null;
+            });
+
+            // ── Step E: Line transition timestamps ────────────────────────────────
+            const lineTransitions = [];
+            for (let i = 1; i < filtered.length; i++) {
+                const prev = filtered[i - 1].lineIndex;
+                const curr = filtered[i].lineIndex;
+                if (typeof prev === 'number' && typeof curr === 'number' && curr !== prev) {
+                    lineTransitions.push({ t: filtered[i].t, fromLine: prev, toLine: curr });
+                }
+            }
+
+            // ── Render ─────────────────────────────────────────────────────────────
+            renderChart7(filtered, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax);
+            renderPangTable(pangEvents, xMin, xMax, lineRanges);
+            renderLineTable(lineRanges, xMin, xMax, pangEvents);
+            renderReplayChart(filtered, pangEvents, xMin, xMax, lineRanges, currentReplaySegments, contentStart);
+
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        // ─────────────────────────────────────────────
+        //  SIMULATION (Peak / Valley / simTrigger / GLI)
+        // ─────────────────────────────────────────────
+        function runSimulation(data) {
+            let lastPosPeakTime = 0;
+            let lastTriggerTime = 0;
+            let simGLI = 0;
+            let firstContentIdx = -1;
+
+            for (let k = 0; k < data.length; k++) {
+                if (typeof data[k].lineIndex === 'number' && data[k].lineIndex >= 0) {
+                    firstContentIdx = k;
+                    simGLI = data[k].lineIndex;
+                    break;
+                }
+            }
+
+            const getSX = i => {
+                const d = data[Math.max(0, Math.min(data.length - 1, i))];
+                return d.gx !== undefined ? d.gx : d.x;
+            };
+
+            for (let i = 2; i < data.length; i++) {
+                const d0 = data[i], d1 = data[i - 1], d2 = data[i - 2];
+                if (firstContentIdx >= 0 && i < firstContentIdx) { d0.simGLI = 0; continue; }
+
+                const sx0 = getSX(i), sx1 = getSX(i - 1), sx2 = getSX(i - 2);
+                const v0 = d0.vx || 0, v1 = d1.vx || 0, v2 = d2.vx || 0;
+
+                // Peak detect
+                const isPosPeak = sx1 >= sx2 && sx1 > sx0;
+                const isVelZeroCross = v1 >= 0 && v0 < 0;
+                if (isPosPeak || isVelZeroCross) {
+                    lastPosPeakTime = d1.t;
+                    d1.simPeak = sx1;
+                }
+
+                // Valley detect
+                const isValley = v2 > v1 && v1 < v0;
+                const isDeep = v1 < -0.4;
+                if (isValley && isDeep) {
+                    d1.simValley = v1;
+                    const timeSincePeak = d1.t - lastPosPeakTime;
+                    if (Math.abs(timeSincePeak) < 600 && d0.t - lastTriggerTime >= 800) {
+                        if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0) {
+                            if (simGLI < d0.lineIndex) {
+                                d0.simTrigger = true;
+                                simGLI++;
+                                lastTriggerTime = d0.t;
+                                lastPosPeakTime = 0;
+                            }
+                        }
+                    }
+                }
+
+                // Downward sync
+                if (typeof d0.lineIndex === 'number' && d0.lineIndex >= 0 && simGLI > d0.lineIndex) {
+                    simGLI = d0.lineIndex;
+                }
+                d0.simGLI = simGLI;
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        //  HEALTH CHECK
+        // ─────────────────────────────────────────────
+        function doHealthCheck(data) {
+            let reversals = 0, gaps = 0, maxGap = 0, sumGap = 0;
+            for (let i = 1; i < data.length; i++) {
+                const dt = data[i].t - data[i - 1].t;
+                if (dt < 0) reversals++;
+                if (dt > 100) gaps++;
+                if (dt > maxGap) maxGap = dt;
+                sumGap += dt;
+            }
+            const avg = sumGap / (data.length - 1);
+            const hz = avg > 0 ? (1000 / avg).toFixed(1) : 0;
+            let cls = 'good', label = 'GOOD';
+            if (reversals > 0 || gaps > data.length * 0.1) { cls = 'warn'; label = 'WARNING'; }
+            if (avg > 100) { cls = 'crit'; label = 'CRITICAL'; }
+
+            const el = document.getElementById('healthReport');
+            el.style.display = 'block';
+            el.className = cls;
+            el.innerHTML = `
+        <span style="font-weight:700; color:${cls === 'good' ? 'var(--green)' : cls === 'warn' ? 'var(--orange)' : 'var(--red)'}">
+            🩺 ${label}
+        </span>
+        &nbsp;|&nbsp; Hz: <b>${hz}</b>
+        &nbsp;|&nbsp; Max Gap: <b>${maxGap}ms</b>
+        &nbsp;|&nbsp; Samples: <b>${data.length}</b>
+        &nbsp;|&nbsp; Time Reversals: <b>${reversals}</b>
+    `;
+        }
+
+        // ─────────────────────────────────────────────
+        //  CHART 7 — PANG DETAIL
+        // ─────────────────────────────────────────────
+        function renderChart7(data, pangEvents, xMinSeries, xMaxSeries, lineRanges, lineTransitions, xMin, xMax) {
+            if (chart7) chart7.destroy();
+
+            const labels = data.map(d => d.t);
+
+            // ── Dataset 1a: rawX — 원본 시선 X (연한 회색) ──────────────────────────
+            const ds_rawX = {
+                label: 'rawX (원본)',
+                data: data.map(d => d.x),
+                borderColor: 'rgba(160,160,160,0.35)',
+                borderWidth: 1,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 11
+            };
+
+            // ── Dataset 1b: gx — 가우시안 스무딩된 X (노란색) ────────────────────────
+            const ds_gx = {
+                label: 'gx (스무딩)',
+                data: data.map(d => d.gx !== undefined ? d.gx : d.x),
+                borderColor: 'rgba(255,200,50,0.85)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 10
+            };
+
+            // ── Dataset 2: velX (blue fill) ───────────────────────────────────────
+            const ds_velX = {
+                label: 'velX',
+                data: data.map(d => d.vx),
+                borderColor: '#4488ff',
+                backgroundColor: 'rgba(68,136,255,0.12)',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                yAxisID: 'yVel',
+                order: 9
+            };
+
+            // ── Dataset 3: Sim Peak (orange ▲) ────────────────────────────────────
+            const ds_peak = {
+                label: 'Sim Peak ▲',
+                data: data.map(d => d.simPeak !== null ? d.simPeak : null),
+                type: 'scatter',
+                pointStyle: 'triangle',
+                radius: 7,
+                backgroundColor: '#ff9900',
+                borderColor: '#ff9900',
+                yAxisID: 'yPos',
+                order: 3
+            };
+
+            // ── Dataset 4: Sim Valley (green ▼) ──────────────────────────────────
+            const ds_valley = {
+                label: 'Sim Valley ▼',
+                data: data.map(d => d.simValley !== null ? d.simValley : null),
+                type: 'scatter',
+                pointStyle: 'triangle',
+                rotation: 180,
+                radius: 7,
+                backgroundColor: '#44dd66',
+                borderColor: '#44dd66',
+                yAxisID: 'yVel',
+                order: 3
+            };
+
+            // ── Dataset 5: Actual Pang ★ ──────────────────────────────────────────
+            // Plot at gaze X position at pang timestamp — build as scatter by matching t_pang to data
+            const pangScatter = pangEvents.map(pe => {
+                const closest = data.reduce((best, d) =>
+                    Math.abs(d.t - pe.t_pang) < Math.abs((best?.t ?? Infinity) - pe.t_pang) ? d : best, null);
+                return closest ? { x: pe.t_pang, y: closest.gx !== undefined ? closest.gx : closest.x } : null;
+            }).filter(Boolean);
+
+            const ds_pang = {
+                label: 'Actual Pang ★',
+                data: pangScatter,
+                type: 'scatter',
+                pointStyle: 'star',
+                radius: 12,
+                backgroundColor: '#ff4444',
+                borderColor: '#ff4444',
+                yAxisID: 'yPos',
+                order: 1
+            };
+
+            // ── Dataset 6: Line xMin (초록 실선 — 극소값) ──────────────────────────
+            const ds_xMin = {
+                label: 'Line xMin (극소)',
+                data: xMinSeries,
+                borderColor: '#3fb950',
+                borderDash: [],             // 실선
+                borderWidth: 2,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 7
+            };
+
+            // ── Dataset 7: Line xMax (빨강 긴점선 — 극대값) ────────────────────────
+            const ds_xMax = {
+                label: 'Line xMax (극대)',
+                data: xMaxSeries,
+                borderColor: '#f85149',
+                borderDash: [10, 4],        // 긴 점선
+                borderWidth: 2,
+                pointRadius: 0,
+                yAxisID: 'yPos',
+                order: 8
+            };
+
+            // ── Dataset 8/9: gx 곡선의 로컬 극대/극소 마커 ─────────────────
+            const gxLocalMax = [];  // { x: t, y: gx }
+            const gxLocalMin = [];
+            const W = 5; // 창 크기 (앞뒤 5개 샘플 내 최대/최소)
+            for (let i = W; i < data.length - W; i++) {
+                const gx = data[i].gx !== undefined ? data[i].gx : data[i].x;
+                if (gx == null) continue;
+                let isMax = true, isMin = true;
+                for (let j = i - W; j <= i + W; j++) {
+                    if (j === i) continue;
+                    const other = data[j].gx !== undefined ? data[j].gx : data[j].x;
+                    if (other == null) { isMax = false; isMin = false; break; }
+                    if (other >= gx) isMax = false;
+                    if (other <= gx) isMin = false;
+                }
+                if (isMax) gxLocalMax.push({ x: data[i].t, y: gx });
+                if (isMin) gxLocalMin.push({ x: data[i].t, y: gx });
+            }
+
+            const ds_gxMax = {
+                label: 'gx 극대 ▲',
+                data: gxLocalMax,
+                type: 'scatter',
+                pointStyle: 'rectRot',   // ◆ 다이아몬드
+                radius: 6,
+                backgroundColor: '#f85149',
+                borderColor: '#fff',
+                borderWidth: 1,
+                yAxisID: 'yPos',
+                order: 2
+            };
+
+            const ds_gxMin = {
+                label: 'gx 극소 ▼',
+                data: gxLocalMin,
+                type: 'scatter',
+                pointStyle: 'rectRot',   // ◆ 다이아몬드
+                radius: 6,
+                backgroundColor: '#3fb950',
+                borderColor: '#fff',
+                borderWidth: 1,
+                yAxisID: 'yPos',
+                order: 2
+            };
+
+            // ── Build annotations ─────────────────────────────────────────────────
+            const annotations = {};
+
+            // Box per line: alternating subtle background tint + labels at start
+            const PALETTE = [
+                'rgba(100,100,255,0.07)',
+                'rgba(255,100,100,0.06)',
+                'rgba(100,200,100,0.06)',
+                'rgba(200,200,100,0.06)',
+            ];
+            const lineKeys = Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b));
+            // Y축 범위 계산 (label 배치용)
+            const allGx = data.map(d => d.gx !== undefined ? d.gx : d.x).filter(v => v != null);
+            const yTop = Math.max(...allGx) + 20;
+
+            lineKeys.forEach((N, idx) => {
+                const rng = lineRanges[N];
+                // Background box (no label)
+                annotations[`box_L${N}`] = {
+                    type: 'box',
+                    xMin: rng.start,
+                    xMax: rng.end,
+                    backgroundColor: PALETTE[idx % PALETTE.length],
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    z: -1
+                };
+                // Label at start point — Y position staggered to avoid overlap
+                const yPos = yTop - (idx % 4) * 25;
+                annotations[`lbl_L${N}`] = {
+                    type: 'label',
+                    xValue: rng.start + (rng.end - rng.start) * 0.02,
+                    yValue: yPos,
+                    yScaleID: 'yPos',
+                    content: [`L${N} ${Math.round(rng.start)}~${Math.round(rng.end)}ms`],
+                    color: '#e6edf3',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    font: { size: 9, weight: 'bold' },
+                    padding: { x: 4, y: 2 }
+                };
+                // Start vertical line (green)
+                annotations[`lineStart_L${N}`] = {
+                    type: 'line',
+                    xMin: rng.start, xMax: rng.start,
+                    borderColor: 'rgba(63,185,80,0.6)',
+                    borderWidth: 1,
+                    borderDash: [3, 3]
+                };
+                // End vertical line (orange)
+                annotations[`lineEnd_L${N}`] = {
+                    type: 'line',
+                    xMin: rng.end, xMax: rng.end,
+                    borderColor: 'rgba(210,153,34,0.6)',
+                    borderWidth: 1,
+                    borderDash: [3, 3]
+                };
+            });
+
+            // Vertical line per pang event (red dashed)
+            pangEvents.forEach((pe, idx) => {
+                annotations[`pang_v_${idx}`] = {
+                    type: 'line',
+                    xMin: pe.t_pang,
+                    xMax: pe.t_pang,
+                    borderColor: 'rgba(255, 80, 80, 0.85)',
+                    borderDash: [5, 4],
+                    borderWidth: 2,
+                    label: {
+                        content: `🔴 L${pe.targetLine}`,
+                        enabled: true,
+                        position: 'start',
+                        color: '#ff6666',
+                        backgroundColor: 'rgba(0,0,0,0.65)',
+                        font: { size: 9, weight: 'bold' },
+                        padding: { x: 4, y: 2 }
+                    }
+                };
+            });
+
+            // Vertical tick per line transition (subtle blue dashed)
+            lineTransitions.forEach((lt, idx) => {
+                annotations[`trans_${idx}`] = {
+                    type: 'line',
+                    xMin: lt.t,
+                    xMax: lt.t,
+                    borderColor: 'rgba(120, 150, 255, 0.45)',
+                    borderDash: [2, 5],
+                    borderWidth: 1,
+                    label: {
+                        content: `${lt.fromLine}→${lt.toLine}`,
+                        enabled: true,
+                        position: 'end',
+                        color: 'rgba(120,150,255,0.7)',
+                        backgroundColor: 'transparent',
+                        font: { size: 8 }
+                    }
+                };
+            });
+
+            // ── Horizontal bands: rawX Min / Max per line ──────────────────────
+            if (xMin && xMax) {
+                Object.keys(lineRanges).sort((a, b) => Number(a) - Number(b)).forEach(N => {
+                    const rng = lineRanges[N];
+                    if (xMin[N] !== undefined) {
+                        annotations[`hMin_L${N}`] = {
+                            type: 'line',
+                            yMin: xMin[N], yMax: xMin[N],
+                            xMin: rng.start, xMax: rng.end,
+                            yScaleID: 'yPos',
+                            borderColor: 'rgba(0,170,68,0.5)',
+                            borderDash: [4, 3],
+                            borderWidth: 1
+                        };
+                    }
+                    if (xMax[N] !== undefined) {
+                        annotations[`hMax_L${N}`] = {
+                            type: 'line',
+                            yMin: xMax[N], yMax: xMax[N],
+                            xMin: rng.start, xMax: rng.end,
+                            yScaleID: 'yPos',
+                            borderColor: 'rgba(204,34,34,0.5)',
+                            borderDash: [4, 3],
+                            borderWidth: 1
+                        };
+                    }
+                });
+            }
+
+            // ── Create chart ──────────────────────────────────────────────────────
+            chart7 = new Chart(document.getElementById('chart7'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [ds_rawX, ds_gx, ds_velX, ds_peak, ds_valley, ds_pang, ds_xMin, ds_xMax, ds_gxMax, ds_gxMin]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            ticks: { maxTicksLimit: 20, color: '#8b949e', font: { size: 10 } },
+                            grid: { color: 'rgba(48,54,61,0.8)' },
+                            title: { display: true, text: 'Time (ms)', color: '#8b949e' }
+                        },
+                        yPos: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'X Position (px)', color: '#8b949e' },
+                            ticks: { color: '#8b949e' },
+                            grid: { color: 'rgba(48,54,61,0.8)' }
+                        },
+                        yVel: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Velocity (px/ms)', color: '#4488ff' },
+                            ticks: { color: '#4488ff' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#8b949e', boxWidth: 30, font: { size: 11 }, usePointStyle: false }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(22,27,34,0.95)',
+                            titleColor: '#e6edf3',
+                            bodyColor: '#8b949e',
+                            borderColor: '#30363d',
+                            borderWidth: 1,
+                            callbacks: {
+                                title: ctx => `t = ${ctx[0]?.label} ms`
+                            }
+                        },
+                        annotation: { annotations }
+                    }
+                }
+            });
+        }
+
+        // ─────────────────────────────────────────────
+        //  PANG TABLE
+        // ─────────────────────────────────────────────
+        function renderPangTable(pangEvents, xMin, xMax, lineRanges) {
+            const el = document.getElementById('pang-table-section');
+            if (!pangEvents.length) {
+                el.innerHTML = '<p style="color:var(--muted)">팡 이벤트 없음</p>';
+                return;
+            }
+
+            let html = `<table>
+        <thead><tr>
+            <th>#</th>
+            <th>Para</th>
+            <th>Line N</th>
+            <th>t_pang (ms)</th>
+            <th>Type</th>
+            <th>velX at pang</th>
+            <th>Line 시작 t</th>
+            <th>Line 종료 t</th>
+            <th>줄 점유 시간</th>
+            <th>rawX Min</th>
+            <th>rawX Max</th>
+            <th>X 범위 (px)</th>
+            <th>Source</th>
+        </tr></thead><tbody>`;
+
+            pangEvents.forEach((pe, i) => {
+                const N = pe.targetLine;
+                const rng = lineRanges[N] || {};
+                const dur = (rng.start !== undefined && rng.end !== undefined) ? (rng.end - rng.start) : '—';
+                const mn = xMin[N] !== undefined ? Math.round(xMin[N]) : '—';
+                const mx = xMax[N] !== undefined ? Math.round(xMax[N]) : '—';
+                const span = (typeof mn === 'number' && typeof mx === 'number') ? (mx - mn) : '—';
+
+                html += `<tr>
+            <td style="color:var(--muted)">${i + 1}</td>
+            <td>${pe.paraIndex}</td>
+            <td><b>L${N}</b></td>
+            <td><code style="color:var(--orange)">${pe.t_pang}</code></td>
+            <td><span class="tag tag-pang">${pe.type}</span></td>
+            <td style="color:${pe.vx < 0 ? 'var(--green)' : 'var(--muted)'}">
+                ${pe.vx !== undefined ? pe.vx.toFixed(3) : '—'}
+            </td>
+            <td>${rng.start ?? '—'}</td>
+            <td>${rng.end ?? '—'}</td>
+            <td><b>${typeof dur === 'number' ? dur + ' ms' : dur}</b></td>
+            <td style="color:var(--green)">${mn}</td>
+            <td style="color:var(--red)">${mx}</td>
+            <td><b>${typeof span === 'number' ? span + ' px' : span}</b></td>
+            <td style="color:var(--muted); font-size:0.75rem">${pe.source}</td>
+        </tr>`;
+            });
+
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        // ─────────────────────────────────────────────
+        //  REPLAY SEGMENT CHART
+        // ─────────────────────────────────────────────
+        let chartReplay = null;
+
+        function renderReplayChart(data, pangEvents, xMin, xMax, lineRanges, _unused, contentStart) {
+            if (chartReplay) chartReplay.destroy();
+
+            const titleEl = document.getElementById('chartReplay').parentElement.querySelector('h2');
+            const canvas = document.getElementById('chartReplay');
+            const ctx = canvas.getContext('2d');
+
+            if (!pangEvents || pangEvents.length === 0) {
+                document.getElementById('chartReplay').parentElement.style.display = 'none';
+                return;
+            }
+            if (!data || data.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f85149'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('gaze 데이터 없음', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // ── raw gaze + pangLog로 직접 세그먼트 계산 ──
+            // pangLog는 시간순으로 정렬
+            const getGx = (d) => d.gx !== undefined ? d.gx : (d.x !== undefined ? d.x : null);
+            const sortedPangs = [...pangEvents].sort((a, b) => a.t_pang - b.t_pang);
+            const sortedData = [...data].sort((a, b) => a.t - b.t);
+
+            const segments = [];
+            let lastPangT = sortedData.length > 0 ? sortedData[0].t - 1 : 0;
+
+            sortedPangs.forEach((pang, i) => {
+                const pangT = pang.t_pang;
+                const targetLine = pang.targetLine;
+
+                // 이전 팡 ~ 현재 팡 사이의 raw gaze data를 후보로 수집 (d.line 필터 없음)
+                const candidates = sortedData.filter(d => d.t > lastPangT && d.t <= pangT);
+
+                if (candidates.length >= 2) {
+                    // 극소값(읽기 시작): gx 최솟값
+                    let valleyGx = Infinity, valleyT = candidates[0].t;
+                    candidates.forEach(d => { const g = getGx(d); if (g !== null && g < valleyGx) { valleyGx = g; valleyT = d.t; } });
+
+                    // 극대값(읽기 끝): 후반 50%에서 최댓값
+                    const ss = Math.max(0, Math.floor(candidates.length * 0.5));
+                    let peakGx = -Infinity, peakT = candidates[candidates.length - 1].t;
+                    for (let j = candidates.length - 1; j >= ss; j--) {
+                        const g = getGx(candidates[j]);
+                        if (g !== null && g > peakGx) { peakGx = g; peakT = candidates[j].t; }
+                    }
+                    if (peakGx === -Infinity) peakGx = valleyGx;
+
+                    segments.push({
+                        idx: i, targetLine,
+                        segStart: valleyT, segEnd: peakT, pangTime: pangT,
+                        srcMin: valleyGx, srcMax: peakGx,
+                        samples: candidates.length
+                    });
+                }
+                lastPangT = pangT;
+            });
+
+            if (titleEl) titleEl.textContent = `🔄 Replay Segment Map — ✅ Raw Data 직접 (${segments.length}/${sortedPangs.length} 팡)`;
+
+            const labels = sortedData.map(d => d.t);
+            const dataMinT = sortedData[0].t;
+            const dataMaxT = sortedData[sortedData.length - 1].t;
+
+            const ds_gx = {
+                label: 'gx (스무딩)', data: sortedData.map(d => getGx(d)),
+                borderColor: 'rgba(255,200,50,0.8)', borderWidth: 1.5,
+                pointRadius: 0, yAxisID: 'yPos', order: 5
+            };
+            const ds_lineIdx = {
+                label: 'lineIndex',
+                data: sortedData.map(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0 ? d.lineIndex : null),
+                borderColor: 'rgba(100,200,255,0.7)', borderWidth: 2,
+                stepped: 'before', pointRadius: 0, yAxisID: 'yLine', order: 6
+            };
+
+            const annotations = {};
+            const valleyPoints = [], peakPoints = [];
+            const SEG_COLORS = [
+                'rgba(100,150,255,0.15)', 'rgba(255,150,100,0.15)',
+                'rgba(100,255,150,0.15)', 'rgba(255,255,100,0.15)',
+                'rgba(200,100,255,0.15)',
+            ];
+
+            segments.forEach((seg, i) => {
+                const { idx, targetLine, segStart, segEnd, srcMin, srcMax, samples, pangTime } = seg;
+
+                valleyPoints.push({ x: segStart, y: srcMin });
+                peakPoints.push({ x: segEnd, y: srcMax });
+
+                // 구간 박스
+                annotations[`segBox_${i}`] = {
+                    type: 'box', xMin: segStart, xMax: segEnd,
+                    backgroundColor: SEG_COLORS[i % SEG_COLORS.length],
+                    borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, z: -1,
+                    label: {
+                        content: `Seg${idx}→L${targetLine} (${samples}pts)`, display: true,
+                        position: { x: 'center', y: 'start' },
+                        color: '#e6edf3', backgroundColor: 'rgba(0,0,0,0.6)',
+                        font: { size: 9, weight: 'bold' }, padding: { x: 3, y: 1 }
+                    }
+                };
+                // Return Sweep 구간
+                if (pangTime && pangTime > segEnd + 50) {
+                    annotations[`sweep_${i}`] = {
+                        type: 'box', xMin: segEnd, xMax: pangTime,
+                        backgroundColor: 'rgba(128,128,128,0.08)',
+                        borderColor: 'rgba(128,128,128,0.3)', borderWidth: 1, z: -2,
+                        label: {
+                            content: 'Sweep', display: true, position: { x: 'center', y: 'end' },
+                            color: 'rgba(128,128,128,0.6)', font: { size: 7, style: 'italic' }, padding: { x: 2, y: 1 }
+                        }
+                    };
+                }
+                // srcMin 수평선
+                annotations[`srcMin_${i}`] = {
+                    type: 'line', yMin: srcMin, yMax: srcMin, xMin: segStart, xMax: segEnd, yScaleID: 'yPos',
+                    borderColor: '#3fb950', borderWidth: 2,
+                    label: {
+                        content: `min=${Math.round(srcMin)}`, display: true, position: 'start',
+                        color: '#3fb950', backgroundColor: 'rgba(0,0,0,0.6)', font: { size: 8 }, padding: { x: 2, y: 1 }
+                    }
+                };
+                // srcMax 수평선
+                annotations[`srcMax_${i}`] = {
+                    type: 'line', yMin: srcMax, yMax: srcMax, xMin: segStart, xMax: segEnd, yScaleID: 'yPos',
+                    borderColor: '#f85149', borderWidth: 2, borderDash: [8, 4],
+                    label: {
+                        content: `max=${Math.round(srcMax)}`, display: true, position: 'end',
+                        color: '#f85149', backgroundColor: 'rgba(0,0,0,0.6)', font: { size: 8 }, padding: { x: 2, y: 1 }
+                    }
+                };
+                // PANG 수직선
+                annotations[`pangLine_${i}`] = {
+                    type: 'line', xMin: pangTime, xMax: pangTime,
+                    borderColor: '#ff4040', borderWidth: 3, z: 10,
+                    label: {
+                        content: `PANG L${targetLine} @${Math.round(pangTime)}ms`, display: true, position: 'start',
+                        color: '#fff', backgroundColor: 'rgba(255,40,40,0.85)',
+                        font: { size: 10, weight: 'bold' }, padding: { x: 4, y: 2 }
+                    }
+                };
+            });
+
+            const ds_valley = {
+                label: '극소값 (읽기시작)', data: valleyPoints, type: 'scatter',
+                pointStyle: 'rectRot', pointRadius: 7,
+                backgroundColor: '#3fb950', borderColor: '#fff', borderWidth: 1,
+                yAxisID: 'yPos', order: 1
+            };
+            const ds_peak = {
+                label: '극대값 (읽기끝)', data: peakPoints, type: 'scatter',
+                pointStyle: 'rectRot', pointRadius: 7,
+                backgroundColor: '#f85149', borderColor: '#fff', borderWidth: 1,
+                yAxisID: 'yPos', order: 1
+            };
+
+            chartReplay = new Chart(document.getElementById('chartReplay'), {
+                type: 'line',
+                data: { labels, datasets: [ds_gx, ds_lineIdx, ds_valley, ds_peak] },
+                options: {
+                    animation: false, responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'linear', min: dataMinT - 200, max: dataMaxT + 200,
+                            ticks: { maxTicksLimit: 20, color: '#8b949e', font: { size: 10 } },
+                            grid: { color: 'rgba(48,54,61,0.8)' },
+                            title: { display: true, text: 'Time (ms)', color: '#8b949e' }
+                        },
+                        yPos: {
+                            type: 'linear', display: true, position: 'left',
+                            title: { display: true, text: 'gx Position (px)', color: '#ffc832' },
+                            ticks: { color: '#ffc832' }, grid: { color: 'rgba(48,54,61,0.5)' }
+                        },
+                        yLine: {
+                            type: 'linear', display: true, position: 'right',
+                            title: { display: true, text: 'Line Index', color: '#64c8ff' },
+                            ticks: { color: '#64c8ff', stepSize: 1 },
+                            grid: { drawOnChartArea: false }, reverse: true, min: -0.5
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#8b949e', boxWidth: 20, font: { size: 11 } } },
+                        tooltip: { backgroundColor: 'rgba(22,27,34,0.95)', titleColor: '#e6edf3', bodyColor: '#8b949e' },
+                        annotation: { annotations }
+                    }
+                }
+            });
+            document.getElementById('chartReplay').parentElement.style.height = '450px';
+        }
+
+
+        function renderLineTable(lineRanges, xMin, xMax, pangEvents) {
+            const el = document.getElementById('line-table-section');
+            const lines = Object.keys(lineRanges).map(Number).sort((a, b) => a - b);
+
+            if (!lines.length) {
+                el.innerHTML = '<p style="color:var(--muted)">줄 데이터 없음</p>';
+                return;
+            }
+
+            let html = `<table>
+        <thead><tr>
+            <th>Line</th>
+            <th>시작 t (ms)</th>
+            <th>종료 t (ms)</th>
+            <th>점유 시간</th>
+            <th>rawX Min</th>
+            <th>rawX Max</th>
+            <th>X 범위</th>
+            <th>Pang 발생</th>
+        </tr></thead><tbody>`;
+
+            lines.forEach(N => {
+                const rng = lineRanges[N];
+                const dur = rng.end - rng.start;
+                const mn = xMin[N] !== undefined ? Math.round(xMin[N]) : '—';
+                const mx = xMax[N] !== undefined ? Math.round(xMax[N]) : '—';
+                const span = (typeof mn === 'number' && typeof mx === 'number') ? (mx - mn) : '—';
+                const hasPang = pangEvents.some(p => p.targetLine === N);
+
+                html += `<tr>
+            <td><b>L${N}</b></td>
+            <td>${rng.start}</td>
+            <td>${rng.end}</td>
+            <td>${dur} ms</td>
+            <td style="color:var(--green)">${mn}</td>
+            <td style="color:var(--red)">${mx}</td>
+            <td>${typeof span === 'number' ? span + ' px' : span}</td>
+            <td>${hasPang ? '<span class="tag tag-pang">✓ Pang</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        </tr>`;
+            });
+
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+    </script>
+
+</body>
+
+</html>
