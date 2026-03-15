@@ -1153,9 +1153,25 @@ Game.typewriter = {
                     setTimeout(() => {
                         const _startReading = () => {
                             this.startTime = Date.now();
+
+                            // ── Restore stream initial state ──────────────────────
+                            // Pre-entrance forced chars to opacity:1 for clean display.
+                            // Now reset to opacity:0 so the word stream can reveal them
+                            // naturally (text train + _fadeOutTrainTail work correctly).
+                            // The rift-veil already covers the text, so no visible jump.
+                            if (this.renderer?.words) {
+                                this.renderer.words.forEach(w => {
+                                    w.element.querySelectorAll('.tr-char').forEach(c => {
+                                        c.style.transition = 'none';
+                                        c.style.opacity    = '0';
+                                    });
+                                });
+                            }
+
                             // Start magic frame — 4-line protective window
                             if (this.renderer?.startMagicFrame) this.renderer.startMagicFrame();
                             this.tick();
+
                         };
                         // Villain dramatic entrance before reading starts
                         if (window.bossMiniBattle &&
