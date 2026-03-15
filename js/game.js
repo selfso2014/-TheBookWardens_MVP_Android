@@ -1056,7 +1056,9 @@ Game.typewriter = {
         // 소형 빌런 HP 바 실시 + 리셋
         if (window.bossMiniBattle) {
             window.bossMiniBattle.reset();
-            // HP 바는 첩 프레임 후 표시 (DOM render 완료 대기)
+            // Hide boss until entrance animation (prevent bottom-right pre-appearance)
+            const _bossEl = document.getElementById('read-boss-overlay');
+            if (_bossEl) _bossEl.style.opacity = '0';
             setTimeout(() => window.bossMiniBattle.showHPBar(), 400);
         }
 
@@ -1133,6 +1135,20 @@ Game.typewriter = {
                     this.renderer.resetToStart();
                     if (this.renderer.cursor) this.renderer.cursor.style.opacity = "1";
                     console.log("[Typewriter] Ready: page0 bounded, full lineIndex cached.");
+
+                    // ── Fix: show page0 text cleanly BEFORE villain entrance ──
+                    // chars start at opacity:0 (stream setup); force them visible
+                    // so user sees the passage clearly before rift corruption.
+                    if (this.renderer.words) {
+                        this.renderer.words.forEach(w => {
+                            if (w.element.style.display !== 'none') {
+                                w.element.querySelectorAll('.tr-char').forEach(c => {
+                                    c.style.transition = 'opacity 0.3s';
+                                    c.style.opacity = '1';
+                                });
+                            }
+                        });
+                    }
 
                     setTimeout(() => {
                         const _startReading = () => {
