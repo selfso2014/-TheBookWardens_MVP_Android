@@ -448,11 +448,94 @@ export class BossMiniBattle {
         // Show provocative speech bubble
         T(750, () => this._showEntranceBubble(taunt));
 
-        // Retreat after taunt
-        T(3100, () => {
+        // ── Rift Attacks ──────────────────────────────────────────
+        // Charge up (t=1.1s)
+        T(1100, () => this._chargeGlow(true));
+
+        // 1st rift wave: 25% of words (t=1.7s)
+        T(1700, () => {
+            this._chargeGlow(false);
+            this._applyEntranceRift(0.25);
+            this._triggerEntranceHalo();
+        });
+
+        // 2nd rift wave: 15% more words (t=2.5s)
+        T(2500, () => {
+            this._chargeGlow(true);
+            T(400, () => {
+                this._chargeGlow(false);
+                this._applyEntranceRift(0.15);
+                this._triggerEntranceHalo();
+            });
+        });
+
+        // Retreat after taunts
+        T(3500, () => {
             this._hideEntranceBubble();
             T(200, () => this._retreatToCorner(onDone));
         });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ENTRANCE RIFT — applies rift BEFORE reading starts
+    // targets ALL .tr-word (not just .revealed) so corruption
+    // persists into the word stream as words are revealed.
+    // ─────────────────────────────────────────────────────────────
+    _applyEntranceRift(ratio) {
+        const words = Array.from(document.querySelectorAll('.tr-word'))
+            .filter(w => !w.classList.contains('rift-corrupted')
+                      && !w.classList.contains('rift-blur')
+                      && !w.classList.contains('rift-dark'));
+        if (words.length < 4) return;
+        const count  = Math.min(Math.floor(words.length * ratio), 30);
+        const chosen = [...words].sort(() => Math.random() - 0.5).slice(0, count);
+        chosen.forEach((w, i) => {
+            const r   = Math.random();
+            const cls = r < 0.40 ? 'rift-corrupted' : r < 0.75 ? 'rift-blur' : 'rift-dark';
+            const t   = setTimeout(() => {
+                w.classList.add(cls);
+                this.riftedWords.push({ el: w, cls, top: w.getBoundingClientRect().top });
+            }, i * 25);
+            this.timeouts.push(t);
+        });
+    }
+
+    // Halo effect using current (entrance) boss position
+    _triggerEntranceHalo() {
+        const boss = document.getElementById('read-boss-overlay');
+        if (!boss) return;
+        const br = boss.getBoundingClientRect();
+        const cx = br.left + br.width  * 0.5;
+        const cy = br.top  + br.height * 0.5;
+
+        // Boss flash
+        boss.style.transition = 'filter 0.05s';
+        boss.style.filter     = 'brightness(7) drop-shadow(0 0 60px rgba(255,200,255,1))';
+        const t1 = setTimeout(() => {
+            boss.style.transition = 'filter 0.35s';
+            boss.style.filter     = 'drop-shadow(0 0 28px rgba(124,58,237,0.9))';
+        }, 130);
+        this.timeouts.push(t1);
+
+        // Shockwave rings
+        this._spawnShockwaveRing(cx, cy, 'rgba(255,240,180,0.9)', 4, 500);
+        const t2 = setTimeout(() =>
+            this._spawnShockwaveRing(cx, cy, 'rgba(180,80,255,0.85)', 3, 400), 90);
+        this.timeouts.push(t2);
+
+        // Screen colour flash
+        const ov = document.createElement('div');
+        ov.setAttribute('style', [
+            'position:fixed', 'inset:0',
+            'background:rgba(180,60,255,0.18)',
+            'pointer-events:none', 'z-index:9997',
+            'transition:opacity 0.22s',
+        ].join(';'));
+        document.body.appendChild(ov);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            ov.style.opacity = '0';
+            setTimeout(() => ov.remove(), 300);
+        }));
     }
 
     _entranceFlash() {
