@@ -719,7 +719,15 @@ export class TextRenderer {
 
                     // 커서를 새 줄 첫 단어로
                     this.updateCursor(word, 'start');
+
+                    // ── 매직프레임 위치 업데이트 ──────────────────────────────────
+                    if (this._magicFrameEl && this.lines[word.lineIndex]) {
+                        const lineY = this.lines[word.lineIndex].visualY;
+                        const lineH = this._magicFrameLineH || 22;
+                        this._magicFrameEl.style.top = (lineY - lineH * 0.5) + 'px';
+                    }
                 }
+
 
                 // [Phase 1+2] display:none 단어(page1+) → 첫 글자일 때 inline-block 전환
                 if (isFirstChar && word.element.style.display === 'none') {
@@ -758,9 +766,57 @@ export class TextRenderer {
     }
 
 
+    // ─────────────────────────────────────────────────────────────
+    // MAGIC FRAME — 4-line protective window that suppresses rift
+    // Uses backdrop-filter to visually mute rift effects inside.
+    // Position is updated in startWordStream on each line change.
+    // ─────────────────────────────────────────────────────────────
+    startMagicFrame() {
+        this.stopMagicFrame();
+        if (!this.container || !this.lines || this.lines.length === 0) return;
+
+        const cr    = this.container.getBoundingClientRect();
+        const lineH = this.lines[0]?.rect?.height || 22;
+        const frameH = lineH * 4.5;
+        const initY  = (this.lines[0]?.visualY ?? cr.top) - lineH * 0.5;
+
+        const el = document.createElement('div');
+        el.id        = 'magic-frame';
+        el.className = 'magic-frame';
+        Object.assign(el.style, {
+            position:      'fixed',
+            left:          cr.left + 'px',
+            width:         cr.width + 'px',
+            height:        frameH  + 'px',
+            top:           initY   + 'px',
+            zIndex:        '150',
+            pointerEvents: 'none',
+            opacity:       '0',
+            transition:    'top 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.4s',
+        });
+        document.body.appendChild(el);
+        this._magicFrameEl    = el;
+        this._magicFrameLineH = lineH;
+
+        // Fade in after a short delay
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            el.style.opacity = '1';
+        }));
+    }
+
+    stopMagicFrame() {
+        const el = this._magicFrameEl;
+        if (!el) return;
+        el.style.opacity = '0';
+        setTimeout(() => { try { el.remove(); } catch (_) {} }, 500);
+        this._magicFrameEl    = null;
+        this._magicFrameLineH = null;
+    }
+
     // =========================================================================
 
     revealChunk(chunkIndex, interval = 150) {
+
         if (!this.isLayoutLocked) this.lockLayout();
         if (chunkIndex < 0 || chunkIndex >= this.chunks.length) return Promise.resolve();
 

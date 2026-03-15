@@ -1137,6 +1137,8 @@ Game.typewriter = {
                     setTimeout(() => {
                         const _startReading = () => {
                             this.startTime = Date.now();
+                            // Start magic frame — 4-line protective window
+                            if (this.renderer?.startMagicFrame) this.renderer.startMagicFrame();
                             this.tick();
                         };
                         // Villain dramatic entrance before reading starts
@@ -1178,6 +1180,9 @@ Game.typewriter = {
     triggerGazeReplay() {
         return new Promise((resolve) => {
             console.log("[triggerGazeReplay] Preparing Gaze Replay...");
+
+            // Stop magic frame when reading ends
+            if (this.renderer?.stopMagicFrame) this.renderer.stopMagicFrame();
 
             // [iOS Gate] Close gaze processing gate — stop processing gaze data during replay.
             // NOTE: SeeSo SDK itself stays running (iOS cannot restart after stopTracking).
