@@ -374,6 +374,10 @@ export class BossMiniBattle {
         this._cleanupBattleVisuals();
         document.querySelectorAll('.rift-corrupted,.rift-blur,.rift-dark')
             .forEach(el => el.classList.remove('rift-corrupted', 'rift-blur', 'rift-dark'));
+        // Remove rift darkness veils
+        ['rift-veil-full','rift-veil-top','rift-veil-bottom'].forEach(id => {
+            document.getElementById(id)?.remove();
+        });
         this.hp = 100;
         this.pangsInReading = 0;
         this.riftedWords = [];
@@ -535,6 +539,36 @@ export class BossMiniBattle {
         requestAnimationFrame(() => requestAnimationFrame(() => {
             ov.style.opacity = '0';
             setTimeout(() => ov.remove(), 300);
+        }));
+
+        // First rift attack → show darkness veil over entire text
+        if (!document.getElementById('rift-veil-full') &&
+            !document.getElementById('rift-veil-top')) {
+            this._showRiftVeilFull();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // RIFT DARKNESS VEIL — covers text container (no hole yet)
+    // TextRendererV2.startMagicFrame() will punch a hole via CSS mask
+    // ─────────────────────────────────────────────────────────────
+    _showRiftVeilFull() {
+        const card = document.getElementById('book-content');
+        if (!card) return;
+        const cr = card.getBoundingClientRect();
+        const veil = document.createElement('div');
+        veil.id        = 'rift-veil-full';
+        veil.className = 'rift-veil';
+        Object.assign(veil.style, {
+            top:    cr.top    + 'px',
+            left:   cr.left   + 'px',
+            width:  cr.width  + 'px',
+            height: cr.height + 'px',
+            opacity: '0',
+        });
+        document.body.appendChild(veil);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            veil.style.opacity = '0.88';
         }));
     }
 

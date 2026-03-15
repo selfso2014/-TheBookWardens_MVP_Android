@@ -638,7 +638,22 @@ body {
   border-color: rgba(25,0,50,0.97) transparent transparent transparent;
 }
 
+/* ─── Rift Darkness Veil ──────────────────────────────────── */
+/* Covers text area; CSS mask-image creates a hole at magic frame zone */
+.rift-veil {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(0, 0, 8, 0.88);
+  z-index: 149;             /* just below magic-frame (150) */
+  transition: opacity 0.5s ease;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+
 /* ─── Magic Frame ─────────────────────────────────────────── */
+
 
 /* Entrance bubble: 60% font, wrappable text (prevents cutoff) */
 #boss-entrance-bubble {
