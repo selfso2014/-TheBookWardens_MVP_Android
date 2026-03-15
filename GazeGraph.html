@@ -341,10 +341,28 @@
             <h2>🔄 Replay Segment Map — 팡 기반 리플레이 구간 시각화</h2>
             <p style="color:var(--muted); font-size:0.8rem; margin-bottom:8px;">
                 각 팡 이벤트가 참조하는 세그먼트(시간 구간), sourceMinX/sourceMaxX (읽기 범위),<br>
-                실제 시선 위치(gx)와 lineIndex를 한 눈에 확인
+                실제 시선 위치(gx), lineIndex, <span style="color:#ff64b4;">rawY(수직 위치)</span>를 한 눈에 확인
             </p>
+            <div class="legend-row" style="margin-bottom:10px;">
+                <div class="legend-item">
+                    <div class="legend-line" style="background:rgba(255,200,50,0.85);"></div> gx 수평위치 (노랑)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:rgba(255,100,180,0.85); height:2px;"></div> rawY 수직위치 (핑크)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background:rgba(100,200,255,0.7); height:2px;"></div> lineIndex (하늘)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#3fb950;"></div> 극소(읽기시작)
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#f85149;"></div> 극대(읽기끝)
+                </div>
+            </div>
             <canvas id="chartReplay"></canvas>
         </div>
+
 
     </div>
 
@@ -1308,10 +1326,19 @@
             const dataMaxT = sortedData[sortedData.length - 1].t;
 
             const ds_gx = {
-                label: 'gx (스무딩)', data: sortedData.map(d => getGx(d)),
-                borderColor: 'rgba(255,200,50,0.8)', borderWidth: 1.5,
+                label: 'gx (스무딩 X)', data: sortedData.map(d => getGx(d)),
+                borderColor: 'rgba(255,200,50,0.85)', borderWidth: 1.5,
                 pointRadius: 0, yAxisID: 'yPos', order: 5
             };
+
+            // ── rawY 데이터셋 (수직 시선 위치) ──
+            const ds_rawY = {
+                label: 'rawY (수직 위치)',
+                data: sortedData.map(d => (d.y !== undefined && d.y !== null) ? Number(d.y) : null),
+                borderColor: 'rgba(255,100,180,0.85)', borderWidth: 1.5,
+                pointRadius: 0, yAxisID: 'yRawY', order: 4
+            };
+
             const ds_lineIdx = {
                 label: 'lineIndex',
                 data: sortedData.map(d => typeof d.lineIndex === 'number' && d.lineIndex >= 0 ? d.lineIndex : null),
@@ -1402,7 +1429,7 @@
 
             chartReplay = new Chart(document.getElementById('chartReplay'), {
                 type: 'line',
-                data: { labels, datasets: [ds_gx, ds_lineIdx, ds_valley, ds_peak] },
+                data: { labels, datasets: [ds_gx, ds_rawY, ds_lineIdx, ds_valley, ds_peak] },
                 options: {
                     animation: false, responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'nearest', axis: 'x', intersect: false },
@@ -1417,6 +1444,18 @@
                             type: 'linear', display: true, position: 'left',
                             title: { display: true, text: 'gx Position (px)', color: '#ffc832' },
                             ticks: { color: '#ffc832' }, grid: { color: 'rgba(48,54,61,0.5)' }
+                        },
+                        yRawY: {
+                            type: 'linear', display: true, position: 'right',
+                            title: { display: true, text: 'rawY (px, ↑=위)', color: '#ff64b4' },
+                            ticks: { color: '#ff64b4', maxTicksLimit: 8 },
+                            grid: { drawOnChartArea: false },
+                            reverse: true,  // Y=0은 화면 상단, 값이 클수록 아래 → 역방향이 직관적
+                            afterDataLimits(axis) {
+                                // 약간의 여백
+                                axis.max += 30;
+                                if (axis.min > 0) axis.min = Math.max(0, axis.min - 30);
+                            }
                         },
                         yLine: {
                             type: 'linear', display: true, position: 'right',
