@@ -1326,6 +1326,26 @@ export class TextRenderer {
                 const targetLeft = targetLineObj.rect.left;
                 const targetWidth = targetLineObj.rect.width;
 
+                // ── rawY statistics for this segment ──────────────────────────────
+                // Use d.y (raw vertical gaze) to compute per-point vertical deviation
+                const segYValues = segmentData
+                    .map(d => (typeof d.y === 'number' && d.y > 0) ? d.y : null)
+                    .filter(v => v !== null);
+                let segYMedian = fixedY;
+                let yScale = 0;
+                if (segYValues.length >= 3) {
+                    const ySorted = [...segYValues].sort((a, b) => a - b);
+                    segYMedian = ySorted[Math.floor(ySorted.length / 2)];
+                    const yMean = segYValues.reduce((s, v) => s + v, 0) / segYValues.length;
+                    const segYStd = Math.sqrt(
+                        segYValues.reduce((s, v) => s + (v - yMean) ** 2, 0) / segYValues.length
+                    );
+                    const lineH    = targetLineObj.rect?.height || 20;
+                    const MAX_DEV  = lineH * 0.5;              // ±half line-height
+                    yScale = segYStd > 2 ? Math.min(MAX_DEV / segYStd, 2.5) : 0;
+                }
+                let prevSmoothedDev = 0; // EMA state, reset per segment
+
                 for (let i = 0; i < segmentData.length; i++) {
                     const d = segmentData[i];
                     const gx = getGx(d);
@@ -1337,8 +1357,21 @@ export class TextRenderer {
                     } else {
                         scaledX = targetLeft + (gx - valleyGx);
                     }
-                    processedPath.push({ x: scaledX, y: fixedY, t: d.t, isJump: false });
+
+                    // rawY deviation with EMA smoothing (α=0.3)
+                    let scaledY = fixedY;
+                    if (yScale > 0 && typeof d.y === 'number' && d.y > 0) {
+                        const lineH   = targetLineObj.rect?.height || 20;
+                        const MAX_DEV = lineH * 0.5;
+                        const rawDev  = (d.y - segYMedian) * yScale;
+                        prevSmoothedDev = 0.3 * rawDev + 0.7 * prevSmoothedDev;
+                        const clampedDev = Math.max(-MAX_DEV, Math.min(MAX_DEV, prevSmoothedDev));
+                        scaledY = fixedY + clampedDev;
+                    }
+
+                    processedPath.push({ x: scaledX, y: scaledY, t: d.t, isJump: false });
                 }
+
                 lastPangTime = pangTime;
             });
 
